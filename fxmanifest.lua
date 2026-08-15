@@ -19,10 +19,11 @@ shared_scripts {
 }
 
 server_scripts {
-    'server/towers/validation.lua',
-    'server/towers/state.lua',
-    'server/towers/registry.lua',
-    'server/logging.lua',
+        'server/towers/validation.lua',
+        'server/towers/state.lua',
+        'server/towers/registry.lua',
+        'server/towers/spatial_index.lua',
+        'server/logging.lua',
     'server/bootstrap.lua',
 }
 

@@ -33,6 +33,16 @@ local function boot()
     end
     for _, message in ipairs(registryWarnings or {}) do Log.warn(message) end
 
+    local spatialOk, spatialErrors, spatialWarnings, spatialStats = SpatialIndex.Rebuild()
+    if not spatialOk then
+        Log.error('spatial index build failed')
+        for _, message in ipairs(spatialErrors or {}) do Log.error(message) end
+        stopAfterInvalidConfig()
+        return false
+    end
+    for _, message in ipairs(spatialWarnings or {}) do Log.warn(message) end
+    Log.info('spatial index built', spatialStats)
+
     started = true
     Log.info(Locale.Translate(Config.Locale, 'startup.ready'), {
         version = Config.Version,
