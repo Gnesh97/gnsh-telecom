@@ -5,6 +5,18 @@ local running = false
 
 local function debugState(state)
     if not Config.Debug.enabled or type(print) ~= 'function' then return end
+
+    local serviceParts = {}
+    for _, serviceName in ipairs(ServicePolicy.Names or {}) do
+        local serviceState = state.services and state.services[serviceName]
+        local available = type(serviceState) == 'table'
+            and serviceState.available
+            or serviceState == true
+        serviceParts[#serviceParts + 1] = ('%s=%s')
+            :format(serviceName, available and 'on' or 'off')
+    end
+    local serviceSummary = #serviceParts > 0 and table.concat(serviceParts, ',') or 'none'
+
     print(('[gnsh-telecom] connection tower=%s signal=%s level=%s technology=%s')
         :format(
             tostring(state.towerId),
@@ -12,6 +24,7 @@ local function debugState(state)
             tostring(state.signalLevel),
             tostring(state.technology)
         ))
+    print(('[gnsh-telecom] services %s'):format(serviceSummary))
 end
 
 local function getInterval()

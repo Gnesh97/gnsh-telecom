@@ -12,4 +12,6 @@
 - Added debug output for client-side connection state changes.
 - Added dynamic tower scoring with configurable signal, load, health and technology weighting.
 - Added deterministic candidate ranking, offline exclusion and selection debug details.
+- Added independent service availability evaluation for voice, SMS, data, GPS and emergency.
+- Added structured service blocking reasons and the `Services.CanUse` query API.
 - Added framework-free pure Lua test harness.

@@ -30,11 +30,21 @@ local function servicesChanged(left, right)
     local leftServices = left.services or {}
     local rightServices = right.services or {}
 
-    for name, enabled in pairs(leftServices) do
-        if rightServices[name] ~= enabled then return true end
+    local function changed(leftState, rightState)
+        if type(leftState) == 'table' and type(rightState) == 'table' then
+            return leftState.available ~= rightState.available
+                or leftState.reason ~= rightState.reason
+                or leftState.blockedBy ~= rightState.blockedBy
+                or leftState.minimumSignal ~= rightState.minimumSignal
+        end
+        return leftState ~= rightState
     end
-    for name, enabled in pairs(rightServices) do
-        if leftServices[name] ~= enabled then return true end
+
+    for name, leftState in pairs(leftServices) do
+        if changed(leftState, rightServices[name]) then return true end
+    end
+    for name, rightState in pairs(rightServices) do
+        if changed(leftServices[name], rightState) then return true end
     end
     return false
 end
@@ -180,6 +190,7 @@ function Connections.Reevaluate(source, coords)
         state.signalLevel = Signal.GetLevel(best.signal)
         state.technology = best.tower.technologies[1]
     end
+    state.services = Services.Evaluate(state).services
 
     local ok, changed = Connections.Set(number, state)
     if not ok then return nil, false, 'connection state rejected' end
