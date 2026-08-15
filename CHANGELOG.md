@@ -9,4 +9,5 @@
 - Added configurable spatial index with neighboring-cell coverage mapping, candidate statistics and atomic rebuilds.
 - Added pure distance-based raw signal calculation and exact coverage candidate filtering.
 - Added authoritative per-player connection lifecycle, reevaluation and client position reporting.
+- Added debug output for client-side connection state changes.
 - Added framework-free pure Lua test harness.

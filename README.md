@@ -46,3 +46,5 @@ lua5.4 tests/run.lua
 ```
 
 FiveM runtime behavior is verified separately through resource start/restart/stop smoke tests.
+
+For the first player smoke test, temporarily set `Config.Debug.enabled = true`. The client F8 console then reports serving tower, signal, signal level and technology whenever the authoritative connection state changes. Restore it to `false` after testing.

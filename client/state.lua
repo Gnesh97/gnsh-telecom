@@ -3,6 +3,17 @@ ClientState = ClientState or {}
 local currentState
 local running = false
 
+local function debugState(state)
+    if not Config.Debug.enabled or type(print) ~= 'function' then return end
+    print(('[gnsh-telecom] connection tower=%s signal=%s level=%s technology=%s')
+        :format(
+            tostring(state.towerId),
+            tostring(state.signal),
+            tostring(state.signalLevel),
+            tostring(state.technology)
+        ))
+end
+
 local function getInterval()
     local interval = Config and Config.Performance and Config.Performance.stationaryIntervalMs
     if type(interval) ~= 'number' or interval <= 0 then return 3000 end
@@ -28,6 +39,7 @@ end
 function ClientState.Apply(state)
     if type(state) ~= 'table' then return false end
     currentState = Utils.DeepCopy(state)
+    debugState(currentState)
     return true
 end
 
