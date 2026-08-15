@@ -2,9 +2,22 @@
 
 Standalone, server-authoritative GSM and telecom infrastructure for FiveM.
 
-## Phase 1 status
+## Phase 5 status
 
-The foundation, authoritative tower domain, spatial index, basic coverage engine and player connection manager are implemented. The resource boots without QBCore, Qbox, ESX or a phone resource. `TowerRegistry` validates tower definitions, stores immutable static configuration, and initializes isolated runtime state for every tower. `SpatialIndex` maps coverage-overlapping towers into configurable x/y grid cells and returns deterministic candidate lists. `Coverage` applies exact distance and operational-state filtering, while `Signal` calculates the pure normalized distance score. The server keeps one in-memory connection state per player and the client reports bounded position context for reevaluation.
+The foundation, authoritative tower domain, spatial index, basic coverage engine, dynamic tower selection and player connection manager are implemented. The resource boots without QBCore, Qbox, ESX or a phone resource. `TowerRegistry` validates tower definitions, stores immutable static configuration, and initializes isolated runtime state for every tower. `SpatialIndex` maps coverage-overlapping towers into configurable x/y grid cells and returns deterministic candidate lists. `Coverage` applies exact distance and operational-state filtering, `Signal` calculates the normalized distance score, and `Selection` ranks candidates using signal, load, health and optional technology penalties. The server keeps one in-memory connection state per player and the client reports bounded position context for reevaluation.
+
+Selection weights are configurable under `Config.Selection`:
+
+```lua
+Config.Selection = {
+    signalWeight = 1.0,
+    loadPenaltyWeight = 0.25,
+    healthPenaltyWeight = 0.20,
+    technologyPenaltyWeight = 0.10,
+}
+```
+
+Selection results include `scoreDetails` for server-side diagnostics. Set `Config.Debug.logLevel = 'debug'` to print a selected tower's score, signal, load and health when a player's connection changes.
 
 Tower definitions belong in `shared/config.lua` under `Config.Towers`:
 

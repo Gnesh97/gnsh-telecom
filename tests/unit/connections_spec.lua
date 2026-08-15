@@ -97,6 +97,25 @@ TEST('connections reevaluate selects, changes and clears serving tower', functio
     ASSERT_EQ(noService.signalLevel, Enums.SignalLevel.NO_SERVICE)
 end)
 
+TEST('connections use dynamic selection instead of signal order alone', function()
+    local towers = {
+        makeTower('BUSY', 0, 0, 100),
+        makeTower('AVAILABLE', 20, 0, 100),
+    }
+
+    TowerState.Initialize(towers)
+    ASSERT_TRUE(TowerState.Update('BUSY', { loadPercent = 100 }))
+    ASSERT_TRUE(TowerState.Update('AVAILABLE', { loadPercent = 0 }))
+    ASSERT_TRUE(SpatialIndex.Rebuild(towers))
+
+    local state = Connections.Reevaluate(1, vector3(0, 0, 0))
+    ASSERT_EQ(state.towerId, 'AVAILABLE')
+
+    Connections.Clear()
+    TowerState.Initialize({})
+    SpatialIndex.Rebuild({})
+end)
+
 TEST('connections remove player state and clear on restart', function()
     Connections.Clear()
     ASSERT_TRUE(Connections.Set(1, makeState(1, 'TOWER_A', 80)))

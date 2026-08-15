@@ -52,6 +52,7 @@ dofile('server/towers/registry.lua')
 dofile('server/towers/spatial_index.lua')
 dofile('server/network/signal.lua')
 dofile('server/network/coverage.lua')
+dofile('server/network/selection.lua')
 
 local eventHandlers = {}
 AddEventHandler = function(name, handler) eventHandlers[name] = handler end
@@ -70,6 +71,7 @@ dofile('tests/unit/foundation_spec.lua')
 dofile('tests/unit/tower_registry_spec.lua')
 dofile('tests/unit/spatial_index_spec.lua')
 dofile('tests/unit/coverage_spec.lua')
+dofile('tests/unit/selection_spec.lua')
 dofile('tests/unit/connections_spec.lua')
 dofile('tests/unit/client_state_spec.lua')
 dofile('tests/unit/bootstrap_spec.lua')

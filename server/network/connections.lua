@@ -171,7 +171,8 @@ function Connections.Reevaluate(source, coords)
     end
 
     local candidates = Coverage.GetCandidates(coords)
-    local best = candidates[1]
+    local ranked = Selection.Rank(candidates)
+    local best = ranked[1]
     local state = emptyState(number)
     if best then
         state.towerId = best.towerId
@@ -184,7 +185,19 @@ function Connections.Reevaluate(source, coords)
     if not ok then return nil, false, 'connection state rejected' end
 
     local updated = Connections.Get(number)
-    if changed then sendState(number, updated) end
+    if changed then
+        sendState(number, updated)
+        if Config.Debug.enabled and Log and Log.debug and best then
+            Log.debug('connection selection', {
+                source = number,
+                towerId = best.towerId,
+                score = best.score,
+                signal = best.signal,
+                loadPercent = best.scoreDetails.loadPercent,
+                health = best.scoreDetails.health,
+            })
+        end
+    end
     return updated, changed
 end
 

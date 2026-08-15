@@ -25,7 +25,12 @@ function Utils.IsFiniteNumber(value)
 end
 
 function Utils.IsPoint(value)
-    return (type(value) == 'table' or type(value) == 'userdata')
+    local valueType = type(value)
+    local supportsCoordinates = valueType == 'table'
+        or valueType == 'userdata'
+        or valueType == 'vector3'
+
+    return supportsCoordinates
         and Utils.IsFiniteNumber(value.x)
         and Utils.IsFiniteNumber(value.y)
         and Utils.IsFiniteNumber(value.z)

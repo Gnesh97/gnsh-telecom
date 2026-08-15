@@ -4,7 +4,7 @@ Config = {
     Locale = 'en',
 
     Debug = {
-        enabled = false,
+        enabled = true,
         logLevel = 'info',
         adminAce = 'gnsh-telecom.admin',
     },
@@ -82,7 +82,33 @@ Config = {
     },
 
     PhoneBridge = 'auto',
-    Towers = {},
+    Towers = {
+        {
+            id = 'TEST_TOWER_A',
+            coords = vector3(1988.33, 3733.77, 32.43),
+            coverage = {
+                radius = 1000.0,
+                minimum = 10.0,
+            },
+            technologies = { '4G', '5G' },
+            capacity = {
+                maximum = 100,
+            },
+        },
+
+        {
+            id = 'TEST_TOWER_B',
+            coords = vector3(1336.12, 3556.3, 34.91),
+            coverage = {
+                radius = 1000.0,
+                minimum = 10.0,
+            },
+            technologies = { '4G' },
+            capacity = {
+                maximum = 100,
+            },
+        },
+    },
 }
 
 local function addError(errors, message)
@@ -99,7 +125,12 @@ local function isNumber(value)
 end
 
 local function isPoint(value)
-    return (type(value) == 'table' or type(value) == 'userdata')
+    local valueType = type(value)
+    local supportsCoordinates = valueType == 'table'
+        or valueType == 'userdata'
+        or valueType == 'vector3'
+
+    return supportsCoordinates
         and isNumber(value.x)
         and isNumber(value.y)
         and isNumber(value.z)

@@ -25,6 +25,7 @@ server_scripts {
     'server/towers/spatial_index.lua',
     'server/network/signal.lua',
     'server/network/coverage.lua',
+    'server/network/selection.lua',
     'server/network/connections.lua',
     'server/logging.lua',
     'server/bootstrap.lua',
