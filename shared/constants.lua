@@ -7,4 +7,8 @@ Constants = {
         RESOURCE_STARTED = 'RESOURCE_STARTED',
         RESOURCE_STOPPED = 'RESOURCE_STOPPED',
     },
+    Events = {
+        POSITION_UPDATE = 'gnsh-telecom:server:updatePosition',
+        CONNECTION_STATE = 'gnsh-telecom:client:connectionState',
+    },
 }

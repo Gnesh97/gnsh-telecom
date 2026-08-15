@@ -58,6 +58,8 @@ AddEventHandler = function(name, handler) eventHandlers[name] = handler end
 GetCurrentResourceName = function() return 'gnsh-telecom' end
 GetResourceState = function() return 'stopped' end
 StopResource = function() end
+dofile('server/network/connections.lua')
+dofile('client/state.lua')
 dofile('server/logging.lua')
 dofile('server/bootstrap.lua')
 
@@ -68,6 +70,8 @@ dofile('tests/unit/foundation_spec.lua')
 dofile('tests/unit/tower_registry_spec.lua')
 dofile('tests/unit/spatial_index_spec.lua')
 dofile('tests/unit/coverage_spec.lua')
+dofile('tests/unit/connections_spec.lua')
+dofile('tests/unit/client_state_spec.lua')
 dofile('tests/unit/bootstrap_spec.lua')
 
 print('')

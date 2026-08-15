@@ -4,7 +4,7 @@ Standalone, server-authoritative GSM and telecom infrastructure for FiveM.
 
 ## Phase 1 status
 
-The foundation, authoritative tower domain, spatial index and basic coverage engine are implemented. The resource boots without QBCore, Qbox, ESX or a phone resource. `TowerRegistry` validates tower definitions, stores immutable static configuration, and initializes isolated runtime state for every tower. `SpatialIndex` maps coverage-overlapping towers into configurable x/y grid cells and returns deterministic candidate lists. `Coverage` applies exact distance and operational-state filtering, while `Signal` calculates the pure normalized distance score.
+The foundation, authoritative tower domain, spatial index, basic coverage engine and player connection manager are implemented. The resource boots without QBCore, Qbox, ESX or a phone resource. `TowerRegistry` validates tower definitions, stores immutable static configuration, and initializes isolated runtime state for every tower. `SpatialIndex` maps coverage-overlapping towers into configurable x/y grid cells and returns deterministic candidate lists. `Coverage` applies exact distance and operational-state filtering, while `Signal` calculates the pure normalized distance score. The server keeps one in-memory connection state per player and the client reports bounded position context for reevaluation.
 
 Tower definitions belong in `shared/config.lua` under `Config.Towers`:
 

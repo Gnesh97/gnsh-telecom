@@ -19,16 +19,18 @@ shared_scripts {
 }
 
 server_scripts {
-        'server/towers/validation.lua',
-        'server/towers/state.lua',
-        'server/towers/registry.lua',
-        'server/towers/spatial_index.lua',
-        'server/network/signal.lua',
-        'server/network/coverage.lua',
-        'server/logging.lua',
+    'server/towers/validation.lua',
+    'server/towers/state.lua',
+    'server/towers/registry.lua',
+    'server/towers/spatial_index.lua',
+    'server/network/signal.lua',
+    'server/network/coverage.lua',
+    'server/network/connections.lua',
+    'server/logging.lua',
     'server/bootstrap.lua',
 }
 
 client_scripts {
     'client/bootstrap.lua',
+    'client/state.lua',
 }

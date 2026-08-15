@@ -44,3 +44,25 @@ function Signal.CalculateRaw(tower, coords)
     local signal = getBaseSignal() * distanceFactor
     return Utils.Clamp(signal, 0, 100)
 end
+
+function Signal.GetLevel(signal)
+    signal = Utils.Clamp(tonumber(signal) or 0, 0, 100)
+    local levels = Config and Config.Signal and Config.Signal.Levels or {}
+    local order = {
+        'EXCELLENT',
+        'GOOD',
+        'NORMAL',
+        'WEAK',
+        'VERY_WEAK',
+        'NO_SERVICE',
+    }
+
+    for _, name in ipairs(order) do
+        local level = levels[name]
+        if type(level) == 'table' and signal >= level.min then
+            return name
+        end
+    end
+
+    return Enums.SignalLevel.NO_SERVICE
+end
