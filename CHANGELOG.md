@@ -7,4 +7,5 @@
 - Added server/client bootstrap and configuration validation.
 - Added tower validation, deterministic static registry and isolated runtime tower state.
 - Added configurable spatial index with neighboring-cell coverage mapping, candidate statistics and atomic rebuilds.
+- Added pure distance-based raw signal calculation and exact coverage candidate filtering.
 - Added framework-free pure Lua test harness.

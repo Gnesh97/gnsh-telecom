@@ -23,6 +23,8 @@ server_scripts {
         'server/towers/state.lua',
         'server/towers/registry.lua',
         'server/towers/spatial_index.lua',
+        'server/network/signal.lua',
+        'server/network/coverage.lua',
         'server/logging.lua',
     'server/bootstrap.lua',
 }
