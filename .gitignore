@@ -1,0 +1,12 @@
+# Local agent and codebase index metadata
+.agents/
+.codex/
+.codebase-memory/
+
+# Runtime and local environment files
+*.log
+*.tmp
+*.bak
+.env
+.env.*
+!.env.example

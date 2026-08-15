@@ -1,0 +1,43 @@
+name: Validate FiveM resource
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Lua
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes lua5.4
+
+      - name: Validate Lua syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          find . -type f -name '*.lua' -not -path './.git/*' -print0 \
+            | xargs -0 -r -n1 luac5.4 -p
+
+      - name: Run unit suite
+        run: lua5.4 tests/run.lua
+
+      - name: Validate manifest
+        run: test -s fxmanifest.lua && grep -q "version" fxmanifest.lua
+
+      - name: Scan for high-confidence credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -Rni --exclude-dir=.git --exclude-dir=.github \
+            -E 'ghp_|github_pat_|-----BEGIN .*PRIVATE KEY-----|AKIA[0-9A-Z]{16}|sk-[A-Za-z0-9]{20,}' .; then
+            echo "Credential-like content detected."
+            exit 1
+          fi

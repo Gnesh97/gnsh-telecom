@@ -1,0 +1,46 @@
+Enums = {
+    TowerState = {
+        OPERATIONAL = 'OPERATIONAL',
+        DEGRADED = 'DEGRADED',
+        MAINTENANCE = 'MAINTENANCE',
+        OFFLINE = 'OFFLINE',
+        DESTROYED = 'DESTROYED',
+    },
+    BackhaulState = {
+        ONLINE = 'ONLINE',
+        DEGRADED = 'DEGRADED',
+        OFFLINE = 'OFFLINE',
+    },
+    SignalLevel = {
+        EXCELLENT = 'EXCELLENT',
+        GOOD = 'GOOD',
+        NORMAL = 'NORMAL',
+        WEAK = 'WEAK',
+        VERY_WEAK = 'VERY_WEAK',
+        NO_SERVICE = 'NO_SERVICE',
+    },
+    CongestionState = {
+        NORMAL = 'NORMAL',
+        BUSY = 'BUSY',
+        CONGESTED = 'CONGESTED',
+        CRITICAL = 'CRITICAL',
+        OVERLOADED = 'OVERLOADED',
+    },
+    Service = {
+        VOICE = 'VOICE',
+        SMS = 'SMS',
+        DATA = 'DATA',
+        GPS = 'GPS',
+        EMERGENCY = 'EMERGENCY',
+    },
+    IncidentState = {
+        OPEN = 'OPEN',
+        ACKNOWLEDGED = 'ACKNOWLEDGED',
+        ASSIGNED = 'ASSIGNED',
+        ON_ROUTE = 'ON_ROUTE',
+        DIAGNOSING = 'DIAGNOSING',
+        REPAIRING = 'REPAIRING',
+        RESOLVED = 'RESOLVED',
+        CLOSED = 'CLOSED',
+    },
+}

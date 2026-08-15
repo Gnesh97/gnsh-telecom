@@ -1,0 +1,9 @@
+# Changelog
+
+## 0.1.0 - Unreleased
+
+- Added standalone FiveM resource foundation.
+- Added centralized configuration, enums, feature flags, utilities and localization.
+- Added server/client bootstrap and configuration validation.
+- Added tower validation, deterministic static registry and isolated runtime tower state.
+- Added framework-free pure Lua test harness.

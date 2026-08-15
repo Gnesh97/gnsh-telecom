@@ -1,0 +1,8 @@
+TEST('server bootstrap starts clean without framework or phone', function()
+    ASSERT_FALSE(Bootstrap.IsStarted())
+    ASSERT_TRUE(Bootstrap.Boot())
+    ASSERT_TRUE(Bootstrap.IsStarted())
+    ASSERT_EQ(TowerRegistry.Count(), 0)
+    Bootstrap.Shutdown()
+    ASSERT_FALSE(Bootstrap.IsStarted())
+end)
