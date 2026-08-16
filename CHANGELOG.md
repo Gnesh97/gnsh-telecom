@@ -30,4 +30,5 @@
 - Added in-memory tower load overrides for controlled single-player congestion checks.
 - Added audit records for successful admin debug actions.
 - Added an opt-in client debug overlay with signal, capacity, environment and failure telemetry.
+- Admin debug commands now honor the existing server `admin` ACE as a fallback.
 - Added framework-free pure Lua test harness.

@@ -77,7 +77,7 @@ Failure effects are server-authoritative and data-driven. `FailureEngine.Create(
 
 ## Admin debug tools
 
-The server commands below require the ACE node configured in `Config.Debug.adminAce` (`gnsh-telecom.admin` by default). The server console is always allowed. They are intended for controlled single-player checks; the final multiplayer/load gate remains a separate runtime test.
+The server commands below accept the ACE node configured in `Config.Debug.adminAce` (`gnsh-telecom.admin` by default) or the server's existing `admin` ACE. The server console is always allowed, so an existing `group.admin` setup works without an extra permission line. They are intended for controlled single-player checks; the final multiplayer/load gate remains a separate runtime test.
 
 ```text
 /telecomdebug

@@ -15,17 +15,30 @@ function TelecomPermissions.GetAdminAce()
     return debug and debug.adminAce or nil
 end
 
+local function getAdminAces()
+    local configured = TelecomPermissions.GetAdminAce()
+    local aces = {}
+    if type(configured) == 'string' and configured ~= '' then
+        aces[#aces + 1] = configured
+    end
+    if configured ~= 'admin' then
+        aces[#aces + 1] = 'admin'
+    end
+    return aces
+end
+
 function TelecomPermissions.IsAdmin(source)
     local number = normalizeSource(source)
     if not number then return false end
     if number == 0 then return true end
 
-    local ace = TelecomPermissions.GetAdminAce()
-    if type(ace) ~= 'string' or ace == '' then return false end
     if type(IsPlayerAceAllowed) ~= 'function' then return false end
 
-    local ok, allowed = pcall(IsPlayerAceAllowed, tostring(number), ace)
-    return ok and allowed == true
+    for _, ace in ipairs(getAdminAces()) do
+        local ok, allowed = pcall(IsPlayerAceAllowed, tostring(number), ace)
+        if ok and allowed == true then return true end
+    end
+    return false
 end
 
 function TelecomPermissions.RequireAdmin(source)

@@ -45,6 +45,17 @@ TEST('debug permissions use the configured ACE node', function()
     rawset(_G, 'IsPlayerAceAllowed', previous)
 end)
 
+TEST('existing server admin ACE grants debug access', function()
+    local previous = rawget(_G, 'IsPlayerAceAllowed')
+    IsPlayerAceAllowed = function(_, ace)
+        return ace == 'admin'
+    end
+
+    ASSERT_TRUE(TelecomPermissions.IsAdmin(12))
+
+    rawset(_G, 'IsPlayerAceAllowed', previous)
+end)
+
 TEST('audit records immutable admin actions', function()
     resetDebugState()
     local details = { towerId = 'AUDIT_TOWER', nested = { value = 1 } }
