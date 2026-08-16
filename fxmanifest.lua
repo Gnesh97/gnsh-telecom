@@ -84,6 +84,7 @@ client_scripts {
     'client/debug.lua',
     'client/handover.lua',
     'client/nui.lua',
+    'client/technician.lua',
     'noc/client.lua',
 }
 
