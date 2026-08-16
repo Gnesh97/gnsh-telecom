@@ -1,6 +1,7 @@
 Constants = {
     ResourceName = 'gnsh-telecom',
     ApiVersion = '1.0',
+    PersistenceSchemaVersion = 1,
     LogEvent = {
         CONFIG_OK = 'CONFIG_OK',
         CONFIG_INVALID = 'CONFIG_INVALID',

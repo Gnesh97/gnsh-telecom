@@ -9,6 +9,7 @@ local function copy(value)
 end
 
 local function now()
+    if type(os.time) == 'function' then return os.time() end
     if type(GetGameTimer) == 'function' then return GetGameTimer() end
     return 0
 end
@@ -31,6 +32,12 @@ local function nextId()
         sequence = sequence + 1
     until recordsById[('FAIL-%06d'):format(sequence)] == nil
     return ('FAIL-%06d'):format(sequence)
+end
+
+local function updateSequenceFromId(id)
+    local suffix = type(id) == 'string' and id:match('^FAIL%-(%d+)$')
+    local number = suffix and tonumber(suffix)
+    if number and number > sequence then sequence = number end
 end
 
 local function addError(message)
@@ -121,16 +128,27 @@ function FailureEngine.Create(towerId, failureType, options)
     if not isValidId(id) then return addError('invalid_failure_id') end
     if recordsById[id] then return addError('duplicate_failure_id') end
 
+    local createdAt = options.createdAt
+    if type(createdAt) ~= 'number' or createdAt ~= createdAt
+        or createdAt == math.huge or createdAt == -math.huge or createdAt < 0 then
+        createdAt = now()
+    end
     local record = {
         id = id,
         towerId = towerId,
         type = failureType,
         active = true,
-        createdAt = now(),
+        createdAt = createdAt,
         reason = type(options.reason) == 'string' and options.reason or nil,
         source = options.source,
         metadata = type(options.metadata) == 'table' and copy(options.metadata) or {},
     }
+    if TelecomPersistence and TelecomPersistence.IsEnabled
+        and TelecomPersistence.IsEnabled()
+        and PersistenceSerializers and PersistenceSerializers.SerializeFailure then
+        local serializable, serializationError = PersistenceSerializers.SerializeFailure(record)
+        if not serializable then return addError('failure_persistence_' .. serializationError) end
+    end
     recordsById[id] = record
     orderedIds[#orderedIds + 1] = id
 
@@ -140,7 +158,46 @@ function FailureEngine.Create(towerId, failureType, options)
         removeOrderedId(id)
         return addError(effects)
     end
+    if TelecomPersistence and TelecomPersistence.SaveFailure then
+        TelecomPersistence.SaveFailure(record)
+    end
     return true, copy(record), copy(effects)
+end
+
+function FailureEngine.Restore(record)
+    if not enabled() then return false, 'failures_disabled' end
+    if type(record) ~= 'table' or not isValidId(record.id) then
+        return false, 'invalid_failure_record'
+    end
+    if type(record.towerId) ~= 'string' or not TowerRegistry.Exists(record.towerId) then
+        return false, 'unknown_tower'
+    end
+    if not FailureTypes.IsSupported(record.type) then
+        return false, 'unknown_failure_type'
+    end
+    if record.active ~= true or recordsById[record.id] then
+        return false, recordsById[record.id] and 'duplicate_failure_id' or 'inactive_failure'
+    end
+    if type(record.createdAt) ~= 'number' or record.createdAt ~= record.createdAt
+        or record.createdAt == math.huge or record.createdAt == -math.huge
+        or record.createdAt < 0 then
+        return false, 'created_at_invalid'
+    end
+    local restored = {
+        id = record.id,
+        towerId = record.towerId,
+        type = record.type,
+        active = true,
+        createdAt = record.createdAt,
+        reason = type(record.reason) == 'string' and record.reason or nil,
+        source = record.source,
+        metadata = type(record.metadata) == 'table' and copy(record.metadata) or {},
+        updatedAt = record.updatedAt,
+    }
+    recordsById[restored.id] = restored
+    orderedIds[#orderedIds + 1] = restored.id
+    updateSequenceFromId(restored.id)
+    return true, copy(restored)
 end
 
 function FailureEngine.Get(id)
@@ -177,6 +234,9 @@ function FailureEngine.Clear(id)
         orderedIds[#orderedIds + 1] = id
         return false, effects
     end
+    if TelecomPersistence and TelecomPersistence.DeleteFailure then
+        TelecomPersistence.DeleteFailure(id)
+    end
     return true, copy(record), copy(effects)
 end
 
@@ -186,17 +246,22 @@ function FailureEngine.ClearAll(towerId)
     end
 
     local removed = 0
+    local removedIds = {}
     for index = #orderedIds, 1, -1 do
         local id = orderedIds[index]
         local record = recordsById[id]
         if record and record.towerId == towerId then
             recordsById[id] = nil
             table.remove(orderedIds, index)
+            removedIds[#removedIds + 1] = id
             removed = removed + 1
         end
     end
     local ok, errorMessage = applyTower(towerId)
     if not ok then return false, errorMessage end
+    if TelecomPersistence and TelecomPersistence.DeleteFailure then
+        for _, id in ipairs(removedIds) do TelecomPersistence.DeleteFailure(id) end
+    end
     return true, removed
 end
 

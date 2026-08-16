@@ -43,6 +43,13 @@ local function boot()
     for _, message in ipairs(spatialWarnings or {}) do Log.warn(message) end
     Log.info('spatial index built', spatialStats)
 
+    if TelecomPersistence and TelecomPersistence.Initialize then
+        local persistenceOk, persistenceStatus = TelecomPersistence.Initialize()
+        if not persistenceOk or (persistenceStatus and persistenceStatus.mode == 'degraded') then
+            Log.warn('persistence initialization degraded', persistenceStatus)
+        end
+    end
+
     started = true
     Log.info(Locale.Translate(Config.Locale, 'startup.ready'), {
         version = Config.Version,
@@ -55,6 +62,11 @@ end
 
 local function shutdown()
     if not started then return end
+    if TelecomPersistence and TelecomPersistence.Shutdown then
+        TelecomPersistence.Shutdown()
+    elseif TelecomPersistence and TelecomPersistence.Flush then
+        TelecomPersistence.Flush()
+    end
     started = false
     Log.event(Constants.LogEvent.RESOURCE_STOPPED)
     Log.info(Locale.Translate(Config.Locale, 'startup.stopped'))

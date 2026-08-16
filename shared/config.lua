@@ -132,6 +132,15 @@ Config = {
         intervalMs = 60000,
     },
 
+    Persistence = {
+        enabled = true,
+        adapter = 'auto',
+        auditRetention = 200,
+        maxPayloadBytes = 4096,
+        maxRetries = 3,
+        retryIntervalMs = 5000,
+    },
+
     PhoneBridge = 'auto',
     Towers = {
         {
@@ -398,6 +407,41 @@ local function validateFailureScheduler(config, errors)
     end
 end
 
+local function validatePersistence(config, errors)
+    local persistence = config.Persistence
+    if type(persistence) ~= 'table' then
+        addError(errors, 'Persistence must be a table')
+        return
+    end
+    if type(persistence.enabled) ~= 'boolean' then
+        addError(errors, 'Persistence.enabled must be boolean')
+    end
+    local adapters = { auto = true, memory = true, oxmysql = true }
+    if not adapters[persistence.adapter] then
+        addError(errors, 'Persistence.adapter must be auto, memory or oxmysql')
+    end
+    if not isNumber(persistence.auditRetention)
+        or persistence.auditRetention ~= math.floor(persistence.auditRetention)
+        or persistence.auditRetention < 1 or persistence.auditRetention > 1000 then
+        addError(errors, 'Persistence.auditRetention must be an integer between 1 and 1000')
+    end
+    if not isNumber(persistence.maxPayloadBytes)
+        or persistence.maxPayloadBytes ~= math.floor(persistence.maxPayloadBytes)
+        or persistence.maxPayloadBytes < 512 or persistence.maxPayloadBytes > 16384 then
+        addError(errors, 'Persistence.maxPayloadBytes must be an integer between 512 and 16384')
+    end
+    if not isNumber(persistence.maxRetries)
+        or persistence.maxRetries ~= math.floor(persistence.maxRetries)
+        or persistence.maxRetries < 0 or persistence.maxRetries > 10 then
+        addError(errors, 'Persistence.maxRetries must be an integer between 0 and 10')
+    end
+    if not isNumber(persistence.retryIntervalMs)
+        or persistence.retryIntervalMs ~= math.floor(persistence.retryIntervalMs)
+        or persistence.retryIntervalMs < 250 or persistence.retryIntervalMs > 60000 then
+        addError(errors, 'Persistence.retryIntervalMs must be an integer between 250 and 60000')
+    end
+end
+
 local function validateFeatures(config, errors)
     if type(config.Features) ~= 'table' then return end
     for name, enabled in pairs(config.Features) do
@@ -515,6 +559,7 @@ function Config.Validate(config)
     validateCapacity(config, errors)
     validateEnvironment(config, errors)
     validateFailureScheduler(config, errors)
+    validatePersistence(config, errors)
     validateTowers(config, errors, warnings)
 
     return #errors == 0, errors, warnings

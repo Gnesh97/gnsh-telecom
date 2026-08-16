@@ -75,6 +75,25 @@ Phone integrations are optional. `Config.PhoneBridge = 'auto'` detects `lb-phone
 
 Failure effects are server-authoritative and data-driven. `FailureEngine.Create(towerId, failureType)` supports `ANTENNA_FAILURE`, `RADIO_FAILURE`, `COOLING_FAILURE` and `HARDWARE_DEGRADATION`. Effects combine multiplicatively, update connected players, and restore when cleared. Set `Config.Features.Failures = false` to neutralize the engine. Automatic failure scheduling is disabled by default through `Config.FailureScheduler.enabled = false`; only manual failure creation is active.
 
+## Phase 13 persistence
+
+Persistent state is configured under `Config.Persistence`:
+
+```lua
+Config.Persistence = {
+    enabled = true,
+    adapter = 'auto', -- auto, memory or oxmysql
+    auditRetention = 200,
+    maxPayloadBytes = 4096,
+    maxRetries = 3,
+    retryIntervalMs = 5000,
+}
+```
+
+`auto` uses the optional `oxmysql` adapter when it is available and otherwise keeps telecom gameplay authoritative in memory. The resource does not require QBCore, a phone resource or oxmysql to start. With oxmysql on its supported MySQL/MariaDB database, migrations create `telecom_schema`, `telecom_failures` and `telecom_audit`; active failures and bounded audit history are restored before the resource publishes its started event. Invalid or stale rows are skipped individually and reported without aborting startup. Database outages keep current gameplay state in memory and retry queued writes when the database recovers.
+
+Only active failure records and audit history are persisted. Current player signal, serving tower, player connections, tower occupancy, load counters, spatial-index state and debug load overrides are runtime state and are intentionally recreated after restart. SQL is isolated in the persistence adapter and uses bound parameters. The initial schema is also available at `server/persistence/schema/001_initial.sql`.
+
 ## Admin debug tools
 
 The server commands below accept the ACE node configured in `Config.Debug.adminAce` (`gnsh-telecom.admin` by default), the existing `admin`, `god` or standard `command` ACE. Numeric and string player source IDs are supported, and the server console is always allowed. The resource also consumes txAdmin's server-side admin events, so a player who is an authenticated txAdmin admin can use the commands without a personal identifier or framework-specific permission file. They are intended for controlled single-player checks; the final multiplayer/load gate remains a separate runtime test.
