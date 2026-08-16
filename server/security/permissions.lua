@@ -2,7 +2,14 @@ TelecomPermissions = TelecomPermissions or {}
 
 local function normalizeSource(source)
     local number = tonumber(source)
-    if not number or number ~= math.floor(number) or number < 0 then return nil end
+    if not number
+        or number ~= number
+        or number == math.huge
+        or number == -math.huge
+        or number ~= math.floor(number)
+        or number < 0 then
+        return nil
+    end
     return number
 end
 
@@ -50,7 +57,7 @@ local function isAceAllowed(source, ace)
         local duplicate = index == 2 and candidates[1] == candidate
         if not duplicate then
             local ok, allowed = pcall(IsPlayerAceAllowed, candidate, ace)
-            if ok and allowed == true then return true end
+            if ok and (allowed == true or allowed == 1) then return true end
         end
     end
 
@@ -62,6 +69,12 @@ function TelecomPermissions.IsAdmin(source)
 
     local number = normalizeSource(source)
     if not number then return false end
+
+    if TelecomTxAdmin
+        and type(TelecomTxAdmin.IsAdmin) == 'function'
+        and TelecomTxAdmin.IsAdmin(number) then
+        return true
+    end
 
     if type(IsPlayerAceAllowed) ~= 'function' then return false end
 

@@ -77,7 +77,15 @@ Failure effects are server-authoritative and data-driven. `FailureEngine.Create(
 
 ## Admin debug tools
 
-The server commands below accept the ACE node configured in `Config.Debug.adminAce` (`gnsh-telecom.admin` by default), the existing `admin`, `god` or standard `command` ACE. Numeric and string player source IDs are supported, and the server console is always allowed, so an existing QBCore/FiveM admin setup works without an extra permission line. They are intended for controlled single-player checks; the final multiplayer/load gate remains a separate runtime test.
+The server commands below accept the ACE node configured in `Config.Debug.adminAce` (`gnsh-telecom.admin` by default), the existing `admin`, `god` or standard `command` ACE. Numeric and string player source IDs are supported, and the server console is always allowed. The resource also consumes txAdmin's server-side admin events, so a player who is an authenticated txAdmin admin can use the commands without a personal identifier or framework-specific permission file. They are intended for controlled single-player checks; the final multiplayer/load gate remains a separate runtime test.
+
+For a portable installation, map the server's own admin group to the resource ACE in that server's `server.cfg` if it does not already grant `admin`, `god` or `command`:
+
+```text
+add_ace group.admin gnsh-telecom.admin allow
+```
+
+Do not copy another server's identifier lines. Keep each installation's own `add_principal`/admin-group mapping in its private server configuration. txAdmin panel membership and FiveM ACE are separate providers; the resource supports both. When only txAdmin membership is used, a player joining or an admin-permission update populates the runtime cache. If the resource is restarted while an already-connected admin remains online, reconnect that player or use the ACE fallback above so the state can be re-established immediately.
 
 ```text
 /telecomdebug

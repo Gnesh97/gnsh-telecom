@@ -14,9 +14,111 @@ local function resetDebugState()
     TowerRegistry.Init({})
     SpatialIndex.Rebuild({})
     TelecomAudit.Clear()
+    TriggerTestEvent('txAdmin:events:adminsUpdated', {})
     Config.Features.Failures = true
     Config.Debug.enabled = true
 end
+
+TEST('txAdmin authenticated admin can execute debug commands', function()
+    resetDebugState()
+    local previous = rawget(_G, 'IsPlayerAceAllowed')
+    IsPlayerAceAllowed = function() return false end
+
+    TriggerTestEvent('txAdmin:events:adminAuth', { netid = 7, isAdmin = true })
+    local ok, errorCode = TelecomDebug.Execute(7, { 'towers' })
+
+    rawset(_G, 'IsPlayerAceAllowed', previous)
+    ASSERT_TRUE(ok)
+    ASSERT_EQ(errorCode, 'ok')
+end)
+
+TEST('txAdmin admin revocation removes debug access', function()
+    resetDebugState()
+    local previous = rawget(_G, 'IsPlayerAceAllowed')
+    IsPlayerAceAllowed = function() return false end
+
+    TriggerTestEvent('txAdmin:events:adminAuth', { netid = 7, isAdmin = true })
+    TriggerTestEvent('txAdmin:events:adminAuth', { netid = 7, isAdmin = false })
+    local ok, errorCode = TelecomDebug.Execute(7, { 'towers' })
+
+    rawset(_G, 'IsPlayerAceAllowed', previous)
+    ASSERT_FALSE(ok)
+    ASSERT_EQ(errorCode, 'not_authorized')
+end)
+
+TEST('txAdmin global revoke clears every cached admin', function()
+    resetDebugState()
+
+    TriggerTestEvent('txAdmin:events:adminAuth', { netid = 7, isAdmin = true })
+    TriggerTestEvent('txAdmin:events:adminAuth', { netid = 8, isAdmin = true })
+    TriggerTestEvent('txAdmin:events:adminAuth', { netid = -1, isAdmin = false })
+
+    ASSERT_FALSE(TelecomPermissions.IsAdmin(7))
+    ASSERT_FALSE(TelecomPermissions.IsAdmin(8))
+end)
+
+TEST('invalid txAdmin global auth payload clears every cached admin', function()
+    resetDebugState()
+
+    TriggerTestEvent('txAdmin:events:adminAuth', { netid = 7, isAdmin = true })
+    TriggerTestEvent('txAdmin:events:adminAuth', { netid = -1, isAdmin = true })
+
+    ASSERT_FALSE(TelecomPermissions.IsAdmin(7))
+end)
+
+TEST('txAdmin adminsUpdated replaces the cached admin set', function()
+    resetDebugState()
+
+    TriggerTestEvent('txAdmin:events:adminsUpdated', { 7, '8' })
+    ASSERT_TRUE(TelecomPermissions.IsAdmin(7))
+    ASSERT_TRUE(TelecomPermissions.IsAdmin(8))
+
+    TriggerTestEvent('txAdmin:events:adminsUpdated', { 8 })
+    ASSERT_FALSE(TelecomPermissions.IsAdmin(7))
+    ASSERT_TRUE(TelecomPermissions.IsAdmin(8))
+end)
+
+TEST('txAdmin event handlers update and clear cached admins', function()
+    resetDebugState()
+
+    TriggerTestEvent('txAdmin:events:adminAuth', { netid = 7, isAdmin = true })
+    ASSERT_TRUE(TelecomPermissions.IsAdmin(7))
+
+    local previousSource = rawget(_G, 'source')
+    rawset(_G, 'source', 7)
+    TriggerTestEvent('playerDropped')
+    rawset(_G, 'source', previousSource)
+
+    ASSERT_FALSE(TelecomPermissions.IsAdmin(7))
+end)
+
+TEST('txAdmin authorization rejects malformed event payloads', function()
+    resetDebugState()
+
+    TriggerTestEvent('txAdmin:events:adminAuth', { netid = 7, isAdmin = 'true' })
+    TriggerTestEvent('txAdmin:events:adminAuth', { netid = 'not-a-player', isAdmin = true })
+    TriggerTestEvent('txAdmin:events:adminAuth', { netid = math.huge, isAdmin = true })
+    ASSERT_FALSE(TelecomPermissions.IsAdmin(7))
+end)
+
+TEST('malformed txAdmin updates fail closed for cached admins', function()
+    resetDebugState()
+
+    TriggerTestEvent('txAdmin:events:adminAuth', { netid = 7, isAdmin = true })
+    TriggerTestEvent('txAdmin:events:adminsUpdated', { [2] = 8 })
+
+    ASSERT_FALSE(TelecomPermissions.IsAdmin(7))
+    ASSERT_FALSE(TelecomPermissions.IsAdmin(8))
+end)
+
+TEST('malformed txAdmin auth revocation clears its cached source', function()
+    resetDebugState()
+
+    TriggerTestEvent('txAdmin:events:adminAuth', { netid = 7, isAdmin = true })
+    TriggerTestEvent('txAdmin:events:adminAuth', { netid = 7, isAdmin = 'revoked' })
+
+    ASSERT_FALSE(TelecomPermissions.IsAdmin(7))
+end)
 
 TEST('debug permissions fail closed when ACE native is unavailable', function()
     local previous = rawget(_G, 'IsPlayerAceAllowed')
@@ -89,6 +191,17 @@ TEST('debug permissions support native numeric source ids', function()
     rawset(_G, 'IsPlayerAceAllowed', previous)
 end)
 
+TEST('debug permissions accept numeric ACE results from the native', function()
+    local previous = rawget(_G, 'IsPlayerAceAllowed')
+    IsPlayerAceAllowed = function(_, ace)
+        return ace == Config.Debug.adminAce and 1
+    end
+
+    ASSERT_TRUE(TelecomPermissions.IsAdmin(12))
+
+    rawset(_G, 'IsPlayerAceAllowed', previous)
+end)
+
 TEST('console source aliases are treated as trusted server console', function()
     ASSERT_TRUE(TelecomPermissions.IsConsole('console'))
     ASSERT_TRUE(TelecomPermissions.IsAdmin('console'))
@@ -102,6 +215,8 @@ TEST('malformed and negative player sources fail closed', function()
     ASSERT_FALSE(TelecomPermissions.IsAdmin(nil))
     ASSERT_FALSE(TelecomPermissions.IsAdmin(-1))
     ASSERT_FALSE(TelecomPermissions.IsAdmin('not-a-player'))
+    ASSERT_FALSE(TelecomPermissions.IsAdmin(math.huge))
+    ASSERT_FALSE(TelecomPermissions.IsAdmin(-math.huge))
 end)
 
 TEST('audit records immutable admin actions', function()

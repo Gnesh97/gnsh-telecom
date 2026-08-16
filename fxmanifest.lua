@@ -34,6 +34,7 @@ server_scripts {
     'server/failures/engine.lua',
     'server/failures/scheduler.lua',
     'server/logging.lua',
+    'server/security/txadmin.lua',
     'server/security/permissions.lua',
     'server/security/audit.lua',
     'server/debug.lua',

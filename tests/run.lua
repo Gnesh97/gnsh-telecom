@@ -60,7 +60,21 @@ dofile('server/network/services.lua')
 local eventHandlers = {}
 registeredExports = {}
 triggeredEvents = {}
-AddEventHandler = function(name, handler) eventHandlers[name] = handler end
+AddEventHandler = function(name, handler)
+    eventHandlers[name] = eventHandlers[name] or {}
+    eventHandlers[name][#eventHandlers[name] + 1] = handler
+end
+function TriggerTestEvent(name, ...)
+    local handlers = eventHandlers[name]
+    if type(handlers) ~= 'table' then
+        error(('test event handler is not registered: %s'):format(name), 2)
+    end
+    local result
+    for _, handler in ipairs(handlers) do
+        result = handler(...)
+    end
+    return result
+end
 TriggerEvent = function(name, ...) triggeredEvents[#triggeredEvents + 1] = { name, ... } end
 exports = function(name, handler) registeredExports[name] = handler end
 GetCurrentResourceName = function() return 'gnsh-telecom' end
@@ -75,6 +89,7 @@ dofile('server/failures/types.lua')
 dofile('server/failures/engine.lua')
 dofile('server/failures/scheduler.lua')
 dofile('server/logging.lua')
+dofile('server/security/txadmin.lua')
 dofile('server/security/permissions.lua')
 dofile('server/security/audit.lua')
 dofile('server/debug.lua')
