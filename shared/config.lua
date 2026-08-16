@@ -42,6 +42,52 @@ Config = {
         emergency = { minimumSignal = 10 },
     },
 
+    Capacity = {
+        thresholds = {
+            busy = 60,
+            congested = 80,
+            critical = 95,
+            overloaded = 100,
+        },
+        effects = {
+            NORMAL = {
+                signalMultiplier = 1.00,
+                dataPerformance = 'NORMAL',
+                dataAvailable = true,
+                callSetupReliability = 1.00,
+                smsDelayMs = 0,
+            },
+            BUSY = {
+                signalMultiplier = 0.98,
+                dataPerformance = 'DEGRADED',
+                dataAvailable = true,
+                callSetupReliability = 0.98,
+                smsDelayMs = 250,
+            },
+            CONGESTED = {
+                signalMultiplier = 0.92,
+                dataPerformance = 'SLOW',
+                dataAvailable = true,
+                callSetupReliability = 0.90,
+                smsDelayMs = 750,
+            },
+            CRITICAL = {
+                signalMultiplier = 0.82,
+                dataPerformance = 'VERY_SLOW',
+                dataAvailable = true,
+                callSetupReliability = 0.75,
+                smsDelayMs = 1500,
+            },
+            OVERLOADED = {
+                signalMultiplier = 0.65,
+                dataPerformance = 'UNAVAILABLE',
+                dataAvailable = false,
+                callSetupReliability = 0.50,
+                smsDelayMs = 3000,
+            },
+        },
+    },
+
     Performance = {
         stationaryIntervalMs = 3000,
         walkingIntervalMs = 1500,
@@ -166,6 +212,73 @@ local function validateServices(config, errors)
     end
 end
 
+local function validateCapacity(config, errors)
+    local capacity = config.Capacity
+    if type(capacity) ~= 'table' then
+        addError(errors, 'Capacity must be a table')
+        return
+    end
+
+    local thresholds = capacity.thresholds
+    local thresholdNames = { 'busy', 'congested', 'critical', 'overloaded' }
+    if type(thresholds) ~= 'table' then
+        addError(errors, 'Capacity.thresholds must be a table')
+    else
+        local previous
+        for _, name in ipairs(thresholdNames) do
+            local value = thresholds[name]
+            if not isNumber(value) or value < 0 or value > 100 then
+                addError(errors, ('Capacity.thresholds.%s must be between 0 and 100')
+                    :format(name))
+            elseif previous ~= nil and value <= previous then
+                addError(errors, 'Capacity thresholds must be strictly increasing')
+            end
+            previous = value
+        end
+    end
+
+    local effects = capacity.effects
+    local effectNames = { 'NORMAL', 'BUSY', 'CONGESTED', 'CRITICAL', 'OVERLOADED' }
+    local performanceNames = {
+        NORMAL = true,
+        DEGRADED = true,
+        SLOW = true,
+        VERY_SLOW = true,
+        UNAVAILABLE = true,
+    }
+    if type(effects) ~= 'table' then
+        addError(errors, 'Capacity.effects must be a table')
+        return
+    end
+
+    for _, name in ipairs(effectNames) do
+        local effect = effects[name]
+        if type(effect) ~= 'table' then
+            addError(errors, ('Capacity.effects.%s must be a table'):format(name))
+        else
+            if not isNumber(effect.signalMultiplier)
+                or effect.signalMultiplier <= 0 or effect.signalMultiplier > 1 then
+                addError(errors, ('Capacity.effects.%s.signalMultiplier must be greater than zero and at most one')
+                    :format(name))
+            end
+            if not performanceNames[effect.dataPerformance] then
+                addError(errors, ('Capacity.effects.%s.dataPerformance is invalid'):format(name))
+            end
+            if type(effect.dataAvailable) ~= 'boolean' then
+                addError(errors, ('Capacity.effects.%s.dataAvailable must be boolean'):format(name))
+            end
+            if not isNumber(effect.callSetupReliability)
+                or effect.callSetupReliability < 0 or effect.callSetupReliability > 1 then
+                addError(errors, ('Capacity.effects.%s.callSetupReliability must be between 0 and 1')
+                    :format(name))
+            end
+            if not isNumber(effect.smsDelayMs) or effect.smsDelayMs < 0 then
+                addError(errors, ('Capacity.effects.%s.smsDelayMs must be non-negative'):format(name))
+            end
+        end
+    end
+end
+
 local function validateFeatures(config, errors)
     if type(config.Features) ~= 'table' then return end
     for name, enabled in pairs(config.Features) do
@@ -280,6 +393,7 @@ function Config.Validate(config)
     end
 
     validateServices(config, errors)
+    validateCapacity(config, errors)
     validateTowers(config, errors, warnings)
 
     return #errors == 0, errors, warnings

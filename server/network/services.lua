@@ -29,8 +29,25 @@ local function serviceFailureActive(failures, service)
     return false
 end
 
+local function getCongestionEffects(congestion, explicit)
+    if type(explicit) == 'table' then return explicit end
+    if Capacity and Capacity.GetEffects then
+        return Capacity.GetEffects(congestion)
+    end
+    return {
+        dataPerformance = 'NORMAL',
+        dataAvailable = true,
+        callSetupReliability = 1.0,
+        smsDelayMs = 0,
+    }
+end
+
 local function evaluateService(service, signal, connected, context)
     local minimumSignal = ServicePolicy.GetMinimumSignal(service)
+    local congestionEffects = getCongestionEffects(
+        context.congestion,
+        context.congestionEffects
+    )
     local state = {
         available = false,
         signal = signal,
@@ -38,6 +55,11 @@ local function evaluateService(service, signal, connected, context)
         reason = 'policy',
         blockedBy = 'policy',
         congestion = context.congestion,
+        dataPerformance = service == 'data' and congestionEffects.dataPerformance or nil,
+        callSetupReliability = service == 'voice'
+            and congestionEffects.callSetupReliability
+            or nil,
+        smsDelayMs = service == 'sms' and congestionEffects.smsDelayMs or nil,
     }
 
     if not isFiniteNumber(minimumSignal) then
@@ -63,6 +85,12 @@ local function evaluateService(service, signal, connected, context)
     end
 
     if context.congestionBlocks and context.congestionBlocks[service] then
+        state.reason = 'congestion'
+        state.blockedBy = 'congestion'
+        return state
+    end
+
+    if service == 'data' and congestionEffects.dataAvailable == false then
         state.reason = 'congestion'
         state.blockedBy = 'congestion'
         return state
@@ -96,6 +124,7 @@ function Services.Evaluate(connectionState, context)
         towerState = context.towerState or connectionState.towerState,
         backhaulStatus = context.backhaulStatus or connectionState.backhaulStatus,
         congestion = context.congestion or connectionState.congestion,
+        congestionEffects = context.congestionEffects or connectionState.capacityEffects,
         congestionBlocks = context.congestionBlocks or connectionState.congestionBlocks,
         serviceFailures = context.serviceFailures or connectionState.serviceFailures,
     }

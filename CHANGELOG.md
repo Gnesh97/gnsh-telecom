@@ -14,4 +14,7 @@
 - Added deterministic candidate ranking, offline exclusion and selection debug details.
 - Added independent service availability evaluation for voice, SMS, data, GPS and emergency.
 - Added structured service blocking reasons and the `Services.CanUse` query API.
+- Added server-authoritative capacity accounting per serving tower.
+- Added configurable load thresholds, congestion states and deterministic congestion effects.
+- Added effective signal, data performance, call setup reliability and SMS delay metadata.
 - Added framework-free pure Lua test harness.

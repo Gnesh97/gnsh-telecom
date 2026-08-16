@@ -21,6 +21,13 @@ local function normalizeSource(source)
     return tostring(number), number
 end
 
+local function isFiniteNumber(value)
+    return type(value) == 'number'
+        and value == value
+        and value ~= math.huge
+        and value ~= -math.huge
+end
+
 local function now()
     if type(GetGameTimer) == 'function' then return GetGameTimer() end
     return 0
@@ -36,6 +43,9 @@ local function servicesChanged(left, right)
                 or leftState.reason ~= rightState.reason
                 or leftState.blockedBy ~= rightState.blockedBy
                 or leftState.minimumSignal ~= rightState.minimumSignal
+                or leftState.dataPerformance ~= rightState.dataPerformance
+                or leftState.callSetupReliability ~= rightState.callSetupReliability
+                or leftState.smsDelayMs ~= rightState.smsDelayMs
         end
         return leftState ~= rightState
     end
@@ -54,9 +64,13 @@ local function emptyState(source)
         source = source,
         towerId = nil,
         signal = 0,
+        rawSignal = 0,
         signalLevel = Signal.GetLevel(0),
         technology = nil,
         congestion = Enums.CongestionState.NORMAL,
+        loadPercent = 0,
+        effectiveCapacity = nil,
+        capacityEffects = {},
         services = {},
         updatedAt = now(),
     }
@@ -77,11 +91,16 @@ local function normalizeState(source, state)
         or normalized.signal < 0 or normalized.signal > 100 then
         return nil, 'signal must be between 0 and 100'
     end
+    if normalized.rawSignal ~= nil and (not isFiniteNumber(normalized.rawSignal)
+        or normalized.rawSignal < 0 or normalized.rawSignal > 100) then
+        return nil, 'rawSignal must be between 0 and 100'
+    end
     if normalized.services ~= nil and type(normalized.services) ~= 'table' then
         return nil, 'services must be a table'
     end
 
     normalized.source = source
+    normalized.rawSignal = normalized.rawSignal or normalized.signal
     normalized.signalLevel = normalized.signalLevel or Signal.GetLevel(normalized.signal)
     normalized.congestion = normalized.congestion or Enums.CongestionState.NORMAL
     normalized.services = normalized.services or {}
@@ -137,7 +156,7 @@ function Connections.GetAll()
     return states
 end
 
-function Connections.Set(source, state)
+function Connections.Set(source, state, options)
     local key, number = normalizeSource(source)
     if not key then return false, 'invalid player source' end
 
@@ -147,20 +166,36 @@ function Connections.Set(source, state)
     local previous = statesBySource[key]
     previousBySource[key] = previous and Utils.DeepCopy(previous) or nil
     statesBySource[key] = normalized
-    return true, Connections.HasChanged(previous, normalized)
+
+    local affected
+    if not (options and options.skipCapacity == true)
+        and Capacity and Capacity.ReconcileConnectionChange then
+        affected = select(1, Capacity.ReconcileConnectionChange(
+            previous,
+            normalized,
+            Connections.GetAll()
+        ))
+    end
+    return true, Connections.HasChanged(previous, normalized), affected
 end
 
 function Connections.Remove(source)
     local key = normalizeSource(source)
     if not key or not statesBySource[key] then return false end
-    previousBySource[key] = Utils.DeepCopy(statesBySource[key])
+    local previous = statesBySource[key]
+    previousBySource[key] = Utils.DeepCopy(previous)
     statesBySource[key] = nil
+
+    if Capacity and Capacity.ReconcileConnectionChange then
+        Capacity.ReconcileConnectionChange(previous, nil, Connections.GetAll())
+    end
     return true
 end
 
 function Connections.Clear()
     statesBySource = {}
     previousBySource = {}
+    if Capacity and Capacity.RecalculateAll then Capacity.RecalculateAll({}) end
 end
 
 function Connections.Count()
@@ -169,9 +204,44 @@ function Connections.Count()
     return count
 end
 
+function Connections.RefreshCapacity(towerIds, deferredSource)
+    if type(towerIds) ~= 'table' or not Capacity or not Capacity.ApplyToConnection then
+        return {}
+    end
+
+    local affected = {}
+    for key, value in pairs(towerIds) do
+        if type(key) == 'number' then
+            if type(value) == 'string' then affected[value] = true end
+        elseif value then
+            affected[key] = true
+        end
+    end
+
+    local changedBySource = {}
+    for _, current in ipairs(Connections.GetAll()) do
+        if current.towerId and affected[current.towerId] then
+            local nextState = Capacity.ApplyToConnection(current)
+            local ok, changed = Connections.Set(
+                current.source,
+                nextState,
+                { skipCapacity = true }
+            )
+            if ok and changed then
+                changedBySource[current.source] = true
+                if current.source ~= deferredSource then
+                    sendState(current.source, Connections.Get(current.source))
+                end
+            end
+        end
+    end
+    return changedBySource
+end
+
 function Connections.Reevaluate(source, coords)
     local key, number = normalizeSource(source)
     if not key then return nil, false, 'invalid player source' end
+    local previous = Connections.Get(number)
 
     if not Utils.IsPoint(coords) then
         coords = resolveServerCoords(number)
@@ -187,15 +257,19 @@ function Connections.Reevaluate(source, coords)
     if best then
         state.towerId = best.towerId
         state.signal = best.signal
+        state.rawSignal = best.signal
         state.signalLevel = Signal.GetLevel(best.signal)
         state.technology = best.tower.technologies[1]
     end
     state.services = Services.Evaluate(state).services
 
-    local ok, changed = Connections.Set(number, state)
+    local ok, _, affected = Connections.Set(number, state)
     if not ok then return nil, false, 'connection state rejected' end
 
+    Connections.RefreshCapacity(affected, number)
+
     local updated = Connections.Get(number)
+    local changed = Connections.HasChanged(previous, updated)
     if changed then
         sendState(number, updated)
         if Config.Debug.enabled and Log and Log.debug and best then
@@ -203,8 +277,11 @@ function Connections.Reevaluate(source, coords)
                 source = number,
                 towerId = best.towerId,
                 score = best.score,
-                signal = best.signal,
-                loadPercent = best.scoreDetails.loadPercent,
+                signal = updated.signal,
+                rawSignal = updated.rawSignal,
+                loadPercent = updated.loadPercent or best.scoreDetails.loadPercent,
+                congestion = updated.congestion,
+                effectiveCapacity = updated.effectiveCapacity,
                 health = best.scoreDetails.health,
             })
         end

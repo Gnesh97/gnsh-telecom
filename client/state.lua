@@ -25,6 +25,19 @@ local function debugState(state)
             tostring(state.technology)
         ))
     print(('[gnsh-telecom] services %s'):format(serviceSummary))
+
+    local dataState = state.services and state.services.data or {}
+    local voiceState = state.services and state.services.voice or {}
+    local smsState = state.services and state.services.sms or {}
+    print(('[gnsh-telecom] network congestion=%s load=%s effectiveCapacity=%s dataPerformance=%s callSetupReliability=%s smsDelayMs=%s')
+        :format(
+            tostring(state.congestion),
+            tostring(state.loadPercent),
+            tostring(state.effectiveCapacity),
+            tostring(dataState.dataPerformance),
+            tostring(voiceState.callSetupReliability),
+            tostring(smsState.smsDelayMs)
+        ))
 end
 
 local function getInterval()

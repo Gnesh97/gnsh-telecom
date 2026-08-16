@@ -65,6 +65,16 @@ TEST('invalid debug and bridge settings fail validation', function()
     ASSERT_TRUE(#errors >= 2)
 end)
 
+TEST('invalid capacity thresholds fail validation', function()
+    local invalid = Utils.DeepCopy(Config)
+    invalid.Capacity.thresholds.busy = 80
+    invalid.Capacity.thresholds.congested = 70
+
+    local ok, errors = Config.Validate(invalid)
+    ASSERT_FALSE(ok)
+    ASSERT_TRUE(table.concat(errors, '; '):find('strictly increasing', 1, true) ~= nil)
+end)
+
 TEST('duplicate tower ids fail validation', function()
     local invalid = Utils.DeepCopy(Config)
     invalid.Towers = {

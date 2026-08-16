@@ -2,9 +2,9 @@
 
 Standalone, server-authoritative GSM and telecom infrastructure for FiveM.
 
-## Phase 6 status
+## Phase 7 status
 
-The foundation, authoritative tower domain, spatial index, basic coverage engine, dynamic tower selection, service availability engine and player connection manager are implemented. The resource boots without QBCore, Qbox, ESX or a phone resource. `TowerRegistry` validates tower definitions, stores immutable static configuration, and initializes isolated runtime state for every tower. `SpatialIndex` maps coverage-overlapping towers into configurable x/y grid cells and returns deterministic candidate lists. `Coverage` applies exact distance and operational-state filtering, `Signal` calculates the normalized distance score, `Selection` ranks candidates using signal, load, health and optional technology penalties, and `Services` evaluates voice, SMS, data, GPS and emergency independently. The server keeps one in-memory connection state per player and the client reports bounded position context for reevaluation.
+The foundation, authoritative tower domain, spatial index, basic coverage engine, dynamic tower selection, capacity/congestion engine, service availability engine and player connection manager are implemented. The resource boots without QBCore, Qbox, ESX or a phone resource. `TowerRegistry` validates tower definitions, stores immutable static configuration, and initializes isolated runtime state for every tower. `SpatialIndex` maps coverage-overlapping towers into configurable x/y grid cells and returns deterministic candidate lists. `Coverage` applies exact distance and operational-state filtering, `Signal` calculates the normalized distance score, `Selection` ranks candidates using signal, load, health and optional technology penalties, `Capacity` counts serving players and derives effective capacity, load and congestion effects, and `Services` evaluates voice, SMS, data, GPS and emergency independently. The server keeps one in-memory connection state per player and the client reports bounded position context for reevaluation.
 
 Selection weights are configurable under `Config.Selection`:
 
@@ -18,6 +18,22 @@ Config.Selection = {
 ```
 
 Selection results include `scoreDetails` for server-side diagnostics. Set `Config.Debug.logLevel = 'debug'` to print a selected tower's score, signal, load and health when a player's connection changes.
+
+Capacity thresholds and congestion effects are configurable under `Config.Capacity`:
+
+```lua
+Config.Capacity = {
+    thresholds = {
+        busy = 60,
+        congested = 80,
+        critical = 95,
+        overloaded = 100,
+    },
+    -- effects are configured for NORMAL, BUSY, CONGESTED, CRITICAL and OVERLOADED
+}
+```
+
+Capacity is server-authoritative. A connection move updates both affected towers, preserves `rawSignal`, and recalculates effective signal, data performance, call setup reliability and SMS delay without random behavior. Tower runtime state exposes `connectedClients`, `effectiveCapacity`, `loadPercent` and `congestion`.
 
 Service consumers can query the policy through the server API:
 
@@ -68,4 +84,4 @@ lua5.4 tests/run.lua
 
 FiveM runtime behavior is verified separately through resource start/restart/stop smoke tests.
 
-For the first player smoke test, temporarily set `Config.Debug.enabled = true` and `Config.Debug.logLevel = 'debug'`. The client F8 console then reports serving tower, signal, signal level, technology and per-service availability whenever the authoritative connection state changes. Restore debug logging after testing.
+For the first player smoke test, temporarily set `Config.Debug.enabled = true` and `Config.Debug.logLevel = 'debug'`. The client F8 console then reports serving tower, effective signal, signal level, technology, per-service availability, congestion, load, data performance, call setup reliability and SMS delay whenever the authoritative connection state changes. Restore debug logging after testing.

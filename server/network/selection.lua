@@ -85,14 +85,15 @@ local function getLoadPercent(candidate, runtime)
     local load = runtime and runtime.loadPercent
     if not isFiniteNumber(load) then
         local connectedClients = runtime and runtime.connectedClients
-        local capacity = candidate.tower
-            and candidate.tower.capacity
-            and candidate.tower.capacity.maximum
+        local capacity = runtime and runtime.effectiveCapacity
+            or candidate.tower
+                and candidate.tower.capacity
+                and candidate.tower.capacity.maximum
         if isFiniteNumber(connectedClients) and isFiniteNumber(capacity) and capacity > 0 then
             load = (connectedClients / capacity) * 100
         end
     end
-    return clamp(isFiniteNumber(load) and load or 0, 0, 100)
+    return math.max(0, isFiniteNumber(load) and load or 0)
 end
 
 local function getHealth(candidate, runtime)

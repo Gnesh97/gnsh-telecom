@@ -26,6 +26,13 @@ Enums = {
         CRITICAL = 'CRITICAL',
         OVERLOADED = 'OVERLOADED',
     },
+    DataPerformance = {
+        NORMAL = 'NORMAL',
+        DEGRADED = 'DEGRADED',
+        SLOW = 'SLOW',
+        VERY_SLOW = 'VERY_SLOW',
+        UNAVAILABLE = 'UNAVAILABLE',
+    },
     Service = {
         VOICE = 'VOICE',
         SMS = 'SMS',
