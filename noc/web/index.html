@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>gnsh-telecom NOC</title>
+    <style>
+        :root { color-scheme: dark; font-family: Arial, sans-serif; display: none; background: transparent; }
+        html, body { width: 100%; height: 100%; }
+        body { display: none; margin: 0; background: rgba(8, 12, 20, .94); color: #e8eef9; }
+        main { width: min(1100px, 92vw); margin: 4vh auto; }
+        header { display: flex; justify-content: space-between; align-items: center; }
+        button { border: 1px solid #5575a8; background: #17263e; color: #fff; padding: .6rem 1rem; border-radius: 5px; }
+        .cards { display: grid; grid-template-columns: repeat(5, 1fr); gap: .6rem; margin: 1rem 0; }
+        .card { padding: .8rem; background: #111b2d; border: 1px solid #263956; border-radius: 6px; }
+        .value { font-size: 1.5rem; font-weight: bold; margin-top: .25rem; }
+        table { width: 100%; border-collapse: collapse; background: #0e1727; }
+        th, td { padding: .55rem; border-bottom: 1px solid #22324d; text-align: left; }
+        .muted { color: #91a2bc; }
+    </style>
+</head>
+<body>
+<main>
+    <header><div><h1>Network Operations Center</h1><div class="muted">gnsh-telecom live snapshot</div></div><button id="close">Close</button></header>
+    <section class="cards" id="cards"></section>
+    <h2>Towers</h2>
+    <table><thead><tr><th>ID</th><th>State</th><th>Health</th><th>Load</th><th>Backhaul</th><th>Failures</th></tr></thead><tbody id="towers"></tbody></table>
+</main>
+<script>
+    const resource = typeof GetParentResourceName === 'function' ? GetParentResourceName() : 'gnsh-telecom';
+    const post = (name, body) => fetch(`https://${resource}/${name}`, { method: 'POST', body: JSON.stringify(body || {}) });
+    const setVisible = visible => {
+        document.documentElement.style.display = visible ? 'block' : 'none';
+        document.body.style.display = visible ? 'block' : 'none';
+    };
+    setVisible(false);
+    document.getElementById('close').onclick = () => post('close');
+    window.addEventListener('message', event => {
+        const message = event.data || {};
+        if (message.action === 'close') { setVisible(false); return; }
+        if (message.action !== 'open') return;
+        setVisible(true);
+        const snapshot = message.data || {};
+        const counts = snapshot.counts || {};
+        document.getElementById('cards').innerHTML = [
+            ['Operational', counts.operational || 0], ['Degraded', counts.degraded || 0], ['Offline', counts.offline || 0],
+            ['Players', counts.connectedClients || 0], ['Avg load', `${Number(counts.averageLoad || 0).toFixed(1)}%`]
+        ].map(item => `<div class="card"><div class="muted">${item[0]}</div><div class="value">${item[1]}</div></div>`).join('');
+        document.getElementById('towers').innerHTML = (snapshot.towers || []).map(tower => {
+            const runtime = tower.runtime || {};
+            const failures = (tower.failures || []).length;
+            return `<tr><td>${tower.id}</td><td>${runtime.state || '-'}</td><td>${runtime.health ?? '-'}</td><td>${Number(runtime.loadPercent || 0).toFixed(1)}%</td><td>${runtime.backhaulStatus || '-'}</td><td>${failures}</td></tr>`;
+        }).join('');
+    });
+</script>
+</body>
+</html>

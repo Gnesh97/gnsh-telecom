@@ -14,7 +14,10 @@ function TowerState.Create(tower)
         failureEffects = {
             signalMultiplier = 1.0,
             capacityMultiplier = 1.0,
+            coverageMultiplier = 1.0,
             serviceFailures = {},
+            backhaulStatus = nil,
+            healthDelta = 0,
             activeFailures = {},
         },
         health = tower.hardware and tower.hardware.health or 100,

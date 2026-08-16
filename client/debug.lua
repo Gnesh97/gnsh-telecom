@@ -53,6 +53,11 @@ local function lines()
                 tostring(failures.signalMultiplier),
                 tostring(table.concat(alternativeSummary, ','))
             ),
+        ('interference=%s x%s')
+            :format(
+                tostring(state.interference and state.interference.active or false),
+                tostring(state.interference and state.interference.multiplier or 1.0)
+            ),
     }
 end
 

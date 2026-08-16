@@ -76,6 +76,34 @@ function TelecomAPI.HasDataConnection(source)
     return TelecomAPI.CanUseService(source, 'data')
 end
 
+function TelecomAPI.GetTowerState(towerId)
+    if not TowerRegistry or not TowerRegistry.GetRuntimeState then return nil end
+    return copy(TowerRegistry.GetRuntimeState(towerId))
+end
+
+function TelecomAPI.GetIncidentSnapshot()
+    if not IncidentManager or not IncidentManager.GetSnapshot then
+        return { incidents = {}, counts = {} }
+    end
+    return copy(IncidentManager.GetSnapshot())
+end
+
+function TelecomAPI.GetBackhaulStatus(towerId)
+    if BackhaulRouting and BackhaulRouting.GetTowerStatus then
+        return BackhaulRouting.GetTowerStatus(towerId)
+    end
+    local runtime = TowerRegistry and TowerRegistry.GetRuntimeState
+        and TowerRegistry.GetRuntimeState(towerId)
+    return runtime and runtime.backhaulStatus or Enums.BackhaulState.ONLINE
+end
+
+function TelecomAPI.GetStatistics()
+    if TelecomStatistics and TelecomStatistics.GetSnapshot then
+        return copy(TelecomStatistics.GetSnapshot())
+    end
+    return { enabled = false }
+end
+
 local function serviceStateChanged(left, right)
     if type(left) ~= 'table' or type(right) ~= 'table' then
         return left ~= right
@@ -143,6 +171,9 @@ function TelecomAPI.EmitStateEvents(previous, current)
     local currentTower = current and current.towerId or nil
     if previousTower ~= currentTower then
         emit(events.TOWER_CHANGED, source, current, previous)
+        if previousTower and currentTower then
+            emit(events.HANDOVER, source, current, previous)
+        end
     end
 
     local previousTechnology = previous and previous.technology or nil
@@ -157,6 +188,13 @@ function TelecomAPI.EmitStateEvents(previous, current)
     return true
 end
 
+function TelecomAPI.EmitIncidentEvent(towerId, current, previous)
+    local events = Constants.ApiEvents or {}
+    if events.INCIDENT_CHANGED then
+        emit(events.INCIDENT_CHANGED, towerId, current, previous)
+    end
+end
+
 local exportNames = {
     'HasSignal',
     'GetSignalStrength',
@@ -168,6 +206,10 @@ local exportNames = {
     'CanSendSMS',
     'HasDataConnection',
     'CanUseService',
+    'GetTowerState',
+    'GetIncidentSnapshot',
+    'GetBackhaulStatus',
+    'GetStatistics',
 }
 
 if type(exports) == 'function' then

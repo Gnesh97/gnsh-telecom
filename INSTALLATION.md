@@ -1,0 +1,16 @@
+# Installation
+
+1. Copy `gnsh-telecom` into the server's resources directory.
+2. Add `ensure gnsh-telecom` after optional `oxmysql` and before resources that consume the API.
+3. Edit `shared/config.lua` and add the server's tower coordinates under `Config.Towers`.
+4. Restart the resource and confirm `CONFIG_OK`, `RESOURCE_STARTED` and the spatial-index log.
+
+The core does not require QBCore, Qbox, ESX, a phone resource or oxmysql. `oxmysql` is optional; when present, the persistence migration is applied automatically. Review [TOWER_CONFIGURATION.md](TOWER_CONFIGURATION.md) before replacing the sample towers.
+
+For admin debug commands, grant the resource ACE if the server's existing admin group does not already have one:
+
+```text
+add_ace group.admin gnsh-telecom.admin allow
+```
+
+Do not copy identifiers from another server. Keep principal mappings in the server's private `server.cfg`.

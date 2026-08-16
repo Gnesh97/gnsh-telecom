@@ -50,4 +50,19 @@ Enums = {
         RESOLVED = 'RESOLVED',
         CLOSED = 'CLOSED',
     },
+    IncidentSeverity = {
+        LOW = 'LOW',
+        MEDIUM = 'MEDIUM',
+        HIGH = 'HIGH',
+        CRITICAL = 'CRITICAL',
+    },
+    BackhaulNodeState = {
+        ONLINE = 'ONLINE',
+        OFFLINE = 'OFFLINE',
+    },
+    LinkState = {
+        ONLINE = 'ONLINE',
+        DEGRADED = 'DEGRADED',
+        OFFLINE = 'OFFLINE',
+    },
 }

@@ -2,6 +2,8 @@ fx_version 'cerulean'
 game 'gta5'
 lua54 'yes'
 
+ui_page 'noc/web/index.html'
+
 author 'gnsh'
 description 'Standalone server-authoritative GSM and telecom infrastructure'
 version '0.1.0'
@@ -29,10 +31,33 @@ server_scripts {
     'server/network/capacity.lua',
     'server/network/services.lua',
     'server/network/connections.lua',
+    'server/backhaul/nodes.lua',
+    'server/backhaul/links.lua',
+    'server/backhaul/graph.lua',
+    'server/backhaul/routing.lua',
     'server/api.lua',
     'server/failures/types.lua',
     'server/failures/engine.lua',
     'server/failures/scheduler.lua',
+    'server/incidents/severity.lua',
+    'server/incidents/tickets.lua',
+    'server/incidents/manager.lua',
+    'bridges/frameworks/standalone.lua',
+    'bridges/frameworks/qb.lua',
+    'bridges/frameworks/qbox.lua',
+    'bridges/frameworks/esx.lua',
+    'bridges/inventory/generic.lua',
+    'bridges/target/generic.lua',
+    'bridges/dispatch/generic.lua',
+    'server/security/validation.lua',
+    'server/security/rate_limit.lua',
+    'server/maintenance/diagnostics.lua',
+    'server/maintenance/repairs.lua',
+    'server/maintenance/workflow.lua',
+    'server/sabotage.lua',
+    'server/jammers.lua',
+    'server/statistics.lua',
+    'noc/server.lua',
     'server/logging.lua',
     'server/persistence/serializers.lua',
     'server/persistence/adapters/memory.lua',
@@ -57,4 +82,11 @@ client_scripts {
     'client/environment.lua',
     'client/state.lua',
     'client/debug.lua',
+    'client/handover.lua',
+    'client/nui.lua',
+    'noc/client.lua',
+}
+
+files {
+    'noc/web/index.html',
 }

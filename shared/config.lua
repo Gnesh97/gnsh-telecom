@@ -5,7 +5,7 @@ Config = {
 
     Debug = {
         enabled = true,
-        logLevel = 'info',
+        logLevel = 'debug',
         adminAce = 'gnsh-telecom.admin',
     },
 
@@ -13,12 +13,12 @@ Config = {
         Capacity = true,
         Failures = true,
         Technician = false,
-        Incidents = false,
-        NOC = false,
+        Incidents = true,
+        NOC = true,
         Handover = true,
-        Backhaul = false,
+        Backhaul = true,
         Sabotage = false,
-        Jammers = false,
+        Jammers = true,
         Statistics = false,
     },
 
@@ -106,6 +106,13 @@ Config = {
         technologyPenaltyWeight = 0.10,
     },
 
+    Handover = {
+        enabled = true,
+        minimumScoreAdvantage = 10.0,
+        candidateHoldMs = 2000,
+        cooldownMs = 3000,
+    },
+
     Environment = {
         default = 'OPEN_AREA',
         allowed = {
@@ -139,6 +146,94 @@ Config = {
         maxPayloadBytes = 4096,
         maxRetries = 3,
         retryIntervalMs = 5000,
+    },
+
+    Incidents = {
+        autoCreate = true,
+        defaultSeverity = 'MEDIUM',
+        severityByFailure = {
+            ANTENNA_FAILURE = 'MEDIUM',
+            RADIO_FAILURE = 'HIGH',
+            SECTOR_FAILURE = 'HIGH',
+            RADIO_UNIT_FAILURE = 'CRITICAL',
+            COOLING_FAILURE = 'HIGH',
+            FIBER_FAILURE = 'CRITICAL',
+            BACKHAUL_FAILURE = 'CRITICAL',
+            CONTROLLER_FAILURE = 'CRITICAL',
+            SOFTWARE_FAILURE = 'MEDIUM',
+            HARDWARE_DEGRADATION = 'LOW',
+        },
+    },
+
+    Technician = {
+        jobs = { technician = true, telecom = true },
+        interactionDistance = 5.0,
+        repairDurationMs = 10000,
+        diagnosticDurationMs = 2500,
+        requiredItems = {},
+        allowAdmin = true,
+    },
+
+    NOC = {
+        ace = 'gnsh-telecom.noc',
+        refreshIntervalMs = 2000,
+        maxTowers = 200,
+    },
+
+    Backhaul = {
+        routeCacheTtlMs = 5000,
+        coreNodes = { 'CORE-01' },
+        towerNodes = {
+            TEST_TOWER_A = 'AGG-01',
+            TEST_TOWER_B = 'AGG-02',
+        },
+        nodes = {
+            { id = 'AGG-01', type = 'AGGREGATION' },
+            { id = 'AGG-02', type = 'AGGREGATION' },
+            { id = 'CORE-01', type = 'CORE' },
+        },
+        links = {
+            { id = 'LINK-A', from = 'TEST_TOWER_A', to = 'AGG-01', type = 'FIBER' },
+            { id = 'LINK-B', from = 'TEST_TOWER_B', to = 'AGG-02', type = 'FIBER' },
+            { id = 'LINK-CORE-A', from = 'AGG-01', to = 'CORE-01', type = 'FIBER' },
+            { id = 'LINK-CORE-B', from = 'AGG-02', to = 'CORE-01', type = 'FIBER' },
+        },
+    },
+
+    Sabotage = {
+        cooldownMs = 60000,
+        interactionDistance = 4.0,
+        maxConcurrent = 1,
+        alarmProbability = 0.25,
+        actions = {
+            antenna = {
+                failureType = 'ANTENNA_FAILURE',
+                requiredItem = nil,
+            },
+            fiber = {
+                failureType = 'FIBER_FAILURE',
+                requiredItem = nil,
+            },
+            radio = {
+                failureType = 'RADIO_UNIT_FAILURE',
+                requiredItem = nil,
+            },
+        },
+    },
+
+    Jammers = {
+        maxActive = 10,
+        defaultRadius = 250.0,
+        defaultStrength = 0.75,
+        defaultDurationMs = 600000,
+        cooldownMs = 30000,
+        maxPlacementDistance = 6.0,
+        technologies = { '3G', '4G', '5G' },
+    },
+
+    Statistics = {
+        flushIntervalMs = 60000,
+        retention = 1000,
     },
 
     PhoneBridge = 'auto',
@@ -442,6 +537,78 @@ local function validatePersistence(config, errors)
     end
 end
 
+local function validateOperations(config, errors)
+    local handover = config.Handover
+    if type(handover) ~= 'table' then
+        addError(errors, 'Handover must be a table')
+    else
+        if type(handover.enabled) ~= 'boolean' then
+            addError(errors, 'Handover.enabled must be boolean')
+        end
+        if not isNumber(handover.minimumScoreAdvantage) or handover.minimumScoreAdvantage < 0 then
+            addError(errors, 'Handover.minimumScoreAdvantage must be non-negative')
+        end
+        if not isNumber(handover.candidateHoldMs) or handover.candidateHoldMs < 0 then
+            addError(errors, 'Handover.candidateHoldMs must be non-negative')
+        end
+        if not isNumber(handover.cooldownMs) or handover.cooldownMs < 0 then
+            addError(errors, 'Handover.cooldownMs must be non-negative')
+        end
+    end
+
+    local noc = config.NOC
+    if type(noc) ~= 'table' then
+        addError(errors, 'NOC must be a table')
+    elseif type(noc.ace) ~= 'string' or noc.ace == '' then
+        addError(errors, 'NOC.ace must be a non-empty string')
+    end
+
+    local backhaul = config.Backhaul
+    if type(backhaul) ~= 'table' then
+        addError(errors, 'Backhaul must be a table')
+    else
+        if type(backhaul.coreNodes) ~= 'table' then
+            addError(errors, 'Backhaul.coreNodes must be a table')
+        end
+        if type(backhaul.towerNodes) ~= 'table' then
+            addError(errors, 'Backhaul.towerNodes must be a table')
+        end
+        if type(backhaul.nodes) ~= 'table' or type(backhaul.links) ~= 'table' then
+            addError(errors, 'Backhaul.nodes and Backhaul.links must be tables')
+        end
+    end
+
+    local incidents = config.Incidents
+    if type(incidents) ~= 'table' then
+        addError(errors, 'Incidents must be a table')
+    elseif type(incidents.autoCreate) ~= 'boolean'
+        or type(incidents.severityByFailure) ~= 'table' then
+        addError(errors, 'Incidents configuration is invalid')
+    end
+
+    local technician = config.Technician
+    if type(technician) ~= 'table' or type(technician.jobs) ~= 'table' then
+        addError(errors, 'Technician.jobs must be a table')
+    end
+
+    local sabotage = config.Sabotage
+    if type(sabotage) ~= 'table' or type(sabotage.actions) ~= 'table' then
+        addError(errors, 'Sabotage.actions must be a table')
+    end
+
+    local jammers = config.Jammers
+    if type(jammers) ~= 'table' or not isNumber(jammers.maxActive)
+        or jammers.maxActive < 0 then
+        addError(errors, 'Jammers.maxActive must be non-negative')
+    end
+
+    local statistics = config.Statistics
+    if type(statistics) ~= 'table' or not isNumber(statistics.flushIntervalMs)
+        or statistics.flushIntervalMs <= 0 then
+        addError(errors, 'Statistics.flushIntervalMs must be greater than zero')
+    end
+end
+
 local function validateFeatures(config, errors)
     if type(config.Features) ~= 'table' then return end
     for name, enabled in pairs(config.Features) do
@@ -560,6 +727,7 @@ function Config.Validate(config)
     validateEnvironment(config, errors)
     validateFailureScheduler(config, errors)
     validatePersistence(config, errors)
+    validateOperations(config, errors)
     validateTowers(config, errors, warnings)
 
     return #errors == 0, errors, warnings

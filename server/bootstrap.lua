@@ -43,6 +43,14 @@ local function boot()
     for _, message in ipairs(spatialWarnings or {}) do Log.warn(message) end
     Log.info('spatial index built', spatialStats)
 
+    if BackhaulGraph and BackhaulGraph.Initialize then
+        local backhaulOk, backhaulStats = BackhaulGraph.Initialize()
+        if not backhaulOk then Log.warn('backhaul graph initialization degraded', backhaulStats) end
+        if BackhaulRouting and BackhaulRouting.Initialize then BackhaulRouting.Initialize() end
+    end
+
+    if TelecomStatistics and TelecomStatistics.Initialize then TelecomStatistics.Initialize() end
+
     if TelecomPersistence and TelecomPersistence.Initialize then
         local persistenceOk, persistenceStatus = TelecomPersistence.Initialize()
         if not persistenceOk or (persistenceStatus and persistenceStatus.mode == 'degraded') then
@@ -67,6 +75,8 @@ local function shutdown()
     elseif TelecomPersistence and TelecomPersistence.Flush then
         TelecomPersistence.Flush()
     end
+    if TelecomStatistics and TelecomStatistics.Shutdown then TelecomStatistics.Shutdown() end
+    if Jammers and Jammers.Reset then Jammers.Reset() end
     started = false
     Log.event(Constants.LogEvent.RESOURCE_STOPPED)
     Log.info(Locale.Translate(Config.Locale, 'startup.stopped'))

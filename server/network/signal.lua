@@ -112,6 +112,10 @@ function Signal.CalculateRaw(tower, coords, environmentContext)
     if FailureEngine and FailureEngine.ApplySignal then
         signal = FailureEngine.ApplySignal(signal, tower.id)
     end
+    if Jammers and Jammers.GetEffect then
+        local interference = Jammers.GetEffect(coords, tower.technologies)
+        signal = signal * (interference.multiplier or 1.0)
+    end
     return Utils.Clamp(signal, 0, 100)
 end
 

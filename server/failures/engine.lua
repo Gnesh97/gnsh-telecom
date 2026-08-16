@@ -22,7 +22,10 @@ local function neutralEffects()
     return {
         signalMultiplier = 1.0,
         capacityMultiplier = 1.0,
+        coverageMultiplier = 1.0,
         serviceFailures = {},
+        backhaulStatus = nil,
+        healthDelta = 0,
         activeFailures = {},
     }
 end
@@ -71,6 +74,12 @@ local function aggregate(towerId)
                     * definition.signalMultiplier
                 effects.capacityMultiplier = effects.capacityMultiplier
                     * definition.capacityMultiplier
+                effects.coverageMultiplier = effects.coverageMultiplier
+                    * (definition.coverageMultiplier or 1.0)
+                if definition.backhaulStatus == Enums.BackhaulState.OFFLINE then
+                    effects.backhaulStatus = Enums.BackhaulState.OFFLINE
+                end
+                effects.healthDelta = effects.healthDelta + (definition.healthDelta or 0)
                 for service, blocked in pairs(definition.serviceFailures or {}) do
                     if blocked then effects.serviceFailures[service] = true end
                 end
@@ -88,10 +97,20 @@ local function applyTower(towerId)
     end
 
     local effects = aggregate(towerId)
+    local tower = TowerRegistry.Get and TowerRegistry.Get(towerId)
+    local runtime = TowerState.Get(towerId)
+    local baseBackhaul = tower and tower.backhaul and tower.backhaul.status
+        or Enums.BackhaulState.ONLINE
+    local health = runtime and runtime.health
+        or tower and tower.hardware and tower.hardware.health
+        or 100
+    health = Utils.Clamp(health + (effects.healthDelta or 0), 0, 100)
     local updated = TowerState.Update(towerId, {
         activeFailures = effects.activeFailures,
         failureEffects = effects,
         capacityMultiplier = effects.capacityMultiplier,
+        backhaulStatus = effects.backhaulStatus or baseBackhaul,
+        health = health,
     })
     if not updated then return false, 'tower runtime update failed' end
 
@@ -111,7 +130,11 @@ end
 function FailureEngine.ApplySignal(signal, towerId)
     local normalized = Utils.IsFiniteNumber(signal) and Utils.Clamp(signal, 0, 100) or 0
     local effects = aggregate(towerId)
-    return Utils.Clamp(normalized * effects.signalMultiplier, 0, 100)
+    return Utils.Clamp(
+        normalized * effects.signalMultiplier * (effects.coverageMultiplier or 1.0),
+        0,
+        100
+    )
 end
 
 function FailureEngine.Create(towerId, failureType, options)
@@ -143,6 +166,10 @@ function FailureEngine.Create(towerId, failureType, options)
         source = options.source,
         metadata = type(options.metadata) == 'table' and copy(options.metadata) or {},
     }
+    local definition = FailureTypes.Get(failureType)
+    record.component = type(options.component) == 'string'
+        and options.component
+        or definition and definition.component
     if TelecomPersistence and TelecomPersistence.IsEnabled
         and TelecomPersistence.IsEnabled()
         and PersistenceSerializers and PersistenceSerializers.SerializeFailure then
@@ -160,6 +187,12 @@ function FailureEngine.Create(towerId, failureType, options)
     end
     if TelecomPersistence and TelecomPersistence.SaveFailure then
         TelecomPersistence.SaveFailure(record)
+    end
+    if IncidentManager and IncidentManager.OnFailureCreated then
+        IncidentManager.OnFailureCreated(record)
+    end
+    if TelecomStatistics and TelecomStatistics.RecordFailureCreated then
+        TelecomStatistics.RecordFailureCreated(record)
     end
     return true, copy(record), copy(effects)
 end
@@ -193,10 +226,14 @@ function FailureEngine.Restore(record)
         source = record.source,
         metadata = type(record.metadata) == 'table' and copy(record.metadata) or {},
         updatedAt = record.updatedAt,
+        component = record.component,
     }
     recordsById[restored.id] = restored
     orderedIds[#orderedIds + 1] = restored.id
     updateSequenceFromId(restored.id)
+    if IncidentManager and IncidentManager.OnFailureCreated then
+        IncidentManager.OnFailureCreated(restored, true)
+    end
     return true, copy(restored)
 end
 
@@ -237,6 +274,12 @@ function FailureEngine.Clear(id)
     if TelecomPersistence and TelecomPersistence.DeleteFailure then
         TelecomPersistence.DeleteFailure(id)
     end
+    if IncidentManager and IncidentManager.OnFailureCleared then
+        IncidentManager.OnFailureCleared(record)
+    end
+    if TelecomStatistics and TelecomStatistics.RecordFailureCleared then
+        TelecomStatistics.RecordFailureCleared(record)
+    end
     return true, copy(record), copy(effects)
 end
 
@@ -247,6 +290,7 @@ function FailureEngine.ClearAll(towerId)
 
     local removed = 0
     local removedIds = {}
+    local removedRecords = {}
     for index = #orderedIds, 1, -1 do
         local id = orderedIds[index]
         local record = recordsById[id]
@@ -254,6 +298,7 @@ function FailureEngine.ClearAll(towerId)
             recordsById[id] = nil
             table.remove(orderedIds, index)
             removedIds[#removedIds + 1] = id
+            removedRecords[#removedRecords + 1] = copy(record)
             removed = removed + 1
         end
     end
@@ -261,6 +306,14 @@ function FailureEngine.ClearAll(towerId)
     if not ok then return false, errorMessage end
     if TelecomPersistence and TelecomPersistence.DeleteFailure then
         for _, id in ipairs(removedIds) do TelecomPersistence.DeleteFailure(id) end
+    end
+    for _, record in ipairs(removedRecords) do
+        if IncidentManager and IncidentManager.OnFailureCleared then
+            IncidentManager.OnFailureCleared(record)
+        end
+        if TelecomStatistics and TelecomStatistics.RecordFailureCleared then
+            TelecomStatistics.RecordFailureCleared(record)
+        end
     end
     return true, removed
 end
@@ -277,4 +330,5 @@ function FailureEngine.Reset()
     if TowerRegistry and TowerRegistry.GetAll then
         for _, tower in ipairs(TowerRegistry.GetAll()) do applyTower(tower.id) end
     end
+    if IncidentManager and IncidentManager.Reset then IncidentManager.Reset() end
 end

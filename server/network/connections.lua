@@ -4,6 +4,7 @@ local statesBySource = {}
 local previousBySource = {}
 local positionsBySource = {}
 local environmentsBySource = {}
+local handoverBySource = {}
 
 local meaningfulFields = {
     'towerId',
@@ -11,6 +12,7 @@ local meaningfulFields = {
     'signalLevel',
     'technology',
     'congestion',
+    'backhaulStatus',
 }
 
 local function environmentChanged(left, right)
@@ -25,7 +27,9 @@ local function failureEffectsChanged(left, right)
     local leftEffects = left and left.failureEffects or {}
     local rightEffects = right and right.failureEffects or {}
     if leftEffects.signalMultiplier ~= rightEffects.signalMultiplier
-        or leftEffects.capacityMultiplier ~= rightEffects.capacityMultiplier then
+        or leftEffects.capacityMultiplier ~= rightEffects.capacityMultiplier
+        or leftEffects.coverageMultiplier ~= rightEffects.coverageMultiplier
+        or leftEffects.backhaulStatus ~= rightEffects.backhaulStatus then
         return true
     end
 
@@ -60,7 +64,76 @@ end
 
 local function now()
     if type(GetGameTimer) == 'function' then return GetGameTimer() end
-    return 0
+    return type(os.time) == 'function' and os.time() * 1000 or 0
+end
+
+local function handoverSettings()
+    local configured = Config and Config.Handover or {}
+    return {
+        enabled = Config and Config.Features and Config.Features.Handover == true
+            and configured.enabled ~= false,
+        advantage = isFiniteNumber(configured.minimumScoreAdvantage)
+            and math.max(0, configured.minimumScoreAdvantage) or 10,
+        holdMs = isFiniteNumber(configured.candidateHoldMs)
+            and math.max(0, configured.candidateHoldMs) or 2000,
+        cooldownMs = isFiniteNumber(configured.cooldownMs)
+            and math.max(0, configured.cooldownMs) or 3000,
+    }
+end
+
+local function findRankedTower(ranked, towerId)
+    for _, candidate in ipairs(ranked or {}) do
+        if candidate.towerId == towerId then return candidate end
+    end
+    return nil
+end
+
+local function chooseServingCandidate(source, previous, ranked)
+    local best = ranked[1]
+    if not best then return nil end
+
+    local settings = handoverSettings()
+    local key = tostring(source)
+    local handover = handoverBySource[key] or {}
+    handoverBySource[key] = handover
+    if not settings.enabled or not previous or not previous.towerId then
+        handover.target = nil
+        return best
+    end
+
+    local current = findRankedTower(ranked, previous.towerId)
+    if not current then
+        handover.target = nil
+        return best
+    end
+    if best.towerId == current.towerId then
+        handover.target = nil
+        return current
+    end
+
+    local timestamp = now()
+    if handover.lastHandoverAt
+        and timestamp - handover.lastHandoverAt < settings.cooldownMs then
+        return current
+    end
+    if best.score < current.score + settings.advantage then
+        handover.target = nil
+        return current
+    end
+
+    if handover.target ~= best.towerId then
+        handover.target = best.towerId
+        handover.targetSince = timestamp
+        return current
+    end
+    if timestamp - (handover.targetSince or timestamp) < settings.holdMs then
+        return current
+    end
+
+    handover.lastHandoverAt = timestamp
+    handover.target = nil
+    handover.targetSince = nil
+    return best
 end
 
 local function servicesChanged(left, right)
@@ -104,10 +177,15 @@ local function emptyState(source)
         failureEffects = {
             signalMultiplier = 1.0,
             capacityMultiplier = 1.0,
+            coverageMultiplier = 1.0,
             serviceFailures = {},
+            backhaulStatus = nil,
+            healthDelta = 0,
             activeFailures = {},
         },
         serviceFailures = {},
+        backhaulStatus = Enums.BackhaulState.ONLINE,
+        interference = { multiplier = 1.0, active = false, jammers = {} },
         environment = Signal.ResolveEnvironment(nil, nil),
         services = {},
         updatedAt = now(),
@@ -227,6 +305,7 @@ function Connections.Remove(source)
     statesBySource[key] = nil
     positionsBySource[key] = nil
     environmentsBySource[key] = nil
+    handoverBySource[key] = nil
 
     if Capacity and Capacity.ReconcileConnectionChange then
         Capacity.ReconcileConnectionChange(previous, nil, Connections.GetAll())
@@ -239,6 +318,7 @@ function Connections.Clear()
     previousBySource = {}
     positionsBySource = {}
     environmentsBySource = {}
+    handoverBySource = {}
     if Capacity and Capacity.RecalculateAll then Capacity.RecalculateAll({}) end
 end
 
@@ -329,7 +409,7 @@ function Connections.Reevaluate(source, coords, reportedEnvironment)
     local environment = Signal.ResolveEnvironment(coords, reportedEnvironment)
     local candidates = Coverage.GetCandidates(coords, environment)
     local ranked = Selection.Rank(candidates)
-    local best = ranked[1]
+    local best = chooseServingCandidate(number, previous, ranked)
     local state = emptyState(number)
     if best then
         state.towerId = best.towerId
@@ -340,6 +420,26 @@ function Connections.Reevaluate(source, coords, reportedEnvironment)
         local runtime = TowerRegistry.GetRuntimeState(best.towerId)
         state.failureEffects = runtime and runtime.failureEffects or state.failureEffects
         state.serviceFailures = state.failureEffects.serviceFailures or {}
+        state.towerState = runtime and runtime.state or best.tower.state
+        state.backhaulStatus = BackhaulRouting and BackhaulRouting.GetTowerStatus
+            and BackhaulRouting.GetTowerStatus(best.towerId)
+            or runtime and runtime.backhaulStatus
+            or Enums.BackhaulState.ONLINE
+        state.interference = Jammers and Jammers.GetEffect
+            and Jammers.GetEffect(coords, best.tower.technologies)
+            or state.interference
+        state.debug = {
+            distance = best.distance,
+            health = best.scoreDetails and best.scoreDetails.health,
+            backhaulStatus = state.backhaulStatus,
+            alternatives = {},
+        }
+        for index = 2, math.min(#ranked, 5) do
+            state.debug.alternatives[#state.debug.alternatives + 1] = {
+                towerId = ranked[index].towerId,
+                score = ranked[index].score,
+            }
+        end
     end
     state.environment = environment
     state.services = Services.Evaluate(state).services
@@ -351,6 +451,9 @@ function Connections.Reevaluate(source, coords, reportedEnvironment)
 
     local updated = Connections.Get(number)
     local changed = Connections.HasChanged(previous, updated)
+    if TelecomStatistics and TelecomStatistics.RecordConnection then
+        TelecomStatistics.RecordConnection(previous, updated)
+    end
     if changed then
         sendState(number, updated)
         if TelecomAPI and TelecomAPI.EmitStateEvents then
@@ -393,7 +496,7 @@ local function handlePositionUpdate(payload)
     Connections.Reevaluate(source, payload, environment)
 end
 
-if type(AddEventHandler) == 'function' then
+    if type(AddEventHandler) == 'function' then
     AddEventHandler('playerJoining', handlePlayerJoining)
     AddEventHandler('playerDropped', handlePlayerDropped)
     AddEventHandler(Constants.Events.POSITION_UPDATE, handlePositionUpdate)

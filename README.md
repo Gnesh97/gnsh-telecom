@@ -2,7 +2,7 @@
 
 Standalone, server-authoritative GSM and telecom infrastructure for FiveM.
 
-## Phase 12 status
+## Core and operations status
 
 The foundation, authoritative tower domain, spatial index, basic coverage engine, dynamic tower selection, capacity/congestion engine, environment modifiers, service availability engine, player connection manager, public telecom API, isolated phone bridge layer, basic failure engine and ACE-protected admin debug tools are implemented. The resource boots without QBCore, Qbox, ESX or a phone resource. `TowerRegistry` validates tower definitions, stores immutable static configuration, and initializes isolated runtime state for every tower. `SpatialIndex` maps coverage-overlapping towers into configurable x/y grid cells and returns deterministic candidate lists. `Coverage` applies exact distance and operational-state filtering, `Signal` calculates the normalized distance score and applies server-configured environment and failure modifiers, `Selection` ranks candidates using signal, load, health and optional technology penalties, `Capacity` counts serving players and derives effective capacity, load and congestion effects, and `Services` evaluates voice, SMS, data, GPS and emergency independently. The server keeps one in-memory connection state per player and the client reports bounded position and environment context for reevaluation.
 
@@ -73,7 +73,21 @@ Public exports and integration event contracts are documented in [API.md](API.md
 
 Phone integrations are optional. `Config.PhoneBridge = 'auto'` detects `lb-phone`, NPWD or QS Smartphone when started, then falls back to the generic bridge. An unavailable explicit bridge also falls back safely. Bridge interfaces and custom adapter instructions are documented in [BRIDGES.md](BRIDGES.md).
 
-Failure effects are server-authoritative and data-driven. `FailureEngine.Create(towerId, failureType)` supports `ANTENNA_FAILURE`, `RADIO_FAILURE`, `COOLING_FAILURE` and `HARDWARE_DEGRADATION`. Effects combine multiplicatively, update connected players, and restore when cleared. Set `Config.Features.Failures = false` to neutralize the engine. Automatic failure scheduling is disabled by default through `Config.FailureScheduler.enabled = false`; only manual failure creation is active.
+Failure effects are server-authoritative and data-driven. `FailureEngine.Create(towerId, failureType)` supports basic and advanced types including `ANTENNA_FAILURE`, `RADIO_FAILURE`, `SECTOR_FAILURE`, `RADIO_UNIT_FAILURE`, `COOLING_FAILURE`, `FIBER_FAILURE`, `BACKHAUL_FAILURE`, `CONTROLLER_FAILURE`, `SOFTWARE_FAILURE` and `HARDWARE_DEGRADATION`. Effects combine multiplicatively, can take the backhaul offline independently of radio signal, update connected players and restore when cleared. Set `Config.Features.Failures = false` to neutralize the engine. Automatic failure scheduling is disabled by default through `Config.FailureScheduler.enabled = false`; only manual failure creation is active.
+
+## Operations and advanced modules
+
+The post-core modules are present but the gameplay-facing modules remain disabled by default. Enable only the module that the server is ready to configure:
+
+- `Incidents` creates one operational ticket per active failure and validates the full `OPEN` → `ACKNOWLEDGED` → `ASSIGNED` → `ON_ROUTE` → `DIAGNOSING` → `REPAIRING` → `RESOLVED` → `CLOSED` lifecycle.
+- `Technician` adds server-side diagnosis and repair workflow hooks. Framework, inventory, target and dispatch integrations are adapters; the core does not require any of them.
+- `NOC` adds an ACE-protected `/telecomnoc` NUI snapshot with tower, incident, backhaul, jammer and telemetry summaries.
+- `Handover` applies score hysteresis, candidate hold time and post-handover cooldown to prevent border ping-pong.
+- `Backhaul` adds configurable nodes, links, core reachability and cached route status. Radio signal may remain strong while services are blocked by an offline path.
+- `Sabotage` and `Jammers` are server-authoritative, rate-limited and disabled by default. Clients send a target request; they never choose an arbitrary failure effect or final interference state.
+- `Statistics` aggregates load, handover, failure, incident, sabotage and jammer counters in memory and flushes summaries at a configured interval.
+
+Configuration examples and security boundaries are documented in [CONFIGURATION.md](CONFIGURATION.md), [TECHNICIAN_CONFIGURATION.md](TECHNICIAN_CONFIGURATION.md), [NOC_GUIDE.md](NOC_GUIDE.md) and [SECURITY.md](SECURITY.md).
 
 ## Phase 13 persistence
 
@@ -111,10 +125,11 @@ Do not copy another server's identifier lines. Keep each installation's own `add
 /telecom tower <towerId>
 /telecom towers
 /telecom signal [playerId]
-/telecom fail <towerId> <ANTENNA_FAILURE|RADIO_FAILURE|COOLING_FAILURE|HARDWARE_DEGRADATION>
+/telecom fail <towerId> <failureType>
 /telecom repair <towerId>
 /telecom load <towerId> <percent|clear>
 /telecom noc
+/telecomnoc
 ```
 
 `/telecomdebug` toggles a client-only overlay. It is off by default and shows the current tower, distance, signal, capacity/congestion, environment, failure modifiers and alternative scores when those values are available. `/telecom load` is an in-memory test override and is cleared by restart or by using `clear`.
@@ -140,6 +155,24 @@ Config.Towers = {
 
 Supported technologies are `EDGE`, `3G`, `4G` and `5G`. Duplicate IDs, invalid coordinates, coverage values, technologies or capacity prevent startup.
 
+Backhaul topology, if enabled, is also configured in `shared/config.lua`:
+
+```lua
+Config.Features.Backhaul = true
+Config.Backhaul.towerNodes = {
+    TEST_TOWER_A = 'AGG-01',
+}
+Config.Backhaul.coreNodes = { 'CORE-01' }
+Config.Backhaul.nodes = {
+    { id = 'AGG-01', type = 'AGGREGATION' },
+    { id = 'CORE-01', type = 'CORE' },
+}
+Config.Backhaul.links = {
+    { id = 'LINK-A', from = 'TEST_TOWER_A', to = 'AGG-01', type = 'FIBER' },
+    { id = 'LINK-CORE', from = 'AGG-01', to = 'CORE-01', type = 'FIBER' },
+}
+```
+
 ## Start
 
 Add the resource to `server.cfg`:
@@ -160,4 +193,4 @@ lua5.4 tests/run.lua
 
 FiveM runtime behavior is verified separately through resource start/restart/stop smoke tests.
 
-For the first player smoke test, temporarily set `Config.Debug.enabled = true` and `Config.Debug.logLevel = 'debug'`. The client F8 console then reports serving tower, effective signal, signal level, technology, per-service availability, congestion, load, environment and failure modifiers, data performance, call setup reliability and SMS delay whenever the authoritative connection state changes. Restore debug logging after testing.
+For the first player smoke test, temporarily set `Config.Debug.enabled = true` and `Config.Debug.logLevel = 'debug'`. The client F8 console then reports serving tower, effective signal, signal level, technology, per-service availability, congestion, load, environment, failure modifiers and jammer interference whenever the authoritative connection state changes. Restore debug logging after testing. The newly added operations modules still require the planned FiveM runtime and multiplayer verification pass.

@@ -32,3 +32,11 @@
 - Added an opt-in client debug overlay with signal, capacity, environment and failure telemetry.
 - Admin debug commands now honor the existing server `admin` ACE as a fallback.
 - Added framework-free pure Lua test harness.
+- Added configurable handover hysteresis and client handover tracking.
+- Added optional incident tickets with validated transitions, assignment and history.
+- Added optional technician diagnosis and repair workflow with framework/inventory/target adapters.
+- Added optional backhaul node/link graph with cached route reachability.
+- Added advanced failure types for sectors, radio units, fiber, backhaul, controllers and software.
+- Added optional server-authoritative sabotage and jammer managers with rate limiting and audit hooks.
+- Added optional in-memory statistics aggregation and an ACE-protected NOC snapshot/NUI.
+- Added configuration, installation, integration, security and operations documentation.

@@ -43,6 +43,47 @@ local function failure(errorCode)
     return false, errorCode
 end
 
+local function playerCoords(source)
+    local number = normalizeSource(source)
+    if not number or number == 0 then return nil, 'player_source_required' end
+    if type(GetPlayerPed) ~= 'function' or type(GetEntityCoords) ~= 'function' then
+        return nil, 'position_unavailable'
+    end
+
+    local ped = GetPlayerPed(number)
+    if not ped or ped == 0 then return nil, 'player_ped_unavailable' end
+    local coords = GetEntityCoords(ped)
+    if not Utils.IsPoint(coords) then return nil, 'player_position_unavailable' end
+    return { x = coords.x, y = coords.y, z = coords.z }
+end
+
+local function optionalNumber(args, index, errorCode)
+    local raw = token(args, index)
+    if raw == nil then return nil end
+    local value = tonumber(raw)
+    if not value or (Utils.IsFiniteNumber and not Utils.IsFiniteNumber(value)) then
+        return nil, errorCode
+    end
+    return value
+end
+
+local function jammerOptions(args, startIndex)
+    local radius, errorCode = optionalNumber(args, startIndex, 'invalid_jammer_radius')
+    if errorCode then return nil, errorCode end
+    local strength
+    strength, errorCode = optionalNumber(args, startIndex + 1, 'invalid_jammer_strength')
+    if errorCode then return nil, errorCode end
+    local durationMs
+    durationMs, errorCode = optionalNumber(args, startIndex + 2, 'invalid_jammer_duration')
+    if errorCode then return nil, errorCode end
+
+    local options = {}
+    if radius ~= nil then options.radius = radius end
+    if strength ~= nil then options.strength = strength end
+    if durationMs ~= nil then options.durationMs = durationMs end
+    return options
+end
+
 function TelecomDebug.InspectTower(towerId)
     if type(towerId) ~= 'string' or towerId == '' then
         return nil, 'tower_required'
@@ -52,6 +93,12 @@ function TelecomDebug.InspectTower(towerId)
     local runtime = TowerRegistry and TowerRegistry.GetRuntimeState
         and TowerRegistry.GetRuntimeState(towerId)
     if not tower or not runtime then return nil, 'unknown_tower' end
+
+    local incidents = {}
+    for _, incident in ipairs(IncidentManager and IncidentManager.GetAll
+        and IncidentManager.GetAll() or {}) do
+        if incident.towerId == towerId then incidents[#incidents + 1] = incident end
+    end
 
     return {
         id = tower.id,
@@ -63,6 +110,10 @@ function TelecomDebug.InspectTower(towerId)
         failures = FailureEngine and FailureEngine.GetTowerFailures
             and FailureEngine.GetTowerFailures(towerId)
             or {},
+        incidents = incidents,
+        backhaulStatus = BackhaulRouting and BackhaulRouting.GetTowerStatus
+            and BackhaulRouting.GetTowerStatus(towerId)
+            or runtime.backhaulStatus,
     }
 end
 
@@ -91,6 +142,12 @@ function TelecomDebug.GetNoc()
     return {
         connectedPlayers = #connections,
         towers = TelecomDebug.ListTowers(),
+        incidents = IncidentManager and IncidentManager.GetSnapshot
+            and IncidentManager.GetSnapshot() or { incidents = {}, counts = {} },
+        backhaul = BackhaulRouting and BackhaulRouting.GetSnapshot
+            and BackhaulRouting.GetSnapshot() or {},
+        statistics = TelecomStatistics and TelecomStatistics.GetSnapshot
+            and TelecomStatistics.GetSnapshot() or {},
     }
 end
 
@@ -203,6 +260,69 @@ local function executeLoad(source, args)
     return success(snapshot)
 end
 
+local function executeBackhaul(source, args)
+    if not BackhaulLinks or not BackhaulNodes then return failure('backhaul_unavailable') end
+    local target = lower(token(args, 2))
+    local id = token(args, 3)
+    local state = lower(token(args, 4))
+    if not target or not id or not state then return failure('backhaul_arguments_required') end
+    state = state:upper()
+    local ok, result
+    if target == 'link' then
+        ok, result = BackhaulLinks.SetState(id, state)
+    elseif target == 'node' then
+        ok, result = BackhaulNodes.SetState(id, state)
+    else
+        return failure('unknown_backhaul_target')
+    end
+    if not ok then return failure(result) end
+    if BackhaulRouting and BackhaulRouting.Invalidate then BackhaulRouting.Invalidate() end
+    record(source, 'set_backhaul_state', { target = target, id = id, state = state })
+    return success(result)
+end
+
+local function executeJammer(source, args)
+    if not Jammers or not Jammers.Create then return failure('jammers_unavailable') end
+
+    local action = lower(token(args, 2))
+    if action == 'create' or action == 'create-for' then
+        local owner = normalizeSource(source)
+        local optionStart = 3
+        if action == 'create-for' then
+            owner = normalizeSource(token(args, 3))
+            optionStart = 4
+        end
+        if not owner or owner == 0 then return failure('player_source_required') end
+
+        local coords, positionError = playerCoords(owner)
+        if not coords then return failure(positionError) end
+        local options, optionsError = jammerOptions(args, optionStart)
+        if not options then return failure(optionsError) end
+
+        local ok, result = Jammers.Create(owner, coords, options)
+        if not ok then return failure(result) end
+        record(source, 'create_jammer', { jammerId = result.id, owner = owner })
+        return success(result)
+    end
+
+    if action == 'list' then
+        local jammers = Jammers.GetAll and Jammers.GetAll() or {}
+        record(source, 'list_jammers', { count = #jammers })
+        return success(jammers)
+    end
+
+    if action == 'remove' then
+        local id = token(args, 3)
+        if not id then return failure('jammer_id_required') end
+        local ok, result = Jammers.Remove(id, source, false)
+        if not ok then return failure(result) end
+        record(source, 'remove_jammer', { jammerId = id })
+        return success(result)
+    end
+
+    return failure('unknown_jammer_action')
+end
+
 function TelecomDebug.Execute(source, args)
     local ok, errorCode = authorized(source)
     if not ok then return failure(errorCode) end
@@ -220,6 +340,8 @@ function TelecomDebug.Execute(source, args)
     if command == 'fail' then return executeFailure(source, args) end
     if command == 'repair' then return executeRepair(source, args) end
     if command == 'load' then return executeLoad(source, args) end
+    if command == 'backhaul' then return executeBackhaul(source, args) end
+    if command == 'jammer' then return executeJammer(source, args) end
     if command == 'help' then
         return success({
             'telecomdebug',
@@ -230,6 +352,11 @@ function TelecomDebug.Execute(source, args)
             'telecom repair <towerId>',
             'telecom load <towerId> <percent|clear>',
             'telecom noc',
+            'telecom backhaul <link|node> <id> <ONLINE|DEGRADED|OFFLINE>',
+            'telecom jammer create [radius] [strength] [durationMs]',
+            'telecom jammer create-for <playerId> [radius] [strength] [durationMs]',
+            'telecom jammer list',
+            'telecom jammer remove <jammerId>',
         })
     end
     return failure('unknown_debug_command')
@@ -256,6 +383,12 @@ local function executeCommand(source, args)
         suffix = (' towers=%d'):format(#payload)
     elseif command == 'noc' then
         suffix = (' towers=%d players=%d'):format(#payload.towers, payload.connectedPlayers)
+    elseif command == 'jammer' and lower(token(args, 2)) == 'list' then
+        suffix = (' jammers=%d'):format(#payload)
+    elseif command == 'jammer' and payload and payload.id then
+        suffix = (' jammer=%s'):format(payload.id)
+    elseif command == 'backhaul' and payload and payload.id then
+        suffix = (' target=%s'):format(payload.id)
     elseif payload and payload.id then
         suffix = (' tower=%s'):format(payload.id)
     elseif payload and payload.enabled ~= nil then

@@ -56,6 +56,8 @@ dofile('server/network/coverage.lua')
 dofile('server/network/selection.lua')
 dofile('server/network/capacity.lua')
 dofile('server/network/services.lua')
+dofile('server/security/rate_limit.lua')
+dofile('server/jammers.lua')
 
 local eventHandlers = {}
 registeredExports = {}
@@ -120,6 +122,7 @@ dofile('tests/unit/api_spec.lua')
 dofile('tests/unit/phone_bridge_spec.lua')
 dofile('tests/unit/failure_spec.lua')
 dofile('tests/unit/debug_spec.lua')
+dofile('tests/unit/jammers_spec.lua')
 dofile('tests/unit/services_spec.lua')
 dofile('tests/unit/connections_spec.lua')
 dofile('tests/unit/client_state_spec.lua')

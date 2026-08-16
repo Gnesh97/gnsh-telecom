@@ -24,6 +24,10 @@ All exports accept a player `source` unless noted otherwise.
 | `CanSendSMS(source)` | `available, serviceState` | `false, serviceState` |
 | `HasDataConnection(source)` | `available, serviceState` | `false, serviceState` |
 | `CanUseService(source, service)` | `available, serviceState` | `false, serviceState` |
+| `GetTowerState(towerId)` | defensive tower runtime state or `nil` | `nil` |
+| `GetIncidentSnapshot()` | incident list and status counts | empty snapshot |
+| `GetBackhaulStatus(towerId)` | `ONLINE`, `DEGRADED` or `OFFLINE` | `ONLINE` when the optional graph is disabled |
+| `GetStatistics()` | defensive aggregate telemetry snapshot | `{ enabled = false }` |
 
 `serviceState` includes `available`, `reason` and `blockedBy` when available. Typical fallback reasons:
 
@@ -51,7 +55,11 @@ Event names:
 - `gnsh-telecom:towerChanged`
 - `gnsh-telecom:networkTypeChanged`
 - `gnsh-telecom:serviceChanged`
+- `gnsh-telecom:handover`
+- `gnsh-telecom:incidentChanged`
 
 Every event receives `source`, `current` and `previous`. Payload tables are defensive copies. `current` is `nil` after disconnect; `previous` is `nil` on the first connection. Specific events fire only when their corresponding field changes.
+
+`gnsh-telecom:handover` is emitted when a connected player moves from one serving tower to another after handover hysteresis. `gnsh-telecom:incidentChanged` is emitted with the tower ID as the first argument and incident snapshots as the second and third arguments. These optional events are silent when their feature is disabled.
 
 Core state remains server-authoritative. Consumers must treat event payloads as snapshots and use exports for current queries.
