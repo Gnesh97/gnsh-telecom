@@ -175,6 +175,11 @@ function Capacity.RecalculateTower(towerId, connectionStates)
         connectedClients,
         Capacity.GetEffectiveCapacity(tower, runtime)
     )
+    if isFiniteNumber(runtime.debugLoadPercent) then
+        result.loadPercent = math.max(0, runtime.debugLoadPercent)
+        result.congestion = Capacity.GetCongestionState(result.loadPercent)
+        result.effects = Capacity.GetEffects(result.congestion)
+    end
     result.towerId = towerId
 
     TowerState.Update(towerId, {
@@ -196,6 +201,48 @@ function Capacity.RecalculateAll(connectionStates)
         results[tower.id] = Capacity.RecalculateTower(tower.id, connectionStates or {})
     end
     return results
+end
+
+local function recalculateDebugLoad(towerId)
+    local states = Connections and Connections.GetAll
+        and Connections.GetAll()
+        or {}
+    local result = Capacity.RecalculateTower(towerId, states)
+    if Connections and Connections.RefreshCapacity then
+        Connections.RefreshCapacity({ towerId })
+    end
+    return result
+end
+
+function Capacity.SetDebugLoad(towerId, loadPercent)
+    if type(towerId) ~= 'string' or not TowerRegistry.Exists(towerId) then
+        return false, 'unknown_tower'
+    end
+
+    local value = tonumber(loadPercent)
+    if not isFiniteNumber(value) or value < 0 or value > 10000 then
+        return false, 'invalid_load_percent'
+    end
+
+    if not TowerState.Update(towerId, { debugLoadPercent = value }) then
+        return false, 'tower_state_unavailable'
+    end
+    return true, recalculateDebugLoad(towerId)
+end
+
+function Capacity.ClearDebugLoad(towerId)
+    if type(towerId) ~= 'string' or not TowerRegistry.Exists(towerId) then
+        return false, 'unknown_tower'
+    end
+
+    local current = TowerState.Get(towerId)
+    if not current then return false, 'tower_state_unavailable' end
+    local nextState = copy(current)
+    nextState.debugLoadPercent = nil
+    if not TowerState.Set(towerId, nextState) then
+        return false, 'tower_state_unavailable'
+    end
+    return true, recalculateDebugLoad(towerId)
 end
 
 function Capacity.ReconcileConnectionChange(previous, current, connectionStates)

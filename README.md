@@ -2,9 +2,9 @@
 
 Standalone, server-authoritative GSM and telecom infrastructure for FiveM.
 
-## Phase 11 status
+## Phase 12 status
 
-The foundation, authoritative tower domain, spatial index, basic coverage engine, dynamic tower selection, capacity/congestion engine, environment modifiers, service availability engine, player connection manager, public telecom API, isolated phone bridge layer and basic failure engine are implemented. The resource boots without QBCore, Qbox, ESX or a phone resource. `TowerRegistry` validates tower definitions, stores immutable static configuration, and initializes isolated runtime state for every tower. `SpatialIndex` maps coverage-overlapping towers into configurable x/y grid cells and returns deterministic candidate lists. `Coverage` applies exact distance and operational-state filtering, `Signal` calculates the normalized distance score and applies server-configured environment and failure modifiers, `Selection` ranks candidates using signal, load, health and optional technology penalties, `Capacity` counts serving players and derives effective capacity, load and congestion effects, and `Services` evaluates voice, SMS, data, GPS and emergency independently. The server keeps one in-memory connection state per player and the client reports bounded position and environment context for reevaluation.
+The foundation, authoritative tower domain, spatial index, basic coverage engine, dynamic tower selection, capacity/congestion engine, environment modifiers, service availability engine, player connection manager, public telecom API, isolated phone bridge layer, basic failure engine and ACE-protected admin debug tools are implemented. The resource boots without QBCore, Qbox, ESX or a phone resource. `TowerRegistry` validates tower definitions, stores immutable static configuration, and initializes isolated runtime state for every tower. `SpatialIndex` maps coverage-overlapping towers into configurable x/y grid cells and returns deterministic candidate lists. `Coverage` applies exact distance and operational-state filtering, `Signal` calculates the normalized distance score and applies server-configured environment and failure modifiers, `Selection` ranks candidates using signal, load, health and optional technology penalties, `Capacity` counts serving players and derives effective capacity, load and congestion effects, and `Services` evaluates voice, SMS, data, GPS and emergency independently. The server keeps one in-memory connection state per player and the client reports bounded position and environment context for reevaluation.
 
 Selection weights are configurable under `Config.Selection`:
 
@@ -74,6 +74,23 @@ Public exports and integration event contracts are documented in [API.md](API.md
 Phone integrations are optional. `Config.PhoneBridge = 'auto'` detects `lb-phone`, NPWD or QS Smartphone when started, then falls back to the generic bridge. An unavailable explicit bridge also falls back safely. Bridge interfaces and custom adapter instructions are documented in [BRIDGES.md](BRIDGES.md).
 
 Failure effects are server-authoritative and data-driven. `FailureEngine.Create(towerId, failureType)` supports `ANTENNA_FAILURE`, `RADIO_FAILURE`, `COOLING_FAILURE` and `HARDWARE_DEGRADATION`. Effects combine multiplicatively, update connected players, and restore when cleared. Set `Config.Features.Failures = false` to neutralize the engine. Automatic failure scheduling is disabled by default through `Config.FailureScheduler.enabled = false`; only manual failure creation is active.
+
+## Admin debug tools
+
+The server commands below require the ACE node configured in `Config.Debug.adminAce` (`gnsh-telecom.admin` by default). The server console is always allowed. They are intended for controlled single-player checks; the final multiplayer/load gate remains a separate runtime test.
+
+```text
+/telecomdebug
+/telecom tower <towerId>
+/telecom towers
+/telecom signal [playerId]
+/telecom fail <towerId> <ANTENNA_FAILURE|RADIO_FAILURE|COOLING_FAILURE|HARDWARE_DEGRADATION>
+/telecom repair <towerId>
+/telecom load <towerId> <percent|clear>
+/telecom noc
+```
+
+`/telecomdebug` toggles a client-only overlay. It is off by default and shows the current tower, distance, signal, capacity/congestion, environment, failure modifiers and alternative scores when those values are available. `/telecom load` is an in-memory test override and is cleared by restart or by using `clear`.
 
 Tower definitions belong in `shared/config.lua` under `Config.Towers`:
 

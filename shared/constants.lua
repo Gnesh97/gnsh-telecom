@@ -10,6 +10,8 @@ Constants = {
     Events = {
         POSITION_UPDATE = 'gnsh-telecom:server:updatePosition',
         CONNECTION_STATE = 'gnsh-telecom:client:connectionState',
+        DEBUG_OVERLAY = 'gnsh-telecom:client:debugOverlay',
+        DEBUG_MESSAGE = 'gnsh-telecom:client:debugMessage',
     },
     ApiEvents = {
         CONNECTION_CHANGED = 'gnsh-telecom:connectionChanged',

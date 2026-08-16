@@ -81,12 +81,18 @@ end
 function ClientState.Apply(state)
     if type(state) ~= 'table' then return false end
     currentState = Utils.DeepCopy(state)
+    if TelecomClientDebug and TelecomClientDebug.UpdateState then
+        TelecomClientDebug.UpdateState(currentState)
+    end
     debugState(currentState)
     return true
 end
 
 function ClientState.Clear()
     currentState = nil
+    if TelecomClientDebug and TelecomClientDebug.UpdateState then
+        TelecomClientDebug.UpdateState(nil)
+    end
 end
 
 function ClientState.ReportPosition(coords)

@@ -26,4 +26,8 @@
 - Added data-driven basic failure engine with antenna, radio, cooling and hardware degradation effects.
 - Added deterministic multi-failure aggregation, manual clear/restore and disabled-feature behavior.
 - Added automatic failure scheduler stub disabled by default.
+- Added ACE-protected admin debug commands for tower, player, NOC, failure and load inspection.
+- Added in-memory tower load overrides for controlled single-player congestion checks.
+- Added audit records for successful admin debug actions.
+- Added an opt-in client debug overlay with signal, capacity, environment and failure telemetry.
 - Added framework-free pure Lua test harness.
