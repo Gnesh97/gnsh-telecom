@@ -30,6 +30,8 @@ TEST('public API registers required server exports', function()
         'CanSendSMS',
         'HasDataConnection',
         'CanUseService',
+        'GetBridgeStatus',
+        'GetBridgeCapabilities',
     }
 
     for _, name in ipairs(required) do
@@ -37,6 +39,19 @@ TEST('public API registers required server exports', function()
     end
     ASSERT_EQ(TelecomAPI.ApiVersion, Constants.ApiVersion)
 end)
+
+TEST('public API exposes defensive bridge status and capabilities', function()
+    local allStatus = TelecomAPI.GetBridgeStatus()
+    ASSERT_TRUE(type(allStatus) == 'table')
+    ASSERT_TRUE(type(allStatus.framework) == 'table')
+    ASSERT_TRUE(type(allStatus.phone) == 'table')
+
+    local capabilities = TelecomAPI.GetBridgeCapabilities('phone')
+    ASSERT_TRUE(type(capabilities) == 'table')
+    capabilities.mutated = true
+    ASSERT_EQ(TelecomAPI.GetBridgeCapabilities('phone').mutated, nil)
+end)
+
 
 TEST('public API returns safe values for invalid or disconnected sources', function()
     Connections.Clear()

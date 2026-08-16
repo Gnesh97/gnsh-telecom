@@ -24,6 +24,13 @@ local function boot()
     if started then return true end
     if not validateConfig() then return false end
 
+    if BridgeManager and type(BridgeManager.InitializeAll) == 'function' then
+        local bridgesOk, bridgeStatuses = BridgeManager.InitializeAll()
+        if not bridgesOk then
+            Log.warn('bridge platform initialization degraded', bridgeStatuses)
+        end
+    end
+
     local registryOk, registryErrors, registryWarnings = TowerRegistry.Init()
     if not registryOk then
         Log.error('tower registry validation failed')
@@ -70,6 +77,9 @@ end
 
 local function shutdown()
     if not started then return end
+    if BridgeManager and type(BridgeManager.ShutdownAll) == 'function' then
+        BridgeManager.ShutdownAll()
+    end
     if TelecomPersistence and TelecomPersistence.Shutdown then
         TelecomPersistence.Shutdown()
     elseif TelecomPersistence and TelecomPersistence.Flush then

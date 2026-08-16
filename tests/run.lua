@@ -81,6 +81,13 @@ exports = function(name, handler) registeredExports[name] = handler end
 GetCurrentResourceName = function() return 'gnsh-telecom' end
 GetResourceState = function() return 'stopped' end
 StopResource = function() end
+dofile('bridges/core/capabilities.lua')
+dofile('bridges/core/contracts.lua')
+dofile('bridges/core/lifecycle.lua')
+dofile('bridges/core/health.lua')
+dofile('bridges/core/registry.lua')
+dofile('bridges/core/manager.lua')
+dofile('tests/unit/bridge_platform_spec.lua')
 dofile('server/security/validation.lua')
 dofile('server/security/rate_limit.lua')
 dofile('server/maintenance/sessions.lua')
@@ -148,6 +155,7 @@ dofile('server/incidents/manager.lua')
 dofile('bridges/inventory/generic.lua')
 dofile('bridges/target/generic.lua')
 dofile('bridges/dispatch/generic.lua')
+dofile('tests/unit/bridge_integration_spec.lua')
 dofile('server/maintenance/diagnostics.lua')
 dofile('server/maintenance/repairs.lua')
 dofile('server/maintenance/workflow.lua')

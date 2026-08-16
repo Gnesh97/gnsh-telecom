@@ -104,6 +104,20 @@ function TelecomAPI.GetStatistics()
     return { enabled = false }
 end
 
+function TelecomAPI.GetBridgeStatus(category)
+    if BridgeManager and type(BridgeManager.GetBridgeStatus) == 'function' then
+        return copy(BridgeManager.GetBridgeStatus(category))
+    end
+    return category and nil or {}
+end
+
+function TelecomAPI.GetBridgeCapabilities(category)
+    if BridgeManager and type(BridgeManager.GetBridgeCapabilities) == 'function' then
+        return copy(BridgeManager.GetBridgeCapabilities(category))
+    end
+    return {}
+end
+
 local function serviceStateChanged(left, right)
     if type(left) ~= 'table' or type(right) ~= 'table' then
         return left ~= right
@@ -210,6 +224,8 @@ local exportNames = {
     'GetIncidentSnapshot',
     'GetBackhaulStatus',
     'GetStatistics',
+    'GetBridgeStatus',
+    'GetBridgeCapabilities',
 }
 
 if type(exports) == 'function' then

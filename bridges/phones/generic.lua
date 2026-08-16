@@ -184,6 +184,8 @@ end
 function PhoneBridges.CreateResourceAdapter(name, resourceNames)
     local adapter = createPublicAdapter(name)
     adapter.resourceNames = copy(resourceNames or {})
+    adapter.resources = copy(resourceNames or {})
+    adapter.priority = ({ lbphone = 300, npwd = 200, qs = 100 })[name] or 0
     function adapter:Detect()
         for _, resourceName in ipairs(self.resourceNames) do
             if resourceStarted(resourceName) then return true end
@@ -195,6 +197,7 @@ end
 
 function PhoneBridges.CreateCustomAdapter()
     local adapter = createPublicAdapter('custom')
+    adapter.priority = 400
     function adapter:Detect()
         return Config and Config.PhoneBridge == 'custom'
     end
@@ -206,6 +209,14 @@ function PhoneBridges.Register(adapter)
         or adapter.name == '' then
         return false, 'invalid phone bridge adapter'
     end
+
+    if BridgeManager and type(BridgeManager.Register) == 'function' then
+        local contract = copy(adapter)
+        contract.category = 'phone'
+        local ok, errorMessage = BridgeManager.Register(contract)
+        if not ok then return false, errorMessage end
+    end
+
     PhoneBridges.Registry[adapter.name] = adapter
     return true
 end
@@ -231,6 +242,11 @@ local function detect(adapter)
 end
 
 function PhoneBridges.Select()
+    if BridgeManager and type(BridgeManager.GetActive) == 'function' then
+        local active = BridgeManager.GetActive('phone')
+        if active then return active end
+    end
+
     local configured = Config and Config.PhoneBridge or 'auto'
     local generic = PhoneBridges.Get('generic')
 
@@ -275,6 +291,17 @@ local function initializeAdapter(adapter)
 end
 
 function PhoneBridges.Initialize()
+    if BridgeManager and type(BridgeManager.InitializeCategory) == 'function' then
+        local configured = Config and Config.PhoneBridge or 'auto'
+        local preferred = configured ~= 'auto' and configured or nil
+        local ok, selected, errorMessage = BridgeManager.InitializeCategory('phone', preferred)
+        PhoneBridges.Active = selected
+        PhoneBridges.Initialized = ok and selected ~= nil
+        if not ok then return false, nil, errorMessage end
+        log('info', 'phone bridge ready', { bridge = selected.name })
+        return true, selected
+    end
+
     local selected = PhoneBridges.Select()
     if not selected then
         log('error', 'no phone bridge adapter registered')
@@ -311,6 +338,9 @@ function PhoneBridges.Initialize()
 end
 
 function PhoneBridges.Shutdown()
+    if BridgeManager and type(BridgeManager.ShutdownCategory) == 'function' then
+        BridgeManager.ShutdownCategory('phone')
+    end
     if PhoneBridges.Active and type(PhoneBridges.Active.Shutdown) == 'function' then
         pcall(function() PhoneBridges.Active:Shutdown() end)
     end
@@ -320,44 +350,33 @@ function PhoneBridges.Shutdown()
 end
 
 function PhoneBridges.GetActive()
+    if BridgeManager and type(BridgeManager.GetActive) == 'function' then
+        return BridgeManager.GetActive('phone')
+    end
     return PhoneBridges.Active
 end
 
 function PhoneBridges.GetStatus()
+    local bridgeStatus = BridgeManager and BridgeManager.GetBridgeStatus
+        and BridgeManager.GetBridgeStatus('phone') or nil
+    local active = bridgeStatus and bridgeStatus.active
+        or PhoneBridges.Active and PhoneBridges.Active.name or nil
+    local available = PhoneBridges.Active ~= nil
+    local initialized = PhoneBridges.Initialized == true
+    if bridgeStatus then
+        available = bridgeStatus.available == true
+        initialized = bridgeStatus.initialized == true
+    end
     return {
         apiVersion = Constants.ApiVersion,
         configured = Config and Config.PhoneBridge or 'auto',
-        active = PhoneBridges.Active and PhoneBridges.Active.name or nil,
-        available = PhoneBridges.Active ~= nil,
-        initialized = PhoneBridges.Initialized == true,
+        active = active,
+        available = available,
+        initialized = initialized,
+        state = bridgeStatus and bridgeStatus.state or nil,
+        capabilities = bridgeStatus and bridgeStatus.capabilities or {},
+        providers = bridgeStatus and bridgeStatus.providers or {},
     }
 end
 
-local function isPhoneDependency(resourceName)
-    if type(resourceName) ~= 'string' then return false end
-    for _, adapter in pairs(PhoneBridges.Registry or {}) do
-        for _, candidate in ipairs(adapter.resourceNames or {}) do
-            if candidate == resourceName then return true end
-        end
-    end
-    return false
-end
-
 PhoneBridges.Register(PhoneBridges.CreateGenericAdapter())
-
-if type(AddEventHandler) == 'function' then
-    AddEventHandler('onResourceStart', function(resourceName)
-        if resourceName == GetCurrentResourceName() then
-            PhoneBridges.Initialize()
-        elseif isPhoneDependency(resourceName) then
-            PhoneBridges.Initialize()
-        end
-    end)
-    AddEventHandler('onResourceStop', function(resourceName)
-        if resourceName == GetCurrentResourceName() then
-            PhoneBridges.Shutdown()
-        elseif isPhoneDependency(resourceName) then
-            PhoneBridges.Initialize()
-        end
-    end)
-end

@@ -2,6 +2,20 @@
 
 Phone bridges are optional adapters around the public `gnsh-telecom` API. Telecom core never imports phone resources and does not require a phone resource to start.
 
+## Central bridge platform
+
+All integration categories are registered through the central platform: `framework`, `inventory`, `target`, `dispatch` and `phone`. Providers declare a name, category, priority, optional resources, capabilities and lifecycle methods (`Detect`, `Initialize`, `Shutdown`, `HealthCheck`). Selection is deterministic by priority and provider name, with safe fallback when detection, initialization or health checks fail.
+
+Consumers can inspect the platform through the public exports:
+
+```lua
+local all = exports['gnsh-telecom']:GetBridgeStatus()
+local phone = exports['gnsh-telecom']:GetBridgeStatus('phone')
+local capabilities = exports['gnsh-telecom']:GetBridgeCapabilities('phone')
+```
+
+Provider start/stop events trigger lifecycle reconciliation. Missing optional providers report `OPTIONAL`; a provider exception is isolated and reported as `FAILED` without stopping the telecom core.
+
 ## Configuration
 
 Use automatic detection by default:
