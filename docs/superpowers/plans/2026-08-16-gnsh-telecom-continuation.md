@@ -1,13 +1,13 @@
 # GNSH-TeleCOM Continuation Implementation Plan
 ## Revised Universal Productization & Advanced Telecom Roadmap
 
-**Project:** `gnsh-telecom`  
-**Repository:** `https://github.com/Gnesh97/gnsh-telecom`  
-**Development branch:** `dev`  
-**Stable/release branch:** `main`  
-**License:** MIT  
-**Runtime:** FiveM / CfxLua / Lua 5.4  
-**Canonical plan path inside repository:**  
+**Project:** `gnsh-telecom`
+**Repository:** `https://github.com/Gnesh97/gnsh-telecom`
+**Development branch:** `dev`
+**Stable/release branch:** `main`
+**License:** MIT
+**Runtime:** FiveM / CfxLua / Lua 5.4
+**Canonical plan path inside repository:**
 `docs/superpowers/plans/2026-08-16-gnsh-telecom-continuation.md`
 
 > The temporary `codex-file-preview-*` path is not a canonical source and must not be referenced by future agents after this plan is copied into the repository.
