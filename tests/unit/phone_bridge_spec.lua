@@ -70,3 +70,49 @@ TEST('active phone bridge delegates queries through public telecom API', functio
 
     Connections.Clear()
 end)
+
+TEST('phone bridge follows dependency resource lifecycle changes', function()
+    local previousConfig = Config.PhoneBridge
+    local previousGetResourceState = GetResourceState
+    local started = {}
+
+    Config.PhoneBridge = 'auto'
+    GetResourceState = function(name)
+        if started[name] then
+            return 'started'
+        end
+        return 'stopped'
+    end
+
+    PhoneBridges.Shutdown()
+    ASSERT_TRUE(PhoneBridges.Initialize())
+    ASSERT_EQ(PhoneBridges.GetActive().name, 'generic')
+
+    started['lb-phone'] = true
+    TriggerTestEvent('onResourceStart', 'lb-phone')
+    ASSERT_EQ(PhoneBridges.GetActive().name, 'lbphone')
+
+    started['lb-phone'] = nil
+    TriggerTestEvent('onResourceStop', 'lb-phone')
+    ASSERT_EQ(PhoneBridges.GetActive().name, 'generic')
+
+    started.npwd = true
+    TriggerTestEvent('onResourceStart', 'npwd')
+    ASSERT_EQ(PhoneBridges.GetActive().name, 'npwd')
+
+    started.npwd = nil
+    TriggerTestEvent('onResourceStop', 'npwd')
+    ASSERT_EQ(PhoneBridges.GetActive().name, 'generic')
+
+    started['qs-smartphone'] = true
+    TriggerTestEvent('onResourceStart', 'qs-smartphone')
+    ASSERT_EQ(PhoneBridges.GetActive().name, 'qs')
+
+    started['qs-smartphone'] = nil
+    TriggerTestEvent('onResourceStop', 'qs-smartphone')
+    ASSERT_EQ(PhoneBridges.GetActive().name, 'generic')
+
+    PhoneBridges.Shutdown()
+    GetResourceState = previousGetResourceState
+    Config.PhoneBridge = previousConfig
+end)

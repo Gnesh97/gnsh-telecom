@@ -127,6 +127,7 @@ Do not copy another server's identifier lines. Keep each installation's own `add
 /telecom signal [playerId]
 /telecom fail <towerId> <failureType>
 /telecom repair <towerId>
+/telecom technician <diagnose|begin|complete|cancel> <incidentId> [reason]
 /telecom load <towerId> <percent|clear>
 /telecom noc
 /telecomnoc

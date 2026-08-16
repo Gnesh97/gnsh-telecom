@@ -67,4 +67,28 @@ TEST('disabled jammer feature fails closed and returns neutral effect', function
     Config.Features.Jammers = true
 end)
 
+TEST('jammer network event rejects malformed payloads before state mutation', function()
+    resetJammerState()
+    local previousSource = rawget(_G, 'source')
+    rawset(_G, 'source', 41)
+
+    TriggerTestEvent(Constants.Events.JAMMER_REQUEST, {
+        action = 'create',
+        coords = vector3(0, 0, 0),
+        radius = math.huge,
+    })
+    TriggerTestEvent(Constants.Events.JAMMER_REQUEST, {
+        action = 'create',
+        coords = vector3(0, 0, 0),
+        technologies = { string.rep('x', 9) },
+    })
+    TriggerTestEvent(Constants.Events.JAMMER_REQUEST, {
+        action = 'remove',
+        id = string.rep('x', 65),
+    })
+
+    rawset(_G, 'source', previousSource)
+    ASSERT_EQ(#Jammers.GetAll(), 0)
+end)
+
 resetJammerState()

@@ -116,6 +116,76 @@ TEST('connections use dynamic selection instead of signal order alone', function
     SpatialIndex.Rebuild({})
 end)
 
+TEST('position updates validate payloads, rate-limit callers and prefer server coordinates', function()
+    Connections.Clear()
+    TelecomRateLimit.Clear(41)
+    ASSERT_TRUE(SpatialIndex.Rebuild({
+        makeTower('TOWER_A', 0, 0),
+        makeTower('TOWER_B', 200, 0),
+    }))
+
+    local previousSource = rawget(_G, 'source')
+    local previousTimer = rawget(_G, 'GetGameTimer')
+    local previousGetPlayerPed = rawget(_G, 'GetPlayerPed')
+    local previousGetEntityCoords = rawget(_G, 'GetEntityCoords')
+    local serverCoords = vector3(0, 0, 0)
+
+    rawset(_G, 'source', 41)
+    rawset(_G, 'GetGameTimer', function() return 1000 end)
+    rawset(_G, 'GetPlayerPed', function() return 1 end)
+    rawset(_G, 'GetEntityCoords', function() return serverCoords end)
+
+    local ok, errorMessage = pcall(function()
+        TriggerTestEvent(Constants.Events.POSITION_UPDATE, {
+            x = 200,
+            y = 0,
+            z = 0,
+            environment = { category = 'TUNNEL' },
+        })
+        local state = Connections.Get(41)
+        ASSERT_EQ(state.towerId, 'TOWER_A')
+        ASSERT_EQ(state.environment.category, 'OPEN_AREA')
+
+        TriggerTestEvent(Constants.Events.POSITION_UPDATE, {
+            x = math.huge,
+            y = 0,
+            z = 0,
+        })
+        TriggerTestEvent(Constants.Events.POSITION_UPDATE, {
+            x = 0,
+            y = 0,
+            z = 0,
+            environment = { multiplier = 0.01 },
+        })
+        ASSERT_EQ(Connections.Get(41).towerId, 'TOWER_A')
+
+        for _ = 1, 3 do
+            TriggerTestEvent(Constants.Events.POSITION_UPDATE, {
+                x = 200,
+                y = 0,
+                z = 0,
+            })
+        end
+
+        serverCoords = vector3(200, 0, 0)
+        TriggerTestEvent(Constants.Events.POSITION_UPDATE, {
+            x = 0,
+            y = 0,
+            z = 0,
+        })
+        ASSERT_EQ(Connections.Get(41).towerId, 'TOWER_A')
+    end)
+
+    rawset(_G, 'source', previousSource)
+    rawset(_G, 'GetGameTimer', previousTimer)
+    rawset(_G, 'GetPlayerPed', previousGetPlayerPed)
+    rawset(_G, 'GetEntityCoords', previousGetEntityCoords)
+    Connections.Clear()
+    SpatialIndex.Rebuild({})
+
+    if not ok then error(errorMessage, 0) end
+end)
+
 TEST('connections remove player state and clear on restart', function()
     Connections.Clear()
     ASSERT_TRUE(Connections.Set(1, makeState(1, 'TOWER_A', 80)))

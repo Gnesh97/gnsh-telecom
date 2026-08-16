@@ -22,6 +22,8 @@ Config.PhoneBridge = 'custom'
 
 Automatic detection checks started resources in this order: LB Phone, NPWD, QS Smartphone. If no resource is available, generic is selected. Missing or failed adapters never stop telecom core.
 
+Detection is re-evaluated when a supported phone resource starts or stops, so the telecom resource may be started before the phone resource. Stopping an active phone dependency safely returns the active adapter to generic.
+
 ## Bridge interface
 
 Every adapter exposes these methods:

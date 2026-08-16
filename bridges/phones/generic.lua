@@ -333,17 +333,31 @@ function PhoneBridges.GetStatus()
     }
 end
 
+local function isPhoneDependency(resourceName)
+    if type(resourceName) ~= 'string' then return false end
+    for _, adapter in pairs(PhoneBridges.Registry or {}) do
+        for _, candidate in ipairs(adapter.resourceNames or {}) do
+            if candidate == resourceName then return true end
+        end
+    end
+    return false
+end
+
 PhoneBridges.Register(PhoneBridges.CreateGenericAdapter())
 
 if type(AddEventHandler) == 'function' then
     AddEventHandler('onResourceStart', function(resourceName)
         if resourceName == GetCurrentResourceName() then
             PhoneBridges.Initialize()
+        elseif isPhoneDependency(resourceName) then
+            PhoneBridges.Initialize()
         end
     end)
     AddEventHandler('onResourceStop', function(resourceName)
         if resourceName == GetCurrentResourceName() then
             PhoneBridges.Shutdown()
+        elseif isPhoneDependency(resourceName) then
+            PhoneBridges.Initialize()
         end
     end)
 end

@@ -171,11 +171,43 @@ function Jammers.Reset()
     sequence = 0
 end
 
+local function validPayload(payload)
+    if type(payload) ~= 'table' then return false end
+    if type(payload.action) ~= 'string' or #payload.action > 16 then return false end
+
+    if payload.action == 'create' then
+        if not Utils.IsPoint(payload.coords) then return false end
+        local numericFields = { 'radius', 'strength', 'durationMs' }
+        for _, field in ipairs(numericFields) do
+            local value = payload[field]
+            if value ~= nil and not TelecomSecurity.IsFiniteNumber(value) then
+                return false
+            end
+        end
+        if payload.technologies ~= nil then
+            if type(payload.technologies) ~= 'table' or #payload.technologies > 8 then
+                return false
+            end
+            for _, technology in ipairs(payload.technologies) do
+                if not TelecomSecurity.IsSafeString(technology, 8) then return false end
+            end
+        end
+        return true
+    end
+
+    if payload.action == 'remove' then
+        return TelecomSecurity.IsSafeString(payload.id, 64)
+    end
+
+    return false
+end
+
 if type(RegisterNetEvent) == 'function' then RegisterNetEvent(Constants.Events.JAMMER_REQUEST) end
 if type(AddEventHandler) == 'function' then
     AddEventHandler(Constants.Events.JAMMER_REQUEST, function(payload)
         local sourceId = source
-        if type(payload) ~= 'table' then return end
+        if not TelecomSecurity or not TelecomSecurity.IsFiniteNumber
+            or not TelecomSecurity.IsSafeString or not validPayload(payload) then return end
         local ok, result
         if payload.action == 'create' then
             local coords = payload.coords

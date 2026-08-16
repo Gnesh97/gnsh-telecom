@@ -10,22 +10,35 @@ function FrameworkBridge.Register(name, adapter)
 end
 
 local function resourceStarted(name)
-    return type(GetResourceState) == 'function'
-        and GetResourceState(name) == 'started'
+    if type(name) ~= 'string' or name == '' or type(GetResourceState) ~= 'function' then
+        return false
+    end
+    local ok, state = pcall(GetResourceState, name)
+    return ok and state == 'started'
+end
+
+local function adapterAvailable(adapter)
+    return type(adapter) == 'table'
+        and (not adapter.resource or resourceStarted(adapter.resource))
+end
+
+local function selectAdapter(name)
+    if activeName ~= name and Log and type(Log.info) == 'function' then
+        Log.info('framework bridge selected', { bridge = name })
+    end
+    activeName = name
+    return name
 end
 
 function FrameworkBridge.Detect()
-    if activeName and adapters[activeName] then return activeName end
     local order = { 'qbox', 'qbcore', 'esx', 'standalone' }
     for _, name in ipairs(order) do
         local adapter = adapters[name]
-        if adapter and (not adapter.resource or resourceStarted(adapter.resource)) then
-            activeName = name
-            return name
+        if adapterAvailable(adapter) then
+            return selectAdapter(name)
         end
     end
-    activeName = 'standalone'
-    return activeName
+    return selectAdapter('standalone')
 end
 
 function FrameworkBridge.GetName()

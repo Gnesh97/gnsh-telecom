@@ -491,12 +491,67 @@ local function handlePlayerDropped()
     end
 end
 
-local function handlePositionUpdate(payload)
-    local environment = type(payload) == 'table' and payload.environment or nil
-    Connections.Reevaluate(source, payload, environment)
+local positionFields = {
+    x = true,
+    y = true,
+    z = true,
+    environment = true,
+}
+
+local environmentFields = {
+    category = true,
+    zoneId = true,
+}
+
+local function isBoundedString(value, maximumLength)
+    return type(value) == 'string' and #value <= maximumLength
 end
 
-    if type(AddEventHandler) == 'function' then
+local function validPositionPayload(payload)
+    if type(payload) ~= 'table' or not Utils.IsPoint(payload) then return false end
+    if TelecomSecurity and TelecomSecurity.IsSafeTable
+        and not TelecomSecurity.IsSafeTable(payload, 2, 8) then
+        return false
+    end
+
+    for key in pairs(payload) do
+        if not positionFields[key] then return false end
+    end
+
+    local environment = payload.environment
+    if environment == nil then return true end
+    if type(environment) ~= 'table' then return false end
+    for key in pairs(environment) do
+        if not environmentFields[key] then return false end
+    end
+    if environment.category ~= nil
+        and not isBoundedString(environment.category, 32) then
+        return false
+    end
+    if environment.zoneId ~= nil
+        and not isBoundedString(environment.zoneId, 64) then
+        return false
+    end
+    return true
+end
+
+local function handlePositionUpdate(payload)
+    local _, normalizedSource = normalizeSource(source)
+    if not normalizedSource then return end
+    if not validPositionPayload(payload) then return end
+    if not TelecomRateLimit or not TelecomRateLimit.Allow then return end
+
+    local allowed = TelecomRateLimit.Allow(normalizedSource, 'position', 1000, 4)
+    if not allowed then return end
+
+    local serverCoords = resolveServerCoords(normalizedSource)
+    local coords = serverCoords or payload
+    local environment
+    if not serverCoords then environment = payload.environment end
+    Connections.Reevaluate(normalizedSource, coords, environment)
+end
+
+if type(AddEventHandler) == 'function' then
     AddEventHandler('playerJoining', handlePlayerJoining)
     AddEventHandler('playerDropped', handlePlayerDropped)
     AddEventHandler(Constants.Events.POSITION_UPDATE, handlePositionUpdate)

@@ -209,6 +209,14 @@ local function executeFailure(source, args)
     if not snapshot then return failure(errorCode) end
     snapshot.createdFailure = recordData
     snapshot.failureEffects = effects
+    if IncidentManager and IncidentManager.GetSnapshot then
+        for _, incident in ipairs(IncidentManager.GetSnapshot().incidents or {}) do
+            if incident.failureId == recordData.id then
+                snapshot.createdIncident = incident
+                break
+            end
+        end
+    end
     record(source, 'create_failure', {
         towerId = towerId,
         failureType = failureType,
@@ -258,6 +266,54 @@ local function executeLoad(source, args)
         loadPercent = snapshot.runtime.debugLoadPercent,
     })
     return success(snapshot)
+end
+
+local function executeTechnician(source, args)
+    local action = lower(token(args, 2))
+    local incidentId = token(args, 3)
+    local allowedActions = {
+        diagnose = true,
+        begin = true,
+        complete = true,
+        cancel = true,
+    }
+
+    if not allowedActions[action] then return failure('technician_action_required') end
+    if not TelecomSecurity or not TelecomSecurity.IsSafeString
+        or not TelecomSecurity.IsSafeString(incidentId, 64) then
+        return failure('incident_id_required')
+    end
+
+    local ok, result
+    if action == 'diagnose' then
+        if not MaintenanceDiagnostics or not MaintenanceDiagnostics.Inspect then
+            return failure('technician_unavailable')
+        end
+        ok, result = MaintenanceDiagnostics.Inspect(source, incidentId)
+    elseif action == 'begin' then
+        if not MaintenanceRepairs or not MaintenanceRepairs.Begin then
+            return failure('technician_unavailable')
+        end
+        ok, result = MaintenanceRepairs.Begin(source, incidentId)
+    elseif action == 'complete' then
+        if not MaintenanceRepairs or not MaintenanceRepairs.Complete then
+            return failure('technician_unavailable')
+        end
+        ok, result = MaintenanceRepairs.Complete(source, incidentId)
+    else
+        if not MaintenanceRepairs or not MaintenanceRepairs.Cancel then
+            return failure('technician_unavailable')
+        end
+        local reason = token(args, 4)
+        if reason and not TelecomSecurity.IsSafeString(reason, 128) then
+            return failure('invalid_cancel_reason')
+        end
+        ok, result = MaintenanceRepairs.Cancel(source, incidentId, reason)
+    end
+
+    if not ok then return failure(result) end
+    record(source, 'technician_' .. action, { incidentId = incidentId })
+    return success(result)
 end
 
 local function executeBackhaul(source, args)
@@ -340,6 +396,9 @@ function TelecomDebug.Execute(source, args)
     if command == 'fail' then return executeFailure(source, args) end
     if command == 'repair' then return executeRepair(source, args) end
     if command == 'load' then return executeLoad(source, args) end
+    if command == 'technician' or command == 'tech' then
+        return executeTechnician(source, args)
+    end
     if command == 'backhaul' then return executeBackhaul(source, args) end
     if command == 'jammer' then return executeJammer(source, args) end
     if command == 'help' then
@@ -351,6 +410,7 @@ function TelecomDebug.Execute(source, args)
             'telecom fail <towerId> <failureType>',
             'telecom repair <towerId>',
             'telecom load <towerId> <percent|clear>',
+            'telecom technician <diagnose|begin|complete|cancel> <incidentId> [reason]',
             'telecom noc',
             'telecom backhaul <link|node> <id> <ONLINE|DEGRADED|OFFLINE>',
             'telecom jammer create [radius] [strength] [durationMs]',
@@ -389,6 +449,22 @@ local function executeCommand(source, args)
         suffix = (' jammer=%s'):format(payload.id)
     elseif command == 'backhaul' and payload and payload.id then
         suffix = (' target=%s'):format(payload.id)
+    elseif command == 'fail' and payload and payload.createdFailure then
+        suffix = (' tower=%s failure=%s')
+            :format(tostring(payload.id), tostring(payload.createdFailure.id))
+        if payload.createdIncident and payload.createdIncident.id then
+            suffix = suffix .. (' incident=%s'):format(payload.createdIncident.id)
+        end
+    elseif command == 'technician' and payload then
+        local incident = payload.incident or payload
+        if incident and incident.id then
+            suffix = (' action=%s incident=%s status=%s')
+                :format(
+                    tostring(lower(token(args, 2))),
+                    tostring(incident.id),
+                    tostring(incident.status)
+                )
+        end
     elseif payload and payload.id then
         suffix = (' tower=%s'):format(payload.id)
     elseif payload and payload.enabled ~= nil then
