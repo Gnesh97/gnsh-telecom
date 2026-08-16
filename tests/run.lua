@@ -63,6 +63,7 @@ GetCurrentResourceName = function() return 'gnsh-telecom' end
 GetResourceState = function() return 'stopped' end
 StopResource = function() end
 dofile('server/network/connections.lua')
+dofile('client/environment.lua')
 dofile('client/state.lua')
 dofile('server/logging.lua')
 dofile('server/bootstrap.lua')
@@ -76,6 +77,7 @@ dofile('tests/unit/spatial_index_spec.lua')
 dofile('tests/unit/coverage_spec.lua')
 dofile('tests/unit/selection_spec.lua')
 dofile('tests/unit/capacity_spec.lua')
+dofile('tests/unit/environment_spec.lua')
 dofile('tests/unit/services_spec.lua')
 dofile('tests/unit/connections_spec.lua')
 dofile('tests/unit/client_state_spec.lua')

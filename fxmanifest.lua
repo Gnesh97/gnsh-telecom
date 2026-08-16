@@ -35,5 +35,6 @@ server_scripts {
 
 client_scripts {
     'client/bootstrap.lua',
+    'client/environment.lua',
     'client/state.lua',
 }

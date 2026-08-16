@@ -38,6 +38,14 @@ local function debugState(state)
             tostring(voiceState.callSetupReliability),
             tostring(smsState.smsDelayMs)
         ))
+
+    local environment = state.environment or {}
+    print(('[gnsh-telecom] environment category=%s zone=%s multiplier=%s')
+        :format(
+            tostring(environment.category),
+            tostring(environment.zoneId),
+            tostring(environment.multiplier)
+        ))
 end
 
 local function getInterval()
@@ -78,10 +86,21 @@ function ClientState.ReportPosition(coords)
         return false
     end
 
+    local environment = Environment and Environment.GetContext
+        and Environment.GetContext(coords)
+        or { category = 'OPEN_AREA' }
+    local payloadEnvironment = {
+        category = environment.category,
+    }
+    if type(environment.zoneId) == 'string' and environment.zoneId ~= '' then
+        payloadEnvironment.zoneId = environment.zoneId
+    end
+
     TriggerServerEvent(Constants.Events.POSITION_UPDATE, {
         x = coords.x,
         y = coords.y,
         z = coords.z,
+        environment = payloadEnvironment,
     })
     return true
 end

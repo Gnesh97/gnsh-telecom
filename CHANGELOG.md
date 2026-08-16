@@ -17,4 +17,6 @@
 - Added server-authoritative capacity accounting per serving tower.
 - Added configurable load thresholds, congestion states and deterministic congestion effects.
 - Added effective signal, data performance, call setup reliability and SMS delay metadata.
+- Added server-authoritative environment categories, configurable signal multiplier zones and bounded client environment reporting.
+- Added environment validation that rejects unknown categories, malformed zones and signal-gain multipliers.
 - Added framework-free pure Lua test harness.

@@ -11,6 +11,14 @@ local meaningfulFields = {
     'congestion',
 }
 
+local function environmentChanged(left, right)
+    local leftEnvironment = left and left.environment or {}
+    local rightEnvironment = right and right.environment or {}
+    return leftEnvironment.category ~= rightEnvironment.category
+        or leftEnvironment.zoneId ~= rightEnvironment.zoneId
+        or leftEnvironment.multiplier ~= rightEnvironment.multiplier
+end
+
 local function normalizeSource(source)
     local number = tonumber(source)
     if not number or number ~= number or number == math.huge or number == -math.huge
@@ -71,6 +79,7 @@ local function emptyState(source)
         loadPercent = 0,
         effectiveCapacity = nil,
         capacityEffects = {},
+        environment = Signal.ResolveEnvironment(nil, nil),
         services = {},
         updatedAt = now(),
     }
@@ -130,6 +139,7 @@ function Connections.HasChanged(previous, current)
     for _, field in ipairs(meaningfulFields) do
         if previous[field] ~= current[field] then return true end
     end
+    if environmentChanged(previous, current) then return true end
     return servicesChanged(previous, current)
 end
 
@@ -238,7 +248,7 @@ function Connections.RefreshCapacity(towerIds, deferredSource)
     return changedBySource
 end
 
-function Connections.Reevaluate(source, coords)
+function Connections.Reevaluate(source, coords, reportedEnvironment)
     local key, number = normalizeSource(source)
     if not key then return nil, false, 'invalid player source' end
     local previous = Connections.Get(number)
@@ -250,7 +260,8 @@ function Connections.Reevaluate(source, coords)
         return Connections.Get(number), false, 'player position unavailable'
     end
 
-    local candidates = Coverage.GetCandidates(coords)
+    local environment = Signal.ResolveEnvironment(coords, reportedEnvironment)
+    local candidates = Coverage.GetCandidates(coords, environment)
     local ranked = Selection.Rank(candidates)
     local best = ranked[1]
     local state = emptyState(number)
@@ -261,6 +272,7 @@ function Connections.Reevaluate(source, coords)
         state.signalLevel = Signal.GetLevel(best.signal)
         state.technology = best.tower.technologies[1]
     end
+    state.environment = environment
     state.services = Services.Evaluate(state).services
 
     local ok, _, affected = Connections.Set(number, state)
@@ -298,8 +310,9 @@ local function handlePlayerDropped()
     Connections.Remove(source)
 end
 
-local function handlePositionUpdate(coords)
-    Connections.Reevaluate(source, coords)
+local function handlePositionUpdate(payload)
+    local environment = type(payload) == 'table' and payload.environment or nil
+    Connections.Reevaluate(source, payload, environment)
 end
 
 if type(AddEventHandler) == 'function' then

@@ -279,6 +279,106 @@ local function validateCapacity(config, errors)
     end
 end
 
+local environmentCategories = {
+    'OPEN_AREA',
+    'URBAN',
+    'BUILDING',
+    'UNDERGROUND',
+    'TUNNEL',
+    'SPECIAL_ZONE',
+}
+
+local knownEnvironmentCategories = {}
+for _, category in ipairs(environmentCategories) do
+    knownEnvironmentCategories[category] = true
+end
+
+local function validateEnvironment(config, errors)
+    local environment = config.Environment
+    if type(environment) ~= 'table' then
+        addError(errors, 'Environment must be a table')
+        return
+    end
+
+    local allowed = environment.allowed
+    if type(allowed) ~= 'table' then
+        addError(errors, 'Environment.allowed must be a table')
+    else
+        for category, enabled in pairs(allowed) do
+            if not knownEnvironmentCategories[category] then
+                addError(errors, ('Environment.allowed contains unknown category: %s')
+                    :format(tostring(category)))
+            elseif type(enabled) ~= 'boolean' then
+                addError(errors, ('Environment.allowed.%s must be boolean')
+                    :format(category))
+            end
+        end
+    end
+
+    if type(environment.default) ~= 'string'
+        or not knownEnvironmentCategories[environment.default]
+        or type(allowed) ~= 'table'
+        or allowed[environment.default] ~= true then
+        addError(errors, 'Environment.default must be an allowed environment category')
+    end
+
+    local multipliers = environment.multipliers
+    if type(multipliers) ~= 'table' then
+        addError(errors, 'Environment.multipliers must be a table')
+    else
+        for category, multiplier in pairs(multipliers) do
+            if not knownEnvironmentCategories[category] then
+                addError(errors, ('Environment.multipliers contains unknown category: %s')
+                    :format(tostring(category)))
+            elseif not isNumber(multiplier) or multiplier < 0 or multiplier > 1 then
+                addError(errors, ('Environment.multipliers.%s must be between 0 and 1')
+                    :format(category))
+            end
+        end
+        for _, category in ipairs(environmentCategories) do
+            if type(allowed) == 'table' and allowed[category] == true
+                and not isNumber(multipliers[category]) then
+                addError(errors, ('Environment.multipliers.%s must be configured for allowed categories')
+                    :format(category))
+            end
+        end
+    end
+
+    local zones = environment.zones
+    if type(zones) ~= 'table' then
+        addError(errors, 'Environment.zones must be a table')
+        return
+    end
+
+    local seen = {}
+    for index, zone in ipairs(zones) do
+        local prefix = ('Environment.zones[%d]'):format(index)
+        if type(zone) ~= 'table' then
+            addError(errors, prefix .. ' must be a table')
+        else
+            if type(zone.id) ~= 'string' or zone.id == '' then
+                addError(errors, prefix .. '.id must be a non-empty string')
+            elseif seen[zone.id] then
+                addError(errors, ('duplicate environment zone id: %s'):format(zone.id))
+            else
+                seen[zone.id] = true
+            end
+
+            if not isPoint(zone.coords) then
+                addError(errors, prefix .. '.coords must contain numeric x, y and z')
+            end
+            if not isNumber(zone.radius) or zone.radius <= 0 then
+                addError(errors, prefix .. '.radius must be greater than zero')
+            end
+            if not knownEnvironmentCategories[zone.category]
+                or type(allowed) ~= 'table'
+                or allowed[zone.category] ~= true then
+                addError(errors, prefix .. '.category must be an allowed environment category')
+            end
+        end
+    end
+end
+
 local function validateFeatures(config, errors)
     if type(config.Features) ~= 'table' then return end
     for name, enabled in pairs(config.Features) do
@@ -394,6 +494,7 @@ function Config.Validate(config)
 
     validateServices(config, errors)
     validateCapacity(config, errors)
+    validateEnvironment(config, errors)
     validateTowers(config, errors, warnings)
 
     return #errors == 0, errors, warnings

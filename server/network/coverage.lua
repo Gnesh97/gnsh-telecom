@@ -6,7 +6,7 @@ local function isUnavailable(tower)
         or tower.state == Enums.TowerState.DESTROYED
 end
 
-function Coverage.GetCandidates(coords)
+function Coverage.GetCandidates(coords, environmentContext)
     if not Utils.IsPoint(coords) or not SpatialIndex.GetNearbyTowers then
         return {}
     end
@@ -19,7 +19,7 @@ function Coverage.GetCandidates(coords)
         if type(tower) == 'table' and not seen[tower.id]
             and not isUnavailable(tower) then
             local distance = Signal.CalculateDistance(tower.coords, coords)
-            local signal = Signal.CalculateRaw(tower, coords)
+            local signal = Signal.CalculateRaw(tower, coords, environmentContext)
             if distance and signal > 0 then
                 seen[tower.id] = true
                 candidates[#candidates + 1] = {
