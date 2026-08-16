@@ -11,6 +11,12 @@ function TowerState.Create(tower)
         capacityMultiplier = 1.0,
         congestion = Enums.CongestionState.NORMAL,
         capacityEffects = {},
+        failureEffects = {
+            signalMultiplier = 1.0,
+            capacityMultiplier = 1.0,
+            serviceFailures = {},
+            activeFailures = {},
+        },
         health = tower.hardware and tower.hardware.health or 100,
         state = tower.state or Enums.TowerState.OPERATIONAL,
         activeFailures = {},

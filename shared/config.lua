@@ -127,6 +127,11 @@ Config = {
         zones = {},
     },
 
+    FailureScheduler = {
+        enabled = false,
+        intervalMs = 60000,
+    },
+
     PhoneBridge = 'auto',
     Towers = {
         {
@@ -379,6 +384,20 @@ local function validateEnvironment(config, errors)
     end
 end
 
+local function validateFailureScheduler(config, errors)
+    local scheduler = config.FailureScheduler
+    if type(scheduler) ~= 'table' then
+        addError(errors, 'FailureScheduler must be a table')
+        return
+    end
+    if type(scheduler.enabled) ~= 'boolean' then
+        addError(errors, 'FailureScheduler.enabled must be boolean')
+    end
+    if not isNumber(scheduler.intervalMs) or scheduler.intervalMs <= 0 then
+        addError(errors, 'FailureScheduler.intervalMs must be greater than zero')
+    end
+end
+
 local function validateFeatures(config, errors)
     if type(config.Features) ~= 'table' then return end
     for name, enabled in pairs(config.Features) do
@@ -495,6 +514,7 @@ function Config.Validate(config)
     validateServices(config, errors)
     validateCapacity(config, errors)
     validateEnvironment(config, errors)
+    validateFailureScheduler(config, errors)
     validateTowers(config, errors, warnings)
 
     return #errors == 0, errors, warnings

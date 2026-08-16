@@ -109,6 +109,9 @@ function Signal.CalculateRaw(tower, coords, environmentContext)
     local signal = getBaseSignal() * distanceFactor
     local environment = Signal.ResolveEnvironment(coords, environmentContext)
     signal = signal * environment.multiplier
+    if FailureEngine and FailureEngine.ApplySignal then
+        signal = FailureEngine.ApplySignal(signal, tower.id)
+    end
     return Utils.Clamp(signal, 0, 100)
 end
 

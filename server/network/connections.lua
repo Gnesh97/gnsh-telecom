@@ -2,6 +2,8 @@ Connections = Connections or {}
 
 local statesBySource = {}
 local previousBySource = {}
+local positionsBySource = {}
+local environmentsBySource = {}
 
 local meaningfulFields = {
     'towerId',
@@ -17,6 +19,26 @@ local function environmentChanged(left, right)
     return leftEnvironment.category ~= rightEnvironment.category
         or leftEnvironment.zoneId ~= rightEnvironment.zoneId
         or leftEnvironment.multiplier ~= rightEnvironment.multiplier
+end
+
+local function failureEffectsChanged(left, right)
+    local leftEffects = left and left.failureEffects or {}
+    local rightEffects = right and right.failureEffects or {}
+    if leftEffects.signalMultiplier ~= rightEffects.signalMultiplier
+        or leftEffects.capacityMultiplier ~= rightEffects.capacityMultiplier then
+        return true
+    end
+
+    local leftFailures = leftEffects.activeFailures or {}
+    local rightFailures = rightEffects.activeFailures or {}
+    if #leftFailures ~= #rightFailures then return true end
+    for index, failure in ipairs(leftFailures) do
+        local other = rightFailures[index]
+        if not other or failure.id ~= other.id or failure.type ~= other.type then
+            return true
+        end
+    end
+    return false
 end
 
 local function normalizeSource(source)
@@ -79,6 +101,13 @@ local function emptyState(source)
         loadPercent = 0,
         effectiveCapacity = nil,
         capacityEffects = {},
+        failureEffects = {
+            signalMultiplier = 1.0,
+            capacityMultiplier = 1.0,
+            serviceFailures = {},
+            activeFailures = {},
+        },
+        serviceFailures = {},
         environment = Signal.ResolveEnvironment(nil, nil),
         services = {},
         updatedAt = now(),
@@ -140,6 +169,7 @@ function Connections.HasChanged(previous, current)
         if previous[field] ~= current[field] then return true end
     end
     if environmentChanged(previous, current) then return true end
+    if failureEffectsChanged(previous, current) then return true end
     return servicesChanged(previous, current)
 end
 
@@ -195,6 +225,8 @@ function Connections.Remove(source)
     local previous = statesBySource[key]
     previousBySource[key] = Utils.DeepCopy(previous)
     statesBySource[key] = nil
+    positionsBySource[key] = nil
+    environmentsBySource[key] = nil
 
     if Capacity and Capacity.ReconcileConnectionChange then
         Capacity.ReconcileConnectionChange(previous, nil, Connections.GetAll())
@@ -205,6 +237,8 @@ end
 function Connections.Clear()
     statesBySource = {}
     previousBySource = {}
+    positionsBySource = {}
+    environmentsBySource = {}
     if Capacity and Capacity.RecalculateAll then Capacity.RecalculateAll({}) end
 end
 
@@ -252,6 +286,27 @@ function Connections.RefreshCapacity(towerIds, deferredSource)
     return changedBySource
 end
 
+function Connections.RefreshTower(towerId)
+    if type(towerId) ~= 'string' then return {} end
+
+    local changedBySource = {}
+    for _, current in ipairs(Connections.GetAll()) do
+        if current.towerId == towerId then
+            local key = normalizeSource(current.source)
+            local coords = key and positionsBySource[key]
+            if coords then
+                local updated, changed = Connections.Reevaluate(
+                    current.source,
+                    coords,
+                    key and environmentsBySource[key]
+                )
+                if changed and updated then changedBySource[current.source] = true end
+            end
+        end
+    end
+    return changedBySource
+end
+
 function Connections.Reevaluate(source, coords, reportedEnvironment)
     local key, number = normalizeSource(source)
     if not key then return nil, false, 'invalid player source' end
@@ -264,6 +319,13 @@ function Connections.Reevaluate(source, coords, reportedEnvironment)
         return Connections.Get(number), false, 'player position unavailable'
     end
 
+    positionsBySource[key] = {
+        x = coords.x,
+        y = coords.y,
+        z = coords.z,
+    }
+    environmentsBySource[key] = Utils.DeepCopy(reportedEnvironment)
+
     local environment = Signal.ResolveEnvironment(coords, reportedEnvironment)
     local candidates = Coverage.GetCandidates(coords, environment)
     local ranked = Selection.Rank(candidates)
@@ -275,6 +337,9 @@ function Connections.Reevaluate(source, coords, reportedEnvironment)
         state.rawSignal = best.signal
         state.signalLevel = Signal.GetLevel(best.signal)
         state.technology = best.tower.technologies[1]
+        local runtime = TowerRegistry.GetRuntimeState(best.towerId)
+        state.failureEffects = runtime and runtime.failureEffects or state.failureEffects
+        state.serviceFailures = state.failureEffects.serviceFailures or {}
     end
     state.environment = environment
     state.services = Services.Evaluate(state).services

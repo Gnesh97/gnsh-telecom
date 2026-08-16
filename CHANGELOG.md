@@ -23,4 +23,7 @@
 - Added server-side connection, signal, tower, network type and service change events with defensive snapshots.
 - Added optional generic, LB Phone, NPWD, QS Smartphone and custom bridge adapters with safe detection and generic fallback.
 - Added custom phone bridge interface documentation.
+- Added data-driven basic failure engine with antenna, radio, cooling and hardware degradation effects.
+- Added deterministic multi-failure aggregation, manual clear/restore and disabled-feature behavior.
+- Added automatic failure scheduler stub disabled by default.
 - Added framework-free pure Lua test harness.

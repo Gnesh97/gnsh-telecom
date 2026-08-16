@@ -46,6 +46,14 @@ local function debugState(state)
             tostring(environment.zoneId),
             tostring(environment.multiplier)
         ))
+
+    local failureEffects = state.failureEffects or {}
+    print(('[gnsh-telecom] failures active=%s signalMultiplier=%s capacityMultiplier=%s')
+        :format(
+            tostring(#(failureEffects.activeFailures or {})),
+            tostring(failureEffects.signalMultiplier),
+            tostring(failureEffects.capacityMultiplier)
+        ))
 end
 
 local function getInterval()
