@@ -2,6 +2,8 @@ TechnicianClient = TechnicianClient or {}
 
 local validActions = {
     diagnose = true,
+    diagnose_complete = true,
+    diagnose_cancel = true,
     begin = true,
     complete = true,
     cancel = true,
@@ -23,7 +25,7 @@ local function normalizeAction(value)
     return type(value) == 'string' and value:lower() or nil
 end
 
-function TechnicianClient.Request(action, incidentId, reason)
+function TechnicianClient.Request(action, identifier, reason)
     action = normalizeAction(action)
     if not Config or not Config.Features
         or Config.Features.Technician ~= true
@@ -31,7 +33,13 @@ function TechnicianClient.Request(action, incidentId, reason)
         return false, 'technician_disabled'
     end
     if not validActions[action] then return false, 'unknown_maintenance_action' end
-    if not safeString(incidentId, 64) then return false, 'incident_id_required' end
+    local incidentAction = action == 'diagnose' or action == 'begin'
+    if incidentAction and not safeString(identifier, 64) then
+        return false, 'incident_id_required'
+    end
+    if not incidentAction and not safeString(identifier, 96) then
+        return false, 'session_id_required'
+    end
     if reason ~= nil and not safeString(reason, 128) then
         return false, 'invalid_cancel_reason'
     end
@@ -42,7 +50,8 @@ function TechnicianClient.Request(action, incidentId, reason)
 
     TriggerServerEvent(Constants.Events.MAINTENANCE_REQUEST, {
         action = action,
-        incidentId = incidentId,
+        incidentId = incidentAction and identifier or nil,
+        sessionId = incidentAction and nil or identifier,
         reason = reason,
     })
     return true
@@ -89,7 +98,9 @@ if type(RegisterCommand) == 'function' then
     RegisterCommand('telecomtech', function(_, args)
         args = type(args) == 'table' and args or {}
         local reason
-        if #args >= 3 then reason = table.concat(args, ' ', 3) end
+        if args[1] == 'cancel' and #args >= 3 then
+            reason = table.concat(args, ' ', 3)
+        end
         local ok, errorCode = TechnicianClient.Request(args[1], args[2], reason)
         if not ok and type(print) == 'function' then
             print(('[gnsh-telecom] technician request rejected: %s')

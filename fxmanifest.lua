@@ -9,6 +9,8 @@ description 'Standalone server-authoritative GSM and telecom infrastructure'
 version '0.1.0'
 
 shared_scripts {
+    'config/default.lua',
+    'config/towers.lua',
     'shared/config.lua',
     'shared/constants.lua',
     'shared/enums.lua',
@@ -51,6 +53,7 @@ server_scripts {
     'bridges/dispatch/generic.lua',
     'server/security/validation.lua',
     'server/security/rate_limit.lua',
+    'server/maintenance/sessions.lua',
     'server/maintenance/diagnostics.lua',
     'server/maintenance/repairs.lua',
     'server/maintenance/workflow.lua',

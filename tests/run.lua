@@ -38,6 +38,8 @@ function vector3(x, y, z)
     return { x = x, y = y, z = z }
 end
 
+dofile('config/default.lua')
+dofile('config/towers.lua')
 dofile('shared/config.lua')
 dofile('shared/constants.lua')
 dofile('shared/enums.lua')
@@ -81,6 +83,7 @@ GetResourceState = function() return 'stopped' end
 StopResource = function() end
 dofile('server/security/validation.lua')
 dofile('server/security/rate_limit.lua')
+dofile('server/maintenance/sessions.lua')
 dofile('bridges/frameworks/standalone.lua')
 dofile('bridges/frameworks/qb.lua')
 dofile('bridges/frameworks/qbox.lua')
@@ -151,6 +154,7 @@ dofile('server/maintenance/workflow.lua')
 dofile('noc/server.lua')
 dofile('server/statistics.lua')
 dofile('tests/unit/operations_spec.lua')
+dofile('tests/unit/maintenance_sessions_spec.lua')
 
 print('')
 print(('%d passed, %d failed'):format(passed, failed))

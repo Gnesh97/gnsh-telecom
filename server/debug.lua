@@ -270,36 +270,53 @@ end
 
 local function executeTechnician(source, args)
     local action = lower(token(args, 2))
-    local incidentId = token(args, 3)
+    local identifier = token(args, 3)
     local allowedActions = {
         diagnose = true,
+        diagnose_complete = true,
+        diagnose_cancel = true,
         begin = true,
         complete = true,
         cancel = true,
     }
 
     if not allowedActions[action] then return failure('technician_action_required') end
+    local identifierLength = (action == 'diagnose' or action == 'begin') and 64 or 96
     if not TelecomSecurity or not TelecomSecurity.IsSafeString
-        or not TelecomSecurity.IsSafeString(incidentId, 64) then
-        return failure('incident_id_required')
+        or not TelecomSecurity.IsSafeString(identifier, identifierLength) then
+        return failure(identifierLength == 64 and 'incident_id_required' or 'session_id_required')
     end
 
     local ok, result
     if action == 'diagnose' then
-        if not MaintenanceDiagnostics or not MaintenanceDiagnostics.Inspect then
+        if not MaintenanceDiagnostics or not MaintenanceDiagnostics.Begin then
             return failure('technician_unavailable')
         end
-        ok, result = MaintenanceDiagnostics.Inspect(source, incidentId)
+        ok, result = MaintenanceDiagnostics.Begin(source, identifier)
+    elseif action == 'diagnose_complete' then
+        if not MaintenanceDiagnostics or not MaintenanceDiagnostics.Complete then
+            return failure('technician_unavailable')
+        end
+        ok, result = MaintenanceDiagnostics.Complete(source, identifier)
+    elseif action == 'diagnose_cancel' then
+        if not MaintenanceDiagnostics or not MaintenanceDiagnostics.Cancel then
+            return failure('technician_unavailable')
+        end
+        ok, result = MaintenanceDiagnostics.Cancel(source, identifier)
     elseif action == 'begin' then
         if not MaintenanceRepairs or not MaintenanceRepairs.Begin then
             return failure('technician_unavailable')
         end
-        ok, result = MaintenanceRepairs.Begin(source, incidentId)
+        ok, result = MaintenanceRepairs.Begin(source, identifier)
     elseif action == 'complete' then
         if not MaintenanceRepairs or not MaintenanceRepairs.Complete then
             return failure('technician_unavailable')
         end
-        ok, result = MaintenanceRepairs.Complete(source, incidentId)
+        local session = type(MaintenanceRepairs.GetSession) == 'function'
+            and MaintenanceRepairs.GetSession(source) or nil
+        local sessionId = session and session.incidentId == identifier
+            and session.sessionId or identifier
+        ok, result = MaintenanceRepairs.Complete(source, sessionId)
     else
         if not MaintenanceRepairs or not MaintenanceRepairs.Cancel then
             return failure('technician_unavailable')
@@ -308,11 +325,18 @@ local function executeTechnician(source, args)
         if reason and not TelecomSecurity.IsSafeString(reason, 128) then
             return failure('invalid_cancel_reason')
         end
-        ok, result = MaintenanceRepairs.Cancel(source, incidentId, reason)
+        local session = type(MaintenanceRepairs.GetSession) == 'function'
+            and MaintenanceRepairs.GetSession(source) or nil
+        local sessionId = session and session.incidentId == identifier
+            and session.sessionId or identifier
+        ok, result = MaintenanceRepairs.Cancel(source, sessionId, reason)
     end
 
     if not ok then return failure(result) end
-    record(source, 'technician_' .. action, { incidentId = incidentId })
+    record(source, 'technician_' .. action, {
+        incidentId = (action == 'diagnose' or action == 'begin') and identifier or nil,
+        sessionId = action ~= 'diagnose' and action ~= 'begin' and identifier or nil,
+    })
     return success(result)
 end
 

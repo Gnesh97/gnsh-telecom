@@ -43,12 +43,19 @@ TEST('technician workflow validates distance and completes a repair', function()
     local previousAce = rawget(_G, 'IsPlayerAceAllowed')
     local previousGetPlayerPed = rawget(_G, 'GetPlayerPed')
     local previousGetEntityCoords = rawget(_G, 'GetEntityCoords')
+    local previousGetPlayerIdentifierByType = rawget(_G, 'GetPlayerIdentifierByType')
+    local previousGetGameTimer = rawget(_G, 'GetGameTimer')
+    local now = 100000
 
     Config.Features.Technician = true
     Config.Features.Incidents = true
     IsPlayerAceAllowed = function() return true end
     GetPlayerPed = function() return 1 end
     GetEntityCoords = function() return vector3(0, 0, 0) end
+    GetPlayerIdentifierByType = function(source, identifierType)
+        return identifierType .. ':operations-' .. tostring(source)
+    end
+    GetGameTimer = function() return now end
     resetOperationsState()
 
     local created, failure = FailureEngine.Create('OPERATIONS_TOWER', 'RADIO_FAILURE')
@@ -60,19 +67,31 @@ TEST('technician workflow validates distance and completes a repair', function()
         'technician', 'diagnose', incident.id,
     })
     ASSERT_TRUE(diagnosed)
-    ASSERT_EQ(diagnosis.failure.id, failure.id)
+    ASSERT_TRUE(diagnosis.session.sessionId ~= nil)
+
+    now = now + Config.Technician.diagnosticDurationMs
+    local diagnosisCompleted, _, diagnosisResult = TelecomDebug.Execute(7, {
+        'technician', 'diagnose_complete', diagnosis.session.sessionId,
+    })
+    ASSERT_TRUE(diagnosisCompleted)
+    ASSERT_EQ(diagnosisResult.failure.id, failure.id)
 
     local begun, _, beginResult = TelecomDebug.Execute(7, {
         'technician', 'begin', incident.id,
     })
     ASSERT_TRUE(begun)
     ASSERT_EQ(beginResult.incident.status, Enums.IncidentState.DIAGNOSING)
+    local beginHistory = beginResult.incident.history[#beginResult.incident.history]
+    ASSERT_EQ(beginHistory.details.actorId, 'license:operations-7')
 
+    now = now + Config.Technician.repairDurationMs
     local completed, _, completeResult = TelecomDebug.Execute(7, {
-        'technician', 'complete', incident.id,
+        'technician', 'complete', beginResult.session.sessionId,
     })
     ASSERT_TRUE(completed)
     ASSERT_EQ(completeResult.incident.status, Enums.IncidentState.RESOLVED)
+    local completionHistory = completeResult.incident.history[#completeResult.incident.history]
+    ASSERT_EQ(completionHistory.details.actorId, 'license:operations-7')
     ASSERT_EQ(#FailureEngine.GetTowerFailures('OPERATIONS_TOWER'), 0)
 
     Config.Features.Technician = previousTechnician
@@ -80,6 +99,8 @@ TEST('technician workflow validates distance and completes a repair', function()
     rawset(_G, 'IsPlayerAceAllowed', previousAce)
     rawset(_G, 'GetPlayerPed', previousGetPlayerPed)
     rawset(_G, 'GetEntityCoords', previousGetEntityCoords)
+    rawset(_G, 'GetPlayerIdentifierByType', previousGetPlayerIdentifierByType)
+    rawset(_G, 'GetGameTimer', previousGetGameTimer)
 end)
 
 TEST('NOC snapshot requires access and returns defensive operational data', function()

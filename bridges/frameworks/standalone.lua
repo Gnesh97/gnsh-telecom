@@ -54,6 +54,18 @@ function FrameworkBridge.GetJob(source)
     return nil
 end
 
+function FrameworkBridge.GetStablePlayerId(source)
+    local adapter = adapters[FrameworkBridge.Detect()]
+    if adapter and type(adapter.GetStablePlayerId) == 'function' then
+        local ok, identifier = pcall(adapter.GetStablePlayerId, source)
+        if ok and type(identifier) == 'string'
+            and identifier ~= '' and #identifier <= 128 then
+            return identifier
+        end
+    end
+    return nil
+end
+
 function FrameworkBridge.IsJobAllowed(source, jobs)
     local job = FrameworkBridge.GetJob(source)
     local name = type(job) == 'table' and job.name or job
@@ -63,4 +75,25 @@ end
 
 FrameworkBridge.Register('standalone', {
     GetJob = function() return nil end,
+    GetStablePlayerId = function(source)
+        if type(GetPlayerIdentifierByType) == 'function' then
+            local ok, identifier = pcall(GetPlayerIdentifierByType, source, 'license')
+            if ok and type(identifier) == 'string' and identifier ~= '' then
+                return identifier
+            end
+        end
+
+        if type(GetPlayerIdentifiers) == 'function' then
+            local ok, identifiers = pcall(GetPlayerIdentifiers, source)
+            if ok and type(identifiers) == 'table' then
+                for _, identifier in ipairs(identifiers) do
+                    if type(identifier) == 'string'
+                        and identifier:sub(1, 8) == 'license:' then
+                        return identifier
+                    end
+                end
+            end
+        end
+        return nil
+    end,
 })

@@ -56,19 +56,35 @@ function IncidentManager.OnFailureCreated(failure, restored)
     return IncidentManager.CreateForFailure(failure, restored)
 end
 
-function IncidentManager.OnFailureCleared(failure)
+function IncidentManager.OnFailureCleared(failure, actorContext)
     if not enabled() or type(failure) ~= 'table' then return false end
     local incident = IncidentTickets.FindByFailure(failure.id)
     if not incident or incident.status == Enums.IncidentState.CLOSED then return false end
+    local actorSource = 0
+    local actorId
+    if type(actorContext) == 'table' then
+        actorSource = tonumber(actorContext.source) or 0
+        actorId = actorContext.actorId
+    elseif type(actorContext) == 'number' then
+        actorSource = actorContext
+    end
+    local details = { failureCleared = true }
+    if type(actorId) == 'string' and actorId ~= '' then
+        details.actorId = actorId
+    end
     local previous = incident
     local ok, updated = IncidentTickets.Transition(
         incident.id,
         Enums.IncidentState.RESOLVED,
-        0,
-        { failureCleared = true }
+        actorSource,
+        details
     )
     if not ok then return false, updated end
-    audit(0, 'incident_resolved', { incidentId = updated.id, failureId = failure.id })
+    audit(actorSource, 'incident_resolved', {
+        incidentId = updated.id,
+        failureId = failure.id,
+        actorId = actorId,
+    })
     if TelecomStatistics and TelecomStatistics.RecordIncidentResolved then
         TelecomStatistics.RecordIncidentResolved()
     end
@@ -92,25 +108,33 @@ function IncidentManager.Transition(id, state, actor, details)
     if not previous then return false, 'incident_not_found' end
     local ok, updated = IncidentTickets.Transition(id, state, actor, details)
     if not ok then return false, updated end
-    audit(actor or 0, 'incident_transition', {
+    local auditDetails = {
         incidentId = id,
         from = previous.status,
         to = state,
-    })
+    }
+    if type(details) == 'table' then
+        for key, value in pairs(details) do auditDetails[key] = copy(value) end
+    end
+    audit(actor or 0, 'incident_transition', auditDetails)
     notify(updated, previous)
     return true, updated
 end
 
-function IncidentManager.Assign(id, source, actor)
+function IncidentManager.Assign(id, source, actor, details)
     if not enabled() then return false, 'incidents_disabled' end
     local previous = IncidentTickets.Get(id)
     if not previous then return false, 'incident_not_found' end
     local ok, updated = IncidentTickets.Assign(id, source, actor)
     if not ok then return false, updated end
-    audit(actor or 0, 'incident_assigned', {
+    local auditDetails = {
         incidentId = id,
         assignedTo = updated.assignedTo,
-    })
+    }
+    if type(details) == 'table' then
+        for key, value in pairs(details) do auditDetails[key] = copy(value) end
+    end
+    audit(actor or 0, 'incident_assigned', auditDetails)
     notify(updated, previous)
     return true, updated
 end

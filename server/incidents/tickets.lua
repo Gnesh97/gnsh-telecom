@@ -121,6 +121,9 @@ function IncidentTickets.Transition(id, nextState, actor, details)
     if nextState == Enums.IncidentState.ACKNOWLEDGED then next.acknowledgedAt = timestamp end
     if nextState == Enums.IncidentState.RESOLVED then next.resolvedAt = timestamp end
     if nextState == Enums.IncidentState.CLOSED then next.closedAt = timestamp end
+    if type(details) == 'table' and details.unassigned == true then
+        next.assignedTo = nil
+    end
     recordsById[id] = next
     return true, copy(next)
 end

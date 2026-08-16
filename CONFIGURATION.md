@@ -1,6 +1,6 @@
 # Configuration
 
-All balancing and feature switches live in `shared/config.lua`. Optional modules are disabled by their feature flag unless explicitly enabled.
+Baseline defaults and feature switches live in `config/default.lua`. Server-owned tower and backhaul topology belongs in `config/towers.lua`. `shared/config.lua` validates the assembled configuration; optional modules remain controlled by feature flags.
 
 ```lua
 Config.Features = {
@@ -28,4 +28,4 @@ Important settings:
 - `Config.Jammers` defines limits, radius, strength, duration and supported technologies.
 - `Config.Statistics` defines aggregate flush cadence and retention limits.
 
-Keep `Debug.enabled` and especially `Debug.logLevel = 'debug'` off in production after diagnostics are complete.
+Production defaults have `Debug.enabled = false` and `Debug.logLevel = 'info'`. Keep debug logging off in production. The development fixture overlay is opt-in through `config/examples/towers.lua` followed by `config/development.lua`; neither file is loaded by the production manifest.

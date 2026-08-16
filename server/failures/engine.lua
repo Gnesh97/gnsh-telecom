@@ -259,7 +259,7 @@ function FailureEngine.GetTowerFailures(towerId)
     return records
 end
 
-function FailureEngine.Clear(id)
+function FailureEngine.Clear(id, actorContext)
     local record = recordsById[id]
     if not record then return false, 'failure_not_found' end
 
@@ -275,7 +275,7 @@ function FailureEngine.Clear(id)
         TelecomPersistence.DeleteFailure(id)
     end
     if IncidentManager and IncidentManager.OnFailureCleared then
-        IncidentManager.OnFailureCleared(record)
+        IncidentManager.OnFailureCleared(record, actorContext)
     end
     if TelecomStatistics and TelecomStatistics.RecordFailureCleared then
         TelecomStatistics.RecordFailureCleared(record)

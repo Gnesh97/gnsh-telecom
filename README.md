@@ -127,8 +127,8 @@ Do not copy another server's identifier lines. Keep each installation's own `add
 /telecom signal [playerId]
 /telecom fail <towerId> <failureType>
 /telecom repair <towerId>
-/telecom technician <diagnose|begin|complete|cancel> <incidentId> [reason]
-/telecomtech <diagnose|begin|complete|cancel> <incidentId> [reason]
+/telecom technician <diagnose|diagnose_complete|diagnose_cancel|begin|complete|cancel> <incidentId|sessionId> [reason]
+/telecomtech <diagnose|diagnose_complete|diagnose_cancel|begin|complete|cancel> <incidentId|sessionId> [reason]
 /telecom load <towerId> <percent|clear>
 /telecom noc
 /telecomnoc
@@ -136,7 +136,7 @@ Do not copy another server's identifier lines. Keep each installation's own `add
 
 `/telecomdebug` toggles a client-only overlay. It is off by default and shows the current tower, distance, signal, capacity/congestion, environment, failure modifiers and alternative scores when those values are available. `/telecom load` is an in-memory test override and is cleared by restart or by using `clear`.
 
-Tower definitions belong in `shared/config.lua` under `Config.Towers`:
+Production tower definitions belong in `config/towers.lua` under `Config.Towers`:
 
 ```lua
 Config.Towers = {
@@ -157,23 +157,25 @@ Config.Towers = {
 
 Supported technologies are `EDGE`, `3G`, `4G` and `5G`. Duplicate IDs, invalid coordinates, coverage values, technologies or capacity prevent startup.
 
-Backhaul topology, if enabled, is also configured in `shared/config.lua`:
+Production backhaul topology, if enabled, is also configured in `config/towers.lua`:
 
 ```lua
 Config.Features.Backhaul = true
 Config.Backhaul.towerNodes = {
-    TEST_TOWER_A = 'AGG-01',
+    LS_VIN_01 = 'AGG-LS-01',
 }
 Config.Backhaul.coreNodes = { 'CORE-01' }
 Config.Backhaul.nodes = {
-    { id = 'AGG-01', type = 'AGGREGATION' },
+    { id = 'AGG-LS-01', type = 'AGGREGATION' },
     { id = 'CORE-01', type = 'CORE' },
 }
 Config.Backhaul.links = {
-    { id = 'LINK-A', from = 'TEST_TOWER_A', to = 'AGG-01', type = 'FIBER' },
-    { id = 'LINK-CORE', from = 'AGG-01', to = 'CORE-01', type = 'FIBER' },
+    { id = 'LINK-LS', from = 'LS_VIN_01', to = 'AGG-LS-01', type = 'FIBER' },
+    { id = 'LINK-CORE', from = 'AGG-LS-01', to = 'CORE-01', type = 'FIBER' },
 }
 ```
+
+Production defaults contain no towers and no test backhaul nodes. Development fixtures live in `config/examples/towers.lua`; `config/development.lua` is an optional development overlay and is not loaded by the production manifest.
 
 ## Start
 
@@ -195,4 +197,4 @@ lua5.4 tests/run.lua
 
 FiveM runtime behavior is verified separately through resource start/restart/stop smoke tests.
 
-For the first player smoke test, temporarily set `Config.Debug.enabled = true` and `Config.Debug.logLevel = 'debug'`. The client F8 console then reports serving tower, effective signal, signal level, technology, per-service availability, congestion, load, environment, failure modifiers and jammer interference whenever the authoritative connection state changes. Restore debug logging after testing. The newly added operations modules still require the planned FiveM runtime and multiplayer verification pass.
+For a development smoke test, load `config/examples/towers.lua` followed by `config/development.lua` in a development-only manifest. The client F8 console then reports serving tower, effective signal, signal level, technology, per-service availability, congestion, load, environment, failure modifiers and jammer interference whenever the authoritative connection state changes. Restore the production manifest after testing. FiveM runtime behavior and the multiplayer/load gate remain a `DEFERRED MULTIPLAYER GATE` for this phase.
