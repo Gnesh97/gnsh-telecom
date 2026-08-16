@@ -58,13 +58,18 @@ dofile('server/network/capacity.lua')
 dofile('server/network/services.lua')
 
 local eventHandlers = {}
+registeredExports = {}
+triggeredEvents = {}
 AddEventHandler = function(name, handler) eventHandlers[name] = handler end
+TriggerEvent = function(name, ...) triggeredEvents[#triggeredEvents + 1] = { name, ... } end
+exports = function(name, handler) registeredExports[name] = handler end
 GetCurrentResourceName = function() return 'gnsh-telecom' end
 GetResourceState = function() return 'stopped' end
 StopResource = function() end
 dofile('server/network/connections.lua')
 dofile('client/environment.lua')
 dofile('client/state.lua')
+dofile('server/api.lua')
 dofile('server/logging.lua')
 dofile('server/bootstrap.lua')
 
@@ -78,6 +83,7 @@ dofile('tests/unit/coverage_spec.lua')
 dofile('tests/unit/selection_spec.lua')
 dofile('tests/unit/capacity_spec.lua')
 dofile('tests/unit/environment_spec.lua')
+dofile('tests/unit/api_spec.lua')
 dofile('tests/unit/services_spec.lua')
 dofile('tests/unit/connections_spec.lua')
 dofile('tests/unit/client_state_spec.lua')

@@ -29,6 +29,7 @@ server_scripts {
     'server/network/capacity.lua',
     'server/network/services.lua',
     'server/network/connections.lua',
+    'server/api.lua',
     'server/logging.lua',
     'server/bootstrap.lua',
 }

@@ -239,8 +239,12 @@ function Connections.RefreshCapacity(towerIds, deferredSource)
             )
             if ok and changed then
                 changedBySource[current.source] = true
+                local updated = Connections.Get(current.source)
                 if current.source ~= deferredSource then
-                    sendState(current.source, Connections.Get(current.source))
+                    sendState(current.source, updated)
+                    if TelecomAPI and TelecomAPI.EmitStateEvents then
+                        TelecomAPI.EmitStateEvents(current, updated)
+                    end
                 end
             end
         end
@@ -284,6 +288,9 @@ function Connections.Reevaluate(source, coords, reportedEnvironment)
     local changed = Connections.HasChanged(previous, updated)
     if changed then
         sendState(number, updated)
+        if TelecomAPI and TelecomAPI.EmitStateEvents then
+            TelecomAPI.EmitStateEvents(previous, updated)
+        end
         if Config.Debug.enabled and Log and Log.debug and best then
             Log.debug('connection selection', {
                 source = number,
@@ -307,7 +314,13 @@ local function handlePlayerJoining()
 end
 
 local function handlePlayerDropped()
-    Connections.Remove(source)
+    local previous = Connections.Get(source)
+    if Connections.Remove(source)
+        and previous
+        and TelecomAPI
+        and TelecomAPI.EmitStateEvents then
+        TelecomAPI.EmitStateEvents(previous, nil)
+    end
 end
 
 local function handlePositionUpdate(payload)

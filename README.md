@@ -2,9 +2,9 @@
 
 Standalone, server-authoritative GSM and telecom infrastructure for FiveM.
 
-## Phase 8 status
+## Phase 9 status
 
-The foundation, authoritative tower domain, spatial index, basic coverage engine, dynamic tower selection, capacity/congestion engine, environment modifiers, service availability engine and player connection manager are implemented. The resource boots without QBCore, Qbox, ESX or a phone resource. `TowerRegistry` validates tower definitions, stores immutable static configuration, and initializes isolated runtime state for every tower. `SpatialIndex` maps coverage-overlapping towers into configurable x/y grid cells and returns deterministic candidate lists. `Coverage` applies exact distance and operational-state filtering, `Signal` calculates the normalized distance score and applies server-configured environment modifiers, `Selection` ranks candidates using signal, load, health and optional technology penalties, `Capacity` counts serving players and derives effective capacity, load and congestion effects, and `Services` evaluates voice, SMS, data, GPS and emergency independently. The server keeps one in-memory connection state per player and the client reports bounded position and environment context for reevaluation.
+The foundation, authoritative tower domain, spatial index, basic coverage engine, dynamic tower selection, capacity/congestion engine, environment modifiers, service availability engine, player connection manager and public telecom API are implemented. The resource boots without QBCore, Qbox, ESX or a phone resource. `TowerRegistry` validates tower definitions, stores immutable static configuration, and initializes isolated runtime state for every tower. `SpatialIndex` maps coverage-overlapping towers into configurable x/y grid cells and returns deterministic candidate lists. `Coverage` applies exact distance and operational-state filtering, `Signal` calculates the normalized distance score and applies server-configured environment modifiers, `Selection` ranks candidates using signal, load, health and optional technology penalties, `Capacity` counts serving players and derives effective capacity, load and congestion effects, and `Services` evaluates voice, SMS, data, GPS and emergency independently. The server keeps one in-memory connection state per player and the client reports bounded position and environment context for reevaluation.
 
 Selection weights are configurable under `Config.Selection`:
 
@@ -68,6 +68,8 @@ local available, state = Services.CanUse(source, 'voice')
 ```
 
 Each service state includes `available`, `signal`, `minimumSignal`, `reason` and `blockedBy`. The current connection state is also sent to the client for debug inspection.
+
+Public exports and integration event contracts are documented in [API.md](API.md). They expose safe copies and return documented fallback values for invalid or disconnected players.
 
 Tower definitions belong in `shared/config.lua` under `Config.Towers`:
 
