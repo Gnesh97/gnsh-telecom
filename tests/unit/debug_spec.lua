@@ -35,12 +35,23 @@ TEST('debug permissions use the configured ACE node', function()
     IsPlayerAceAllowed = function(source, ace)
         seenSource = source
         seenAce = ace
-        return true
+        return source == '12' and ace == Config.Debug.adminAce
     end
 
     ASSERT_TRUE(TelecomPermissions.IsAdmin(12))
     ASSERT_EQ(seenSource, '12')
     ASSERT_EQ(seenAce, Config.Debug.adminAce)
+
+    rawset(_G, 'IsPlayerAceAllowed', previous)
+end)
+
+TEST('standard command ACE grants debug access', function()
+    local previous = rawget(_G, 'IsPlayerAceAllowed')
+    IsPlayerAceAllowed = function(_, ace)
+        return ace == 'command'
+    end
+
+    ASSERT_TRUE(TelecomPermissions.IsAdmin(12))
 
     rawset(_G, 'IsPlayerAceAllowed', previous)
 end)
@@ -54,6 +65,43 @@ TEST('existing server admin ACE grants debug access', function()
     ASSERT_TRUE(TelecomPermissions.IsAdmin(12))
 
     rawset(_G, 'IsPlayerAceAllowed', previous)
+end)
+
+TEST('existing QBCore god ACE grants debug access', function()
+    local previous = rawget(_G, 'IsPlayerAceAllowed')
+    IsPlayerAceAllowed = function(_, ace)
+        return ace == 'god'
+    end
+
+    ASSERT_TRUE(TelecomPermissions.IsAdmin(12))
+
+    rawset(_G, 'IsPlayerAceAllowed', previous)
+end)
+
+TEST('debug permissions support native numeric source ids', function()
+    local previous = rawget(_G, 'IsPlayerAceAllowed')
+    IsPlayerAceAllowed = function(source, ace)
+        return source == 12 and ace == Config.Debug.adminAce
+    end
+
+    ASSERT_TRUE(TelecomPermissions.IsAdmin(12))
+
+    rawset(_G, 'IsPlayerAceAllowed', previous)
+end)
+
+TEST('console source aliases are treated as trusted server console', function()
+    ASSERT_TRUE(TelecomPermissions.IsConsole('console'))
+    ASSERT_TRUE(TelecomPermissions.IsAdmin('console'))
+    ASSERT_TRUE(TelecomPermissions.IsConsole('0'))
+    ASSERT_TRUE(TelecomPermissions.IsAdmin('0'))
+    ASSERT_TRUE(TelecomPermissions.IsConsole('00'))
+    ASSERT_TRUE(TelecomPermissions.IsAdmin('0.0'))
+end)
+
+TEST('malformed and negative player sources fail closed', function()
+    ASSERT_FALSE(TelecomPermissions.IsAdmin(nil))
+    ASSERT_FALSE(TelecomPermissions.IsAdmin(-1))
+    ASSERT_FALSE(TelecomPermissions.IsAdmin('not-a-player'))
 end)
 
 TEST('audit records immutable admin actions', function()
