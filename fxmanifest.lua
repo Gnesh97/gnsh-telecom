@@ -32,6 +32,11 @@ server_scripts {
     'server/api.lua',
     'server/logging.lua',
     'server/bootstrap.lua',
+    'bridges/phones/generic.lua',
+    'bridges/phones/lbphone.lua',
+    'bridges/phones/npwd.lua',
+    'bridges/phones/qs.lua',
+    'bridges/phones/custom.lua',
 }
 
 client_scripts {

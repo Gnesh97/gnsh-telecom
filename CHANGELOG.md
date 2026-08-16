@@ -21,4 +21,6 @@
 - Added environment validation that rejects unknown categories, malformed zones and signal-gain multipliers.
 - Added versioned public telecom exports for signal, network, tower and service queries.
 - Added server-side connection, signal, tower, network type and service change events with defensive snapshots.
+- Added optional generic, LB Phone, NPWD, QS Smartphone and custom bridge adapters with safe detection and generic fallback.
+- Added custom phone bridge interface documentation.
 - Added framework-free pure Lua test harness.
