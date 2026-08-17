@@ -230,6 +230,7 @@ Config = {
     CustomInventory = nil,
     TargetBridge = 'auto',
     CustomTarget = nil,
+    CustomDispatch = nil,
     PhoneBridge = 'auto',
     Towers = {},
 }

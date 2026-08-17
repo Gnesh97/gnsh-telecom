@@ -6,6 +6,12 @@ local function boot()
     if PhoneBridges and type(PhoneBridges.Initialize) == 'function' then
         PhoneBridges.Initialize()
     end
+    if NotifyBridge and type(NotifyBridge.Initialize) == 'function' then
+        NotifyBridge.Initialize()
+    end
+    if ProgressBridge and type(ProgressBridge.Initialize) == 'function' then
+        ProgressBridge.Initialize()
+    end
     print(('[gnsh-telecom] %s'):format(Locale.Translate(Config.Locale, 'startup.ready')))
 end
 

@@ -1,10 +1,10 @@
-# Phone bridges
+# Bridge integrations
 
 Phone bridges are optional adapters around the public `gnsh-telecom` API. Telecom core never imports phone resources and does not require a phone resource to start.
 
 ## Central bridge platform
 
-All integration categories are registered through the central platform: `framework`, `inventory`, `target`, `dispatch` and `phone`. Providers declare a name, category, priority, optional resources, capabilities and lifecycle methods (`Detect`, `Initialize`, `Shutdown`, `HealthCheck`). Selection is deterministic by priority and provider name, with safe fallback when detection, initialization or health checks fail.
+All core integration categories are registered through the central platform: `framework`, `inventory`, `target`, `dispatch` and `phone`. Providers declare a name, category, priority, optional resources, capabilities and lifecycle methods (`Detect`, `Initialize`, `Shutdown`, `HealthCheck`). Selection is deterministic by priority and provider name, with safe fallback when detection, initialization or health checks fail. Notify and progress are lightweight support registries because they are presentation helpers rather than gameplay state providers.
 
 Consumers can inspect the platform through the public exports:
 
@@ -15,6 +15,43 @@ local capabilities = exports['gnsh-telecom']:GetBridgeCapabilities('phone')
 ```
 
 Provider start/stop events trigger lifecycle reconciliation. Missing optional providers report `OPTIONAL`; a provider exception is isolated and reported as `FAILED` without stopping the telecom core.
+
+## Notify, progress and dispatch support bridges
+
+Support calls use a provider-neutral contract:
+
+```lua
+NotifyBridge.Notify(source, kind, message, data)
+ProgressBridge.StartProgress(source, action, durationMs, options)
+DispatchBridge.CreateAlert(data)
+```
+
+`kind` is one of `info`, `success`, `warning` or `error`. Payloads are copied and bounded at the bridge boundary. Notify and progress provider exceptions fall back to the native provider when possible. The native notify provider emits the resource client event and displays through the standard `chat:addMessage` event; the native progress provider emits the standard `progress` event.
+
+Progress is presentation-only. `StartProgress` never creates a server timer or accepts a client completion signal. Server workflows must keep ownership of duration, cancellation and completion validation.
+
+Notify selection is automatic (`ox`, framework, then native) and can be made explicit:
+
+```lua
+Config.NotifyBridge = 'auto'       -- auto, ox, framework or native
+Config.ProgressBridge = 'auto'     -- auto, ox or native
+```
+
+The Ox provider uses the documented `lib.notify`, `lib.progressBar` and `lib.progressCircle` entry points. Server requests are routed through resource-owned client events so a missing or failing Ox client can fall back to native presentation. Dispatch remains optional: no provider is installed by default, while native and custom adapters can be selected explicitly.
+
+Custom dispatch can be configured before startup or installed at runtime:
+
+```lua
+Config.CustomDispatch = {
+    name = 'my-dispatch',
+    CreateAlert = function(data)
+        return MyDispatch.CreateAlert(data)
+    end,
+}
+-- Or: DispatchBridge.SetCustomAdapter(Config.CustomDispatch)
+```
+
+`DispatchBridge.Alert(data)` remains available for existing integrations and delegates to `CreateAlert` when that is the only method supplied.
 
 ## Framework bridges
 

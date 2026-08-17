@@ -26,6 +26,11 @@ Constants = {
         SABOTAGE_REQUEST = 'gnsh-telecom:server:sabotageRequest',
         SABOTAGE_STATE = 'gnsh-telecom:client:sabotageState',
     },
+    SupportEvents = {
+        NOTIFY = 'gnsh-telecom:client:notify',
+        PROGRESS_START = 'gnsh-telecom:client:progressStart',
+        DISPATCH_ALERT = 'gnsh-telecom:server:dispatchAlert',
+    },
     ApiEvents = {
         CONNECTION_CHANGED = 'gnsh-telecom:connectionChanged',
         SIGNAL_CHANGED = 'gnsh-telecom:signalChanged',

@@ -72,3 +72,13 @@ Every event receives `source`, `current` and `previous`. Payload tables are defe
 Core state remains server-authoritative. Consumers must treat event payloads as snapshots and use exports for current queries.
 
 Bridge status is grouped by `framework`, `inventory`, `target`, `dispatch` and `phone`. A category status reports the active provider, health state, initialized/available flags, provider priorities and normalized capabilities. Phone status additionally reports `supportLevel` (`FULL`, `FUNCTIONAL` or `DISPLAY`) and a `support` map. Provider failures are isolated and do not stop the telecom core.
+
+Presentation and dispatch helpers are exposed through provider-neutral bridge calls rather than core state exports:
+
+```lua
+NotifyBridge.Notify(source, kind, message, data)
+ProgressBridge.StartProgress(source, action, durationMs, options)
+DispatchBridge.CreateAlert(data)
+```
+
+Notify and progress inputs are bounded and copied. Progress only tells the client what to display; server-side sessions, timers and completion checks remain authoritative. Dispatch is optional and safely returns `false, 'dispatch_adapter_unavailable'` when no provider is configured. `DispatchBridge.Alert(data)` remains a backwards-compatible alias.

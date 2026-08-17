@@ -12,12 +12,19 @@ local function invoke(value, method)
 end
 
 local function makeContract(value)
+    local capabilities = value.capabilities
+    if type(capabilities) ~= 'table' then
+        capabilities = { 'Alert' }
+        if type(value.CreateAlert) == 'function' then
+            capabilities[#capabilities + 1] = 'CreateAlert'
+        end
+    end
     return {
         name = type(value.name) == 'string' and value.name ~= '' and value.name or 'runtime',
         category = 'dispatch',
         priority = value.priority or 0,
         resources = value.resources,
-        capabilities = value.capabilities or { 'Alert' },
+        capabilities = capabilities,
         Detect = function() return true end,
         Initialize = function() return invoke(value, 'Initialize') end,
         Shutdown = function() return invoke(value, 'Shutdown') end,
@@ -48,11 +55,19 @@ function DispatchBridge.SetAdapter(value)
 end
 
 function DispatchBridge.Alert(payload)
-    if adapter and type(adapter.Alert) == 'function' then
-        local ok, result = pcall(adapter.Alert, payload)
-        if ok then return result ~= false end
-        return false
+    if adapter then
+        local handler = type(adapter.Alert) == 'function' and adapter.Alert
+            or adapter.CreateAlert
+        if type(handler) == 'function' then
+            local ok, result, errorMessage = pcall(handler, payload)
+            if ok then return result ~= false, errorMessage end
+            return false, 'dispatch_provider_exception'
+        end
     end
     if Log and Log.warn then Log.warn('dispatch alert', payload) end
     return false, 'dispatch_adapter_unavailable'
+end
+
+function DispatchBridge.CreateAlert(payload)
+    return DispatchBridge.Alert(payload)
 end

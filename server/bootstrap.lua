@@ -31,6 +31,13 @@ local function boot()
         end
     end
 
+    if NotifyBridge and type(NotifyBridge.Initialize) == 'function' then
+        NotifyBridge.Initialize()
+    end
+    if ProgressBridge and type(ProgressBridge.Initialize) == 'function' then
+        ProgressBridge.Initialize()
+    end
+
     local registryOk, registryErrors, registryWarnings = TowerRegistry.Init()
     if not registryOk then
         Log.error('tower registry validation failed')
