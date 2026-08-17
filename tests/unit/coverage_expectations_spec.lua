@@ -31,6 +31,27 @@ TEST('coverage expectation catalog contains required and pending anchors', funct
     ASSERT_EQ(remote.position, nil)
 end)
 
+TEST('configured production topology satisfies captured anchors and preserves pending weak zones', function()
+    resetExpectationState()
+    TowerRegistry.Init(Config.Towers)
+    ASSERT_TRUE(SpatialIndex.Rebuild(TowerRegistry.GetAll()))
+
+    local results = TelecomCoverageExpectations.EvaluateAll()
+    local pass, fail, pending = 0, 0, 0
+    for _, result in ipairs(results) do
+        if result.status == 'PASS' then pass = pass + 1 end
+        if result.status == 'FAIL' then fail = fail + 1 end
+        if result.status == 'PENDING_CAPTURE' then pending = pending + 1 end
+    end
+
+    ASSERT_EQ(#results, 20)
+    ASSERT_EQ(pass, 13)
+    ASSERT_EQ(fail, 0)
+    ASSERT_EQ(pending, 7)
+
+    resetExpectationState()
+end)
+
 TEST('coverage expectation validation requires real coordinates unless capture is pending', function()
     local previous = Config.CoverageExpectations
     Config.CoverageExpectations = {
