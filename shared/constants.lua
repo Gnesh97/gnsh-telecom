@@ -39,6 +39,7 @@ Constants = {
         SIGNAL_CHANGED = 'gnsh-telecom:signalChanged',
         SIGNAL_LEVEL_CHANGED = 'gnsh-telecom:signalLevelChanged',
         TOWER_CHANGED = 'gnsh-telecom:towerChanged',
+        SECTOR_CHANGED = 'gnsh-telecom:sectorChanged',
         NETWORK_TYPE_CHANGED = 'gnsh-telecom:networkTypeChanged',
         SERVICE_CHANGED = 'gnsh-telecom:serviceChanged',
         INCIDENT_CHANGED = 'gnsh-telecom:incidentChanged',

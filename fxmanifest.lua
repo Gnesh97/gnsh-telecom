@@ -30,6 +30,7 @@ server_scripts {
     'server/towers/spatial_index.lua',
     'server/network/signal.lua',
     'server/network/coverage.lua',
+    'server/network/technology_selection.lua',
     'server/network/selection.lua',
     'server/network/capacity.lua',
     'server/network/services.lua',

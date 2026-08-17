@@ -157,16 +157,18 @@ function Capacity.GetEffectiveCapacity(tower, runtime)
     return configured * multiplier
 end
 
+function Capacity.GetEffectiveTechnologyCapacity(effectiveCapacity, technology)
+    if not isFiniteNumber(effectiveCapacity) or effectiveCapacity < 0 then return nil end
+    local multiplier = Technologies and Technologies.GetCapacityMultiplier
+        and Technologies.GetCapacityMultiplier(technology)
+        or 1.0
+    if not isFiniteNumber(multiplier) or multiplier < 0 then multiplier = 1.0 end
+    return effectiveCapacity * multiplier
+end
+
 function Capacity.GetEffectiveSectorCapacity(towerId, sectorId, runtime)
     if not TowerSectors or not TowerSectors.GetEffectiveCapacity then return nil end
-    local capacity = TowerSectors.GetEffectiveCapacity(towerId, sectorId, runtime)
-    local towerRuntime = TowerRegistry and TowerRegistry.GetRuntimeState
-        and TowerRegistry.GetRuntimeState(towerId)
-    local towerMultiplier = towerRuntime and towerRuntime.capacityMultiplier
-    if not isFiniteNumber(towerMultiplier) or towerMultiplier <= 0 then
-        towerMultiplier = 1
-    end
-    return capacity and capacity * towerMultiplier or nil
+    return TowerSectors.GetEffectiveCapacity(towerId, sectorId, runtime)
 end
 
 local function sectorDefinitions(towerId)
@@ -376,6 +378,14 @@ function Capacity.ApplyToConnection(connectionState, runtimeState)
     nextState.loadPercent = runtimeState.loadPercent or 0
     nextState.effectiveCapacity = runtimeState.effectiveCapacity
     nextState.capacityEffects = copy(effects)
+    nextState.technologyCapacityMultiplier = Technologies
+        and Technologies.GetCapacityMultiplier
+        and Technologies.GetCapacityMultiplier(nextState.technology)
+        or 1.0
+    nextState.effectiveTechnologyCapacity = Capacity.GetEffectiveTechnologyCapacity(
+        nextState.effectiveCapacity,
+        nextState.technology
+    )
     if Services and Services.Evaluate then
         nextState.services = Services.Evaluate(nextState, {
             congestion = congestion,

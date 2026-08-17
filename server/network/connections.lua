@@ -100,7 +100,13 @@ end
 
 local function servingKey(candidate)
     if not candidate or not candidate.towerId then return nil end
-    return candidate.towerId .. ':' .. (candidate.sectorId or '*')
+    local sectorId = candidate.sectorId or '*'
+    return ('%d:%s|%d:%s'):format(
+        #candidate.towerId,
+        candidate.towerId,
+        #sectorId,
+        sectorId
+    )
 end
 
 local function chooseServingCandidate(source, previous, ranked)
@@ -442,7 +448,9 @@ function Connections.Reevaluate(source, coords, reportedEnvironment)
         state.signalLevel = Signal.GetLevel(best.signal)
         local sector = best.sector
         local technologies = sector and sector.technologies or best.tower.technologies
-        state.technology = technologies and technologies[1]
+        state.technology = best.technology
+            or technologies and technologies[1]
+        state.technologyFallbackFrom = best.technologyFallbackFrom
         local towerRuntime = TowerRegistry.GetRuntimeState(best.towerId)
         local runtime = best.sectorId and TowerSectors and TowerSectors.GetRuntime
             and TowerSectors.GetRuntime(best.towerId, best.sectorId)
@@ -452,10 +460,14 @@ function Connections.Reevaluate(source, coords, reportedEnvironment)
             or state.failureEffects
         state.serviceFailures = state.failureEffects.serviceFailures or {}
         state.towerState = runtime and runtime.state or best.tower.state
-        state.backhaulStatus = BackhaulRouting and BackhaulRouting.GetTowerStatus
+        local routedBackhaul = BackhaulRouting and BackhaulRouting.GetTowerStatus
             and BackhaulRouting.GetTowerStatus(best.towerId)
             or towerRuntime and towerRuntime.backhaulStatus
             or Enums.BackhaulState.ONLINE
+        state.backhaulStatus = runtime
+            and runtime.backhaulStatus == Enums.BackhaulState.OFFLINE
+            and Enums.BackhaulState.OFFLINE
+            or routedBackhaul
         state.interference = Jammers and Jammers.GetEffect
             and Jammers.GetEffect(coords, technologies)
             or state.interference

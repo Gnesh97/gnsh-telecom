@@ -190,7 +190,7 @@ local function staticSector(towerId, sectorId)
     return nil
 end
 
-local function createRuntime(towerId, sector)
+local function createRuntime(towerId, sector, backhaulStatus)
     return {
         towerId = towerId,
         sectorId = sector.id,
@@ -210,6 +210,10 @@ local function createRuntime(towerId, sector)
         activeFailures = {},
         health = sector.health,
         state = sector.state,
+        baseHealth = sector.health,
+        baseState = sector.state,
+        backhaulStatus = backhaulStatus or Enums.BackhaulState.ONLINE,
+        baseBackhaulStatus = backhaulStatus or Enums.BackhaulState.ONLINE,
         updatedAt = 0,
     }
 end
@@ -225,7 +229,12 @@ function TowerSectors.Initialize(towers)
             nextDefinitions[tower.id] = copy(sectors)
             towerCount = towerCount + 1
             for _, sector in ipairs(sectors) do
-                nextRuntime[runtimeKey(tower.id, sector.id)] = createRuntime(tower.id, sector)
+                local backhaul = tower.backhaul and tower.backhaul.status
+                nextRuntime[runtimeKey(tower.id, sector.id)] = createRuntime(
+                    tower.id,
+                    sector,
+                    backhaul
+                )
             end
         end
     end
@@ -301,14 +310,20 @@ end
 
 function TowerSectors.SetState(towerId, sectorId, state)
     if not validState(state) then return false, 'invalid_state' end
-    return TowerSectors.UpdateRuntime(towerId, sectorId, { state = state })
+    return TowerSectors.UpdateRuntime(towerId, sectorId, {
+        state = state,
+        baseState = state,
+    })
 end
 
 function TowerSectors.SetHealth(towerId, sectorId, health)
     if not isFiniteNumber(health) or health < 0 or health > 100 then
         return false, 'invalid_health'
     end
-    return TowerSectors.UpdateRuntime(towerId, sectorId, { health = health })
+    return TowerSectors.UpdateRuntime(towerId, sectorId, {
+        health = health,
+        baseHealth = health,
+    })
 end
 
 function TowerSectors.SetLoad(towerId, sectorId, loadPercent)

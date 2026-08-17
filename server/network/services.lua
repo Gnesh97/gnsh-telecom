@@ -42,12 +42,34 @@ local function getCongestionEffects(congestion, explicit)
     }
 end
 
+local performanceRank = {
+    NORMAL = 1,
+    DEGRADED = 2,
+    SLOW = 3,
+    VERY_SLOW = 4,
+    UNAVAILABLE = 5,
+}
+
+local function worstPerformance(left, right)
+    if not left then return right end
+    if not right then return left end
+    if (performanceRank[right] or 0) > (performanceRank[left] or 0) then
+        return right
+    end
+    return left
+end
+
 local function evaluateService(service, signal, connected, context)
     local minimumSignal = ServicePolicy.GetMinimumSignal(service)
     local congestionEffects = getCongestionEffects(
         context.congestion,
         context.congestionEffects
     )
+    local technologyPerformance = Technologies and Technologies.GetServicePerformance
+        and Technologies.GetServicePerformance(context.technology, service)
+    local dataPerformance = service == 'data'
+        and worstPerformance(congestionEffects.dataPerformance, technologyPerformance)
+        or nil
     local state = {
         available = false,
         signal = signal,
@@ -55,7 +77,7 @@ local function evaluateService(service, signal, connected, context)
         reason = 'policy',
         blockedBy = 'policy',
         congestion = context.congestion,
-        dataPerformance = service == 'data' and congestionEffects.dataPerformance or nil,
+        dataPerformance = dataPerformance,
         callSetupReliability = service == 'voice'
             and congestionEffects.callSetupReliability
             or nil,
@@ -69,6 +91,21 @@ local function evaluateService(service, signal, connected, context)
     if not connected then
         state.reason = 'no_service'
         state.blockedBy = 'signal'
+        return state
+    end
+
+    if context.technology == Technologies.NO_SERVICE then
+        state.reason = 'technology'
+        state.blockedBy = 'technology'
+        return state
+    end
+
+    if context.technology and Technologies.IsSupported
+        and Technologies.IsSupported(context.technology)
+        and Technologies.SupportsService
+        and not Technologies.SupportsService(context.technology, service) then
+        state.reason = 'technology'
+        state.blockedBy = 'technology'
         return state
     end
 
@@ -127,6 +164,7 @@ function Services.Evaluate(connectionState, context)
         congestionEffects = context.congestionEffects or connectionState.capacityEffects,
         congestionBlocks = context.congestionBlocks or connectionState.congestionBlocks,
         serviceFailures = context.serviceFailures or connectionState.serviceFailures,
+        technology = context.technology or connectionState.technology,
     }
     local serviceStates = {}
 
@@ -143,6 +181,7 @@ function Services.Evaluate(connectionState, context)
         source = connectionState.source,
         towerId = connectionState.towerId,
         signal = signal,
+        technology = evaluationContext.technology,
         services = serviceStates,
     }
 end

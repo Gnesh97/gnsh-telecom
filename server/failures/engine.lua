@@ -133,13 +133,6 @@ local function applyTower(towerId)
     })
     if not updated then return false, 'tower runtime update failed' end
 
-    if Capacity and Capacity.RecalculateTower and Connections and Connections.GetAll then
-        Capacity.RecalculateTower(towerId, Connections.GetAll())
-    end
-    if Connections and Connections.RefreshTower then
-        Connections.RefreshTower(towerId)
-    end
-
     if TowerSectors and TowerSectors.GetForTower and TowerSectors.UpdateRuntime then
         for _, sector in ipairs(TowerSectors.GetForTower(towerId)) do
             local sectorEffects = aggregate(towerId, nil, sector.id)
@@ -151,31 +144,45 @@ local function applyTower(towerId)
                     break
                 end
             end
-            local nextState = runtimeSector.state or sector.state
-            if hasLocalizedFailure and nextState == Enums.TowerState.OPERATIONAL then
+            local baselineState = runtimeSector.baseState or sector.state
+            local nextState = baselineState
+            if hasLocalizedFailure and baselineState == Enums.TowerState.OPERATIONAL then
                 nextState = Enums.TowerState.DEGRADED
-            elseif not hasLocalizedFailure then
-                nextState = sector.state
             end
             TowerSectors.UpdateRuntime(towerId, sector.id, {
                 activeFailures = sectorEffects.activeFailures,
                 failureEffects = sectorEffects,
                 capacityMultiplier = sectorEffects.capacityMultiplier,
                 health = Utils.Clamp(
-                    (sector.health or 100) + (sectorEffects.healthDelta or 0),
+                    (runtimeSector.baseHealth or sector.health or 100)
+                        + (sectorEffects.healthDelta or 0),
                     0,
                     100
                 ),
+                baseHealth = runtimeSector.baseHealth or sector.health or 100,
+                baseState = baselineState,
+                backhaulStatus = sectorEffects.backhaulStatus
+                    or runtimeSector.baseBackhaulStatus
+                    or runtimeSector.backhaulStatus
+                    or baseBackhaul,
                 state = nextState,
                 updatedAt = now(),
             })
         end
-        if Connections and Connections.RefreshTower then
-            Connections.RefreshTower(towerId)
+    end
+
+    local connectionStates = Connections and Connections.GetAll and Connections.GetAll() or {}
+    local hasConnection = false
+    for _, connection in ipairs(connectionStates) do
+        if type(connection) == 'table' and connection.towerId == towerId then
+            hasConnection = true
+            break
         end
-        if Capacity and Capacity.RecalculateTower and Connections and Connections.GetAll then
-            Capacity.RecalculateTower(towerId, Connections.GetAll())
-        end
+    end
+    if hasConnection and Connections and Connections.RefreshTower then
+        Connections.RefreshTower(towerId)
+    elseif Capacity and Capacity.RecalculateTower then
+        Capacity.RecalculateTower(towerId, connectionStates)
     end
     return true, effects
 end

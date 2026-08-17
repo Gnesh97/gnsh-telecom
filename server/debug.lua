@@ -106,6 +106,10 @@ function TelecomDebug.InspectTower(towerId)
         coverage = copy(tower.coverage),
         technologies = copy(tower.technologies),
         capacity = copy(tower.capacity),
+        sectors = TowerSectors and TowerSectors.GetForTower
+            and TowerSectors.GetForTower(tower.id) or {},
+        sectorRuntime = TowerSectors and TowerSectors.GetRuntimeForTower
+            and TowerSectors.GetRuntimeForTower(tower.id) or {},
         runtime = copy(runtime),
         failures = FailureEngine and FailureEngine.GetTowerFailures
             and FailureEngine.GetTowerFailures(towerId)

@@ -159,10 +159,60 @@ TEST('sector failure records apply only to the addressed sector and stream to NO
     end
     ASSERT_TRUE(foundSector)
 
+    local debugSnapshot = TelecomDebug.InspectTower('SECTOR_FAILURE_ENGINE')
+    ASSERT_TRUE(debugSnapshot ~= nil)
+    ASSERT_EQ(#debugSnapshot.sectors, 2)
+    local snapshotEntities = NocServer.BuildEntities({ towers = { debugSnapshot } })
+    local snapshotSector = false
+    for _, entity in ipairs(snapshotEntities) do
+        if entity.entityType == 'sector'
+            and entity.entityId == 'SECTOR_FAILURE_ENGINE:EAST' then
+            snapshotSector = true
+            break
+        end
+    end
+    ASSERT_TRUE(snapshotSector)
+
     ASSERT_TRUE(FailureEngine.Clear(failure.id))
     ASSERT_EQ(Coverage.GetCandidates(vector3(50, 0, 0))[1].signal, beforeEast)
     Connections.Clear()
     TowerState.Initialize({})
+    SpatialIndex.Rebuild({})
+end)
+
+TEST('sector backhaul failure blocks services without taking neighboring towers offline', function()
+    local tower = makeTower('SECTOR_BACKHAUL', {
+        makeSector('EAST', 0),
+    })
+    FailureEngine.Reset()
+    Connections.Clear()
+    ASSERT_TRUE(TowerRegistry.Init({ tower }))
+    ASSERT_TRUE(SpatialIndex.Rebuild(TowerRegistry.GetAll()))
+
+    local ok, failure = FailureEngine.Create('SECTOR_BACKHAUL', 'BACKHAUL_FAILURE', {
+        metadata = { sectorId = 'EAST' },
+    })
+    ASSERT_TRUE(ok)
+    local state = Connections.Reevaluate(102, vector3(50, 0, 0))
+    ASSERT_EQ(state.towerId, 'SECTOR_BACKHAUL')
+    ASSERT_EQ(state.backhaulStatus, Enums.BackhaulState.OFFLINE)
+    ASSERT_FALSE(state.services.voice.available)
+    ASSERT_EQ(state.services.voice.reason, 'backhaul')
+
+    ASSERT_TRUE(FailureEngine.Clear(failure.id))
+    Connections.Clear()
+    TowerState.Initialize({})
+    SpatialIndex.Rebuild({})
+end)
+
+TEST('coverage enforces a bounded global candidate budget', function()
+    local towers = {}
+    for index = 1, 80 do
+        towers[index] = makeTower(('BUDGET_%03d'):format(index))
+    end
+    ASSERT_TRUE(SpatialIndex.Rebuild(towers))
+    local candidates = Coverage.GetCandidates(vector3(0, 0, 0))
+    ASSERT_EQ(#candidates, Config.Sectors.maxCandidates)
     SpatialIndex.Rebuild({})
 end)
 

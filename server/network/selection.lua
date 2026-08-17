@@ -61,6 +61,12 @@ local function getCandidateId(candidate)
     return nil
 end
 
+local function compositeKey(left, right)
+    left = tostring(left or '')
+    right = tostring(right or '')
+    return ('%d:%s|%d:%s'):format(#left, left, #right, right)
+end
+
 local function getSector(candidate)
     if type(candidate) ~= 'table' or type(candidate.sectorId) ~= 'string' then
         return nil
@@ -78,7 +84,7 @@ local function getRuntimeState(candidate, options)
 
     local sectorId = candidate.sectorId
     if type(sectorId) == 'string' and options and options.runtimeBySectorId then
-        local composite = towerId .. ':' .. sectorId
+        local composite = compositeKey(towerId, sectorId)
         return options.runtimeBySectorId[composite]
             or options.runtimeBySectorId[sectorId]
     end
@@ -96,6 +102,18 @@ local function getRuntimeState(candidate, options)
         return TowerRegistry.GetRuntimeState(towerId)
     end
 
+    return nil
+end
+
+local function getTowerRuntimeState(candidate, options)
+    local towerId = getCandidateId(candidate)
+    if not towerId then return nil end
+    if options and options.runtimeByTowerId ~= nil then
+        return options.runtimeByTowerId[towerId]
+    end
+    if TowerRegistry and TowerRegistry.GetRuntimeState then
+        return TowerRegistry.GetRuntimeState(towerId)
+    end
     return nil
 end
 
@@ -134,29 +152,81 @@ local function getHealth(candidate, runtime)
     return clamp(isFiniteNumber(health) and health or 100, 0, 100)
 end
 
-local function supportsTechnology(candidate, preferredTechnology)
-    if preferredTechnology == nil then return true end
-    local sector = getSector(candidate)
-    local technologies = sector and sector.technologies or candidate.tower.technologies
-    if type(technologies) ~= 'table' then return false end
-    for _, technology in ipairs(technologies) do
-        if technology == preferredTechnology then return true end
-    end
-    return false
+local function mergeTechnologyMap(target, source, field)
+    if type(source) ~= 'table' or type(source[field]) ~= 'table' then return end
+    for key, value in pairs(source[field]) do target[key] = value end
 end
 
-local function getTechnologyPenalty(candidate, options)
+local function technologyConstraints(candidate, runtime, towerRuntime, options)
+    local constraints = {
+        signal = candidate.signal,
+        preferredTechnology = options and options.preferredTechnology,
+        requestedTechnology = options and (options.requestedTechnology or options.technology),
+        connection = options and options.connection,
+        sector = getSector(candidate),
+    }
+    local failedTechnologies = {}
+    local congestionByTechnology = {}
+    local capacityByTechnology = {}
+    local availableByTechnology = {}
+    local sources = {
+        candidate,
+        candidate.tower,
+        towerRuntime,
+        runtime,
+        options,
+    }
+    for _, source in ipairs(sources) do
+        mergeTechnologyMap(failedTechnologies, source, 'failedTechnologies')
+        mergeTechnologyMap(failedTechnologies, source, 'technologyFailures')
+        mergeTechnologyMap(failedTechnologies, source, 'unavailableTechnologies')
+        mergeTechnologyMap(congestionByTechnology, source, 'congestionByTechnology')
+        mergeTechnologyMap(congestionByTechnology, source, 'technologyCongestion')
+        mergeTechnologyMap(capacityByTechnology, source, 'capacityByTechnology')
+        mergeTechnologyMap(availableByTechnology, source, 'availableByTechnology')
+    end
+    constraints.failedTechnologies = failedTechnologies
+    constraints.congestionByTechnology = congestionByTechnology
+    constraints.capacityByTechnology = capacityByTechnology
+    constraints.availableByTechnology = availableByTechnology
+    return constraints
+end
+
+local function resolveTechnology(candidate, runtime, options)
+    if not TechnologySelection or not TechnologySelection.Resolve then
+        local sector = getSector(candidate)
+        local technologies = sector and sector.technologies or candidate.tower.technologies
+        local technology = type(technologies) == 'table' and technologies[1]
+        return {
+            available = technology ~= nil,
+            technology = technology or Technologies.NO_SERVICE,
+            reason = technology and 'selected' or 'no_available_technology',
+            capacityMultiplier = technology
+                and Technologies.GetCapacityMultiplier(technology) or 0,
+            priority = technology and Technologies.GetPriority(technology) or 0,
+        }
+    end
+
+    local towerRuntime = getTowerRuntimeState(candidate, options)
+    return TechnologySelection.Resolve(
+        candidate,
+        options and options.connection,
+        technologyConstraints(candidate, runtime, towerRuntime, options)
+    )
+end
+
+local function getTechnologyPenalty(candidate, options, technologyResult)
     local preferredTechnology = options and options.preferredTechnology
     if preferredTechnology == nil then return 0 end
-    return supportsTechnology(candidate, preferredTechnology) and 0 or 100
+    return technologyResult and technologyResult.technology == preferredTechnology and 0 or 100
 end
 
-local function buildScoreDetails(candidate, runtime, options)
+local function buildScoreDetails(candidate, runtime, options, technologyResult)
     local weights = getWeights(options)
     local signal = clamp(isFiniteNumber(candidate.signal) and candidate.signal or 0, 0, 100)
     local loadPercent = getLoadPercent(candidate, runtime)
     local health = getHealth(candidate, runtime)
-    local technologyPenaltyPercent = getTechnologyPenalty(candidate, options)
+    local technologyPenaltyPercent = getTechnologyPenalty(candidate, options, technologyResult)
 
     local signalScore = signal * weights.signalWeight
     local loadPenalty = loadPercent * weights.loadPenaltyWeight
@@ -173,6 +243,10 @@ local function buildScoreDetails(candidate, runtime, options)
         healthPenalty = healthPenalty,
         technologyPenaltyPercent = technologyPenaltyPercent,
         technologyPenalty = technologyPenalty,
+        technology = technologyResult and technologyResult.technology,
+        technologyPriority = technologyResult and technologyResult.priority or 0,
+        technologyCapacityMultiplier = technologyResult
+            and technologyResult.capacityMultiplier or 1.0,
         state = getTowerState(candidate, runtime),
     }
 end
@@ -189,7 +263,13 @@ function Selection.Score(candidate, options)
         return nil, nil
     end
 
-    local details = buildScoreDetails(candidate, runtime, options)
+    local technologyResult = resolveTechnology(candidate, runtime, options)
+    if not technologyResult or technologyResult.available == false then
+        return nil, nil
+    end
+
+    local details = buildScoreDetails(candidate, runtime, options, technologyResult)
+    details.technologyResult = Utils.DeepCopy(technologyResult)
     return details.score, details
 end
 
@@ -200,6 +280,10 @@ local function compareRanked(left, right)
     local leftLoad = left.scoreDetails.loadPercent
     local rightLoad = right.scoreDetails.loadPercent
     if leftLoad ~= rightLoad then return leftLoad < rightLoad end
+
+    local leftTechnology = left.scoreDetails.technologyPriority or 0
+    local rightTechnology = right.scoreDetails.technologyPriority or 0
+    if leftTechnology ~= rightTechnology then return leftTechnology > rightTechnology end
 
     if left.towerId == right.towerId
         and tostring(left.sectorId or '') ~= tostring(right.sectorId or '') then
@@ -217,6 +301,9 @@ function Selection.Rank(candidates, options)
             local result = Utils.DeepCopy(candidate)
             result.score = score
             result.scoreDetails = details
+            result.technology = details.technology
+            result.technologyFallbackFrom = details.technologyResult
+                and details.technologyResult.fallbackFrom
             ranked[#ranked + 1] = result
         end
     end

@@ -23,6 +23,18 @@ local function sectorUnavailable(tower, sector)
         or sector.state == Enums.TowerState.DESTROYED
 end
 
+local function compositeKey(left, right)
+    left = tostring(left or '')
+    right = tostring(right or '')
+    return ('%d:%s|%d:%s'):format(#left, left, #right, right)
+end
+
+local function candidateLimit()
+    local configured = Config and Config.Sectors and tonumber(Config.Sectors.maxCandidates)
+    if not configured or configured < 1 then return 64 end
+    return math.floor(configured)
+end
+
 function Coverage.GetCandidates(coords, environmentContext)
     if not Utils.IsPoint(coords) or not SpatialIndex.GetNearbyTowers then
         return {}
@@ -31,15 +43,18 @@ function Coverage.GetCandidates(coords, environmentContext)
     local nearby = SpatialIndex.GetNearbyTowers(coords)
     local candidates = {}
     local seen = {}
+    local maximum = candidateLimit()
 
     for _, tower in ipairs(nearby or {}) do
+        if #candidates >= maximum then break end
         if type(tower) == 'table' and not isUnavailable(tower) then
             local sectors = getSectors(tower)
             if #sectors > 0 then
                 local matches = TowerSectors and TowerSectors.GetCoverage
                     and TowerSectors.GetCoverage(tower, coords) or {}
                 for _, sector in ipairs(matches) do
-                    local candidateKey = tower.id .. ':' .. sector.id
+                    if #candidates >= maximum then break end
+                    local candidateKey = compositeKey(tower.id, sector.id)
                     if not seen[candidateKey] and not sectorUnavailable(tower, sector) then
                         local signal = Signal.CalculateRaw(
                             tower, coords, environmentContext, sector
@@ -58,11 +73,11 @@ function Coverage.GetCandidates(coords, environmentContext)
                         end
                     end
                 end
-            elseif not seen[tower.id] then
+            elseif not seen[compositeKey(tower.id, '*')] then
                 local distance = Signal.CalculateDistance(tower.coords, coords)
                 local signal = Signal.CalculateRaw(tower, coords, environmentContext)
                 if distance and signal > 0 then
-                    seen[tower.id] = true
+                    seen[compositeKey(tower.id, '*')] = true
                     candidates[#candidates + 1] = {
                         towerId = tower.id,
                         tower = Utils.DeepCopy(tower),

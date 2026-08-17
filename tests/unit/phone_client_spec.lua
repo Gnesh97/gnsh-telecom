@@ -45,4 +45,10 @@ TEST('lb phone client maps connection signal changes to documented service bars'
     ASSERT_EQ(calls[1].resourceName, 'lb-phone')
     ASSERT_EQ(calls[1].exportName, 'SetServiceBars')
     ASSERT_EQ(calls[1].bars, 4)
+
+    ASSERT_TRUE(registered:OnNetworkState({ signal = 90, technology = '5G' }))
+    ASSERT_EQ(calls[2].exportName, 'SetServiceBars')
+    ASSERT_EQ(calls[3].resourceName, 'lb-phone')
+    ASSERT_EQ(calls[3].exportName, 'SetNetworkType')
+    ASSERT_EQ(calls[3].bars, '5G')
 end)

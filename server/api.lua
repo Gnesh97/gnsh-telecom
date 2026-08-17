@@ -183,8 +183,15 @@ function TelecomAPI.EmitStateEvents(previous, current)
 
     local previousTower = previous and previous.towerId or nil
     local currentTower = current and current.towerId or nil
+    local previousSector = previous and previous.sectorId or nil
+    local currentSector = current and current.sectorId or nil
     if previousTower ~= currentTower then
         emit(events.TOWER_CHANGED, source, current, previous)
+        if previousTower and currentTower then
+            emit(events.HANDOVER, source, current, previous)
+        end
+    elseif previousSector ~= currentSector then
+        emit(events.SECTOR_CHANGED, source, current, previous)
         if previousTower and currentTower then
             emit(events.HANDOVER, source, current, previous)
         end

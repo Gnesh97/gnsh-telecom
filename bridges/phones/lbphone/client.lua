@@ -81,6 +81,10 @@ function adapter:OnNetworkState(state)
     local signal = tonumber(state.signal) or 0
     local bars = math.floor(math.max(0, math.min(4, signal * 4 / 100 + 0.5)))
     local ok = PhoneBridgeManager.ExportCall(resourceName, 'SetServiceBars', bars)
+    local technology = state.technology or state.networkType
+    if ok == true and type(technology) == 'string' and technology ~= '' then
+        PhoneBridgeManager.ExportCall(resourceName, 'SetNetworkType', technology)
+    end
     return ok == true
 end
 
