@@ -50,6 +50,29 @@ TEST('target bridge exposes the universal interaction contract', function()
     end)
 end)
 
+TEST('legacy tower target adapters keep their selfless callback contract', function()
+    local receivedTower
+    local receivedCallbacks
+    resetTarget()
+    ASSERT_TRUE(TargetBridge.SetAdapter({
+        name = 'legacy-target',
+        AddTowerTarget = function(tower, callbacks)
+            receivedTower = tower
+            receivedCallbacks = callbacks
+            return true
+        end,
+        RemoveTowerTarget = function(towerId)
+            return towerId == 'tower:legacy'
+        end,
+    }))
+    local callbacks = { onSelect = function() end }
+    ASSERT_TRUE(TargetBridge.AddTowerTarget({ id = 'tower:legacy' }, callbacks))
+    ASSERT_EQ(receivedTower.id, 'tower:legacy')
+    ASSERT_EQ(receivedCallbacks, callbacks)
+    ASSERT_TRUE(TargetBridge.RemoveTowerTarget('tower:legacy'))
+    TargetBridge.SetAdapter(nil)
+end)
+
 TEST('ox target adapter maps entity, model and zone interactions', function()
     resetTarget()
     withResources({ ox_target = 'started' }, function(targetExports)
@@ -58,6 +81,10 @@ TEST('ox target adapter maps entity, model and zone interactions', function()
         ox.addEntity = function(_, entity, options)
             calls.entity = { entity, options }
             return 41
+        end
+        ox.addLocalEntity = function(_, entity, options)
+            calls.localEntity = { entity, options }
+            return 44
         end
         ox.addModel = function(_, models, options)
             calls.model = { models, options }
@@ -82,6 +109,14 @@ TEST('ox target adapter maps entity, model and zone interactions', function()
         ASSERT_TRUE(TargetBridge.AddModelInteraction(
             'tower:model', { 'prop_test' }, { { name = 'diagnose' } }
         ))
+        local localAdded, localHandle = TargetBridge.AddEntityInteraction(
+            'tower:local',
+            { entity = 18, localEntity = true },
+            { { name = 'diagnose' } }
+        )
+        ASSERT_TRUE(localAdded)
+        ASSERT_EQ(localHandle, 44)
+        ASSERT_EQ(calls.localEntity[1], 18)
         ASSERT_TRUE(TargetBridge.AddZoneInteraction(
             'tower:zone', { coords = vector3(1, 2, 3), radius = 2.0 }, {}
         ))

@@ -67,6 +67,7 @@ end
 
 local records = {}
 local running = false
+local loopGeneration = 0
 
 local function findZone(record, origin)
     local zone = record.subject or {}
@@ -133,9 +134,11 @@ local function startLoop()
         or type(PlayerPedId) ~= 'function' then
         return
     end
+    loopGeneration = loopGeneration + 1
+    local generation = loopGeneration
     running = true
     CreateThread(function()
-        while running do
+        while running and generation == loopGeneration do
             local origin = playerCoords()
             local record, option, context = origin and findNearby(origin) or nil
             if record and option then
@@ -177,6 +180,7 @@ end
 function adapter:Shutdown()
     records = {}
     running = false
+    loopGeneration = loopGeneration + 1
     return true
 end
 

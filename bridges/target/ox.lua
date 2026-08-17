@@ -84,10 +84,30 @@ function adapter:HealthCheck()
     return hasRequiredExports() and 'ACTIVE' or 'UNAVAILABLE'
 end
 
+local function entityTarget(entity)
+    if type(entity) ~= 'table' then return entity, false end
+    if entity.networkId ~= nil or entity.netId ~= nil then
+        return entity.networkId or entity.netId, false
+    end
+    if entity.entity ~= nil then
+        return entity.entity, entity.localEntity == true
+    end
+    return entity, false
+end
+
 function adapter:AddEntityInteraction(id, entity, options)
-    local ok, handle, errorMessage = callExport('addEntity', entity, options or {})
+    local subject, localEntity = entityTarget(entity)
+    local method = localEntity and 'addLocalEntity' or 'addEntity'
+    local ok, handle, errorMessage = callExport(method, subject, options or {})
+    if not ok and localEntity then
+        ok, handle, errorMessage = callExport('addEntity', subject, options or {})
+        localEntity = false
+    end
     if not ok then return false, errorMessage end
-    handles[id] = { kind = 'entity', value = handle or entity }
+    handles[id] = {
+        kind = localEntity and 'local_entity' or 'entity',
+        value = handle or subject,
+    }
     return true, handle or id
 end
 
@@ -112,11 +132,12 @@ function adapter:RemoveInteraction(id, explicitHandle)
     local entry = handles[id]
     local kind = entry and entry.kind or 'zone'
     local value = explicitHandle or (entry and entry.value) or id
-    local method = kind == 'entity' and 'removeEntity'
+    local method = kind == 'local_entity' and 'removeLocalEntity'
+        or kind == 'entity' and 'removeEntity'
         or kind == 'model' and 'removeModel'
         or 'removeZone'
     local ok, _, errorMessage = callExport(method, value)
-    if not ok and kind == 'entity' then
+    if not ok and (kind == 'entity' or kind == 'local_entity') then
         ok, _, errorMessage = callExport('removeLocalEntity', value)
     end
     handles[id] = nil

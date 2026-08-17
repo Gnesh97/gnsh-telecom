@@ -26,18 +26,27 @@ local function resolveRepairSessionId(sourceId, payload)
     return session.sessionId
 end
 
-local function findIncidentForTower(towerId)
+local function findIncidentForSource(sourceId, towerId)
     if not IncidentManager or type(IncidentManager.GetAll) ~= 'function' then
         return nil
     end
+    local sourceNumber = tonumber(sourceId)
+    local selected
+    local selectedRank
     for _, incident in ipairs(IncidentManager.GetAll()) do
         if incident.towerId == towerId
             and incident.status ~= Enums.IncidentState.RESOLVED
             and incident.status ~= Enums.IncidentState.CLOSED then
-            return incident.id
+            local rank = incident.assignedTo == nil and 1 or 2
+            if sourceNumber and tonumber(incident.assignedTo) == sourceNumber then rank = 0 end
+            if selected == nil or rank < selectedRank
+                or (rank == selectedRank and incident.id < selected.id) then
+                selected = incident
+                selectedRank = rank
+            end
         end
     end
-    return nil
+    return selected and selected.id or nil
 end
 
 local function executeTargetRequest(sourceId, payload)
@@ -57,7 +66,7 @@ local function executeTargetRequest(sourceId, payload)
     )
     if not near then return false, towerOrError end
 
-    local incidentId = findIncidentForTower(payload.towerId)
+    local incidentId = findIncidentForSource(sourceId, payload.towerId)
     if not incidentId then return false, 'incident_not_found' end
     if payload.action == 'diagnose' then
         return MaintenanceDiagnostics.Begin(sourceId, incidentId)

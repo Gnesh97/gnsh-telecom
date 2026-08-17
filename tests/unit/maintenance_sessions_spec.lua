@@ -371,6 +371,31 @@ TEST('target maintenance wire rejects spoofed and remote tower intents', functio
     restoreMaintenancePlayer(previous)
 end)
 
+TEST('valid target maintenance intent resolves one deterministic incident', function()
+    local previous = configureMaintenancePlayer()
+    local previousTriggerClient = rawget(_G, 'TriggerClientEvent')
+    local response
+    TriggerClientEvent = function(_, _, payload) response = payload end
+    resetMaintenanceState()
+    local created = FailureEngine.Create('MAINTENANCE_TOWER', 'RADIO_FAILURE')
+    ASSERT_TRUE(created)
+
+    rawset(_G, 'source', 7)
+    TriggerTestEvent(Constants.Events.MAINTENANCE_TARGET_REQUEST, {
+        action = 'diagnose',
+        towerId = 'MAINTENANCE_TOWER',
+    })
+    ASSERT_TRUE(response.ok)
+    ASSERT_TRUE(response.result.session.sessionId ~= nil)
+    ASSERT_EQ(response.result.incident.towerId, 'MAINTENANCE_TOWER')
+
+    local cancelled = MaintenanceDiagnostics.Cancel(7, response.result.session.sessionId)
+    ASSERT_TRUE(cancelled)
+    rawset(_G, 'source', nil)
+    TriggerClientEvent = previousTriggerClient
+    restoreMaintenancePlayer(previous)
+end)
+
 TEST('maintenance sessions clean up on disconnect and resource stop', function()
     local previous = configureMaintenancePlayer()
     MaintenanceSessions.ClearAll()

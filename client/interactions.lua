@@ -6,6 +6,13 @@ local providerResources = {
     ['qb-target'] = true,
 }
 
+local function isProviderResource(resourceName)
+    if providerResources[resourceName] then return true end
+    local custom = Config and Config.CustomTarget
+    local configured = custom and (custom.resource or custom.resourceName)
+    return Config and Config.TargetBridge == 'custom' and configured == resourceName
+end
+
 local function copy(value)
     if Utils and Utils.DeepCopy then return Utils.DeepCopy(value) end
     return value
@@ -152,13 +159,13 @@ if type(AddEventHandler) == 'function' then
     AddEventHandler('onClientResourceStart', function(resourceName)
         if resourceName == GetCurrentResourceName() then
             installConfiguredTowers()
-        elseif providerResources[resourceName] then
+        elseif isProviderResource(resourceName) then
             if TargetBridge then TargetBridge.HandleResourceStart(resourceName) end
             TelecomInteractions.Reinstall()
         end
     end)
     AddEventHandler('onClientResourceStop', function(resourceName)
-        if providerResources[resourceName] then
+        if isProviderResource(resourceName) then
             if TargetBridge then TargetBridge.HandleResourceStop(resourceName) end
             TelecomInteractions.Reinstall()
         end

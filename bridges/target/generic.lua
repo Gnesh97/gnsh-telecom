@@ -43,6 +43,16 @@ local function makeContract(value, runtime)
         'AddTowerTarget',
         'RemoveTowerTarget',
     }
+    if type(value.AddTowerTarget) == 'function' then
+        contract.AddTowerTarget = function(_, tower, callbacks)
+            return value.AddTowerTarget(tower, callbacks)
+        end
+    end
+    if type(value.RemoveTowerTarget) == 'function' then
+        contract.RemoveTowerTarget = function(_, towerId)
+            return value.RemoveTowerTarget(towerId)
+        end
+    end
     contract.Detect = value.Detect or function() return true end
     contract.Initialize = function()
         return invoke(value, 'Initialize')
@@ -170,6 +180,9 @@ local function call(method, ...)
     if type(fn) ~= 'function' then return false, nil, 'capability_unavailable' end
     local args = { ... }
     local ok, first, second, third = pcall(function()
+        if method == 'AddTowerTarget' or method == 'RemoveTowerTarget' then
+            return fn(table.unpack(args))
+        end
         return fn(provider, table.unpack(args))
     end)
     if not ok then return false, nil, 'target_adapter_error' end
