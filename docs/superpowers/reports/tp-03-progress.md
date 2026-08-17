@@ -90,4 +90,4 @@ moving to TP-02 production topology.
 
 ## Push
 
-- Pending final push from the current verified branch.
+- `origin/dev`: SUCCESS; implementation commits `37ed891` and `9597c29` are pushed.

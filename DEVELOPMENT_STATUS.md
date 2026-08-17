@@ -34,7 +34,7 @@ ise canlı uyumluluk, temiz kurulum ve çoklu oyuncu/runtime kanıtına bağlı.
 ## Repository durumu
 
 - Branch: `dev`
-- Son pushlanan commit: Phase 49 release-candidate packaging commit’i (git history’deki HEAD)
+- Draft map implementation and verification commits are pushed to `origin/dev`.
 - Son pushlanan commit GitHub üzerindedir: `https://github.com/Gnesh97/gnsh-telecom`
 - Phase 45–48 değişiklikleri commit/push edilmiştir; Phase 49 release gate’i bu paketle birlikte tutulur.
 - `Config.Version`: `0.1.0-rc.1`
