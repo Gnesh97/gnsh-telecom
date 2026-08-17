@@ -55,6 +55,35 @@ server position, connected and ranked towers, candidate scores, distance and
 radius, environment multiplier, active failure effects, jammer interference,
 capacity/congestion effects, and backhaul state.
 
+## Golden coverage expectations
+
+TP-05 adds deterministic service and intentional-weak anchors over the same
+server-authoritative coverage pipeline:
+
+```text
+/telecom_coverage_expectations
+/telecom_coverage_capture RATON_REMOTE WEAK_OR_NONE
+```
+
+`/telecom_coverage_expectations` evaluates every configured anchor and prints
+`PASS`, `FAIL` or `PENDING_CAPTURE` in F8. Required urban, town and highway
+anchors use verified production capture coordinates. Intentional weak anchors
+are intentionally left without coordinates until they are visited in FiveM;
+the capture command prints a copyable `vector3(...)` configuration entry.
+
+For each weak anchor, drive to the intended wilderness area and run:
+
+```text
+/telecom_coverage_capture <anchorId> WEAK_OR_NONE
+```
+
+Copy the printed `coverage config` entry into
+`config/coverage_expectations.lua`, restart the resource, and rerun
+`/telecom_coverage_expectations`. Do not turn a red/black heatmap cell into a
+bug automatically: the plan deliberately expects weak or absent service in
+remote wilderness, and every final coordinate must be visually verified in
+FiveM.
+
 ## Limits and safety
 
 - Commands require the configured admin ACE/txAdmin authorization.
@@ -69,3 +98,5 @@ capacity/congestion effects, and backhaul state.
   unavailable.
 - Clear the current overlay with `/telecom_heatmap clear` or by restarting the
   resource.
+- Coverage expectation commands are development-only and require the same
+  admin authorization and `gnsh_telecom_coverage_tools` convar.

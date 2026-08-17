@@ -405,4 +405,5 @@ Config = {
         },
     },
     Towers = {},
+    CoverageExpectations = {},
 }

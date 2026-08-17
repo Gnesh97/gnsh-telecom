@@ -142,6 +142,8 @@ Do not copy another server's identifier lines. Keep each installation's own `add
 /telecom_heatmap region <downtown|sandy|paleto>
 /telecom_heatmap clear
 /telecom_signal_inspect [playerId]
+/telecom_coverage_expectations
+/telecom_coverage_capture <anchorId> [expectation]
 ```
 
 `/telecomdebug` toggles a client-only overlay. It is off by default and shows the current tower, distance, signal, capacity/congestion, environment, failure modifiers and alternative scores when those values are available. `/telecom load` is an in-memory test override and is cleared by restart or by using `clear`.
@@ -149,7 +151,9 @@ Do not copy another server's identifier lines. Keep each installation's own `add
 The heatmap and signal inspector are separate development-only tools. Enable
 them with `setr gnsh_telecom_coverage_tools 1`, then follow
 [COVERAGE_DEBUG.md](COVERAGE_DEBUG.md) for bounded pause-map sampling and F8
-diagnostics. Keep the convar disabled in production.
+diagnostics. The same guide documents TP-05 golden coverage expectations and
+the in-game coordinate capture flow for intentional weak zones. Keep the
+convar disabled in production.
 
 Production tower definitions belong in `config/towers.lua` under `Config.Towers`:
 

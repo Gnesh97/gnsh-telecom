@@ -13,6 +13,7 @@ shared_scripts {
     'config/deployment_sites.lua',
     'config/deployment_drafts.lua',
     'config/towers.lua',
+    'config/coverage_expectations.lua',
     'shared/config.lua',
     'shared/constants.lua',
     'shared/enums.lua',
@@ -121,6 +122,7 @@ server_scripts {
     'server/security/audit.lua',
     'server/debug.lua',
     'server/coverage_debug.lua',
+    'server/coverage_expectations.lua',
     'server/deployment_editor.lua',
     'server/bootstrap.lua',
 }
