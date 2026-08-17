@@ -513,6 +513,28 @@ function ServiceSessions.ClearSource(source)
     return removed
 end
 
+function ServiceSessions.ClearResource(resourceName)
+    local normalizedResource = safeResourceName(resourceName)
+    if not normalizedResource then return 0 end
+
+    local pending = {}
+    for sessionId, ownerResource in pairs(resourceBySessionId) do
+        if ownerResource == normalizedResource then pending[#pending + 1] = sessionId end
+    end
+
+    local affected = {}
+    local removed = 0
+    for _, sessionId in ipairs(pending) do
+        local session, towers = removeInternal(sessionId, 'owner_resource_stopped')
+        if session then
+            removed = removed + 1
+            for towerId in pairs(towers) do affected[towerId] = true end
+        end
+    end
+    refreshTowers(affected)
+    return removed
+end
+
 function ServiceSessions.Count()
     purgeExpired()
     local count = 0
@@ -551,9 +573,10 @@ if type(AddEventHandler) == 'function' then
         ServiceSessions.ClearSource(source)
     end)
     AddEventHandler('onResourceStop', function(resourceName)
-        if type(GetCurrentResourceName) == 'function'
-            and resourceName == GetCurrentResourceName() then
+        if currentResourceName() == resourceName then
             ServiceSessions.Reset()
+        else
+            ServiceSessions.ClearResource(resourceName)
         end
     end)
 end

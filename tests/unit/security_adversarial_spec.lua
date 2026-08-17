@@ -86,6 +86,13 @@ TEST('service sessions bind updates and completion to the creating resource', fu
     GetInvokingResource = function() return 'security-session-owner' end
     ASSERT_TRUE(ServiceSessions.Update(session.id, { requestId = 'bound' }, 901))
     ASSERT_TRUE(ServiceSessions.End(session.id, 901))
+
+    local stopOk, stoppedSession = ServiceSessions.Begin(901, 'VOICE')
+    ASSERT_TRUE(stopOk)
+    TriggerTestEvent('onResourceStop', 'security-session-owner')
+    ASSERT_EQ(ServiceSessions.Get(stoppedSession.id), nil)
+    ASSERT_EQ(ServiceSessions.Count(), 0)
+
     rawset(_G, 'GetInvokingResource', previousInvoking)
     Connections.Clear()
     ServiceSessions.Reset()
