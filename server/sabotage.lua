@@ -33,44 +33,61 @@ end
 
 function Sabotage.Execute(source, towerId, actionId)
     if not enabled() then return false, 'sabotage_disabled' end
+    local sourceId = TelecomSecurity and TelecomSecurity.NormalizeSource
+        and TelecomSecurity.NormalizeSource(source) or tonumber(source)
+    if not sourceId then return false, 'invalid_source' end
     local configured = Config.Sabotage or {}
     local action = actionConfig(actionId)
     if not action then return false, 'unknown_sabotage_action' end
 
     local maxConcurrent = tonumber(configured.maxConcurrent) or 1
-    if activeBySource[source] and maxConcurrent <= 1 then return false, 'sabotage_in_progress' end
+    if maxConcurrent ~= maxConcurrent or maxConcurrent == math.huge
+        or maxConcurrent == -math.huge or maxConcurrent < 1 then
+        maxConcurrent = 1
+    end
+    maxConcurrent = math.floor(maxConcurrent)
+    local activeCount = activeBySource[sourceId] or 0
+    if activeCount >= maxConcurrent then return false, 'sabotage_in_progress' end
+    activeBySource[sourceId] = activeCount + 1
+    local function finish(ok, ...)
+        local remaining = (activeBySource[sourceId] or 1) - 1
+        if remaining > 0 then activeBySource[sourceId] = remaining
+        else activeBySource[sourceId] = nil end
+        return ok, ...
+    end
+
     local allowed, rateError = TelecomRateLimit.Allow(
-        source,
+        sourceId,
         'sabotage',
         tonumber(configured.cooldownMs) or 60000,
         1
     )
-    if not allowed then return false, rateError end
+    if not allowed then return finish(false, rateError) end
 
     local near, tower, distance = TelecomSecurity.ValidateTower(
-        source,
+        sourceId,
         towerId,
         tonumber(configured.interactionDistance) or 4.0
     )
-    if not near then return false, tower end
+    if not near then return finish(false, tower) end
 
     local requiredItem, requiredAmountOrError = requiredItemRequest(action)
     if requiredItem == nil and requiredAmountOrError ~= 1 then
-        return false, requiredAmountOrError
+        return finish(false, requiredAmountOrError)
     end
     local requiredAmount = requiredAmountOrError
-    local hasItem, itemError = InventoryBridge.HasItem(source, requiredItem, requiredAmount)
-    if not hasItem then return false, itemError or 'required_item_missing' end
+    local hasItem, itemError = InventoryBridge.HasItem(sourceId, requiredItem, requiredAmount)
+    if not hasItem then return finish(false, itemError or 'required_item_missing') end
 
     local existing = FailureEngine.GetTowerFailures(towerId)
     for _, failure in ipairs(existing or {}) do
         if failure.active ~= false and failure.type == action.failureType then
-            return false, 'sabotage_target_already_affected'
+            return finish(false, 'sabotage_target_already_affected')
         end
     end
 
     local ok, failure, effects = FailureEngine.Create(towerId, action.failureType, {
-        source = tonumber(source),
+        source = sourceId,
         reason = 'sabotage',
         component = action.component,
         metadata = {
@@ -78,38 +95,37 @@ function Sabotage.Execute(source, towerId, actionId)
             distance = distance,
         },
     })
-    if not ok then return false, failure end
+    if not ok then return finish(false, failure) end
     if requiredItem then
         local removed, removeError = InventoryBridge.RemoveItem(
-            source,
+            sourceId,
             requiredItem,
             requiredAmount
         )
         if not removed then
             FailureEngine.Clear(failure.id)
-            return false, removeError or 'required_item_remove_failed'
+            return finish(false, removeError or 'required_item_remove_failed')
         end
     end
 
-    activeBySource[source] = nil
     local alarm = math.random() < (tonumber(configured.alarmProbability) or 0)
     local alert = {
         towerId = towerId,
         action = actionId,
-        source = tonumber(source),
+        source = sourceId,
         alarm = alarm,
     }
     if alarm then DispatchBridge.Alert(alert) end
     if TelecomAudit and TelecomAudit.Record then
-        TelecomAudit.Record(source, 'sabotage', alert)
+        TelecomAudit.Record(sourceId, 'sabotage', alert)
     end
     if TelecomStatistics and TelecomStatistics.RecordSabotage then TelecomStatistics.RecordSabotage() end
-    return true, {
+    return finish(true, {
         tower = tower,
         failure = copy(failure),
         effects = copy(effects),
         alarm = alarm,
-    }
+    })
 end
 
 if type(RegisterNetEvent) == 'function' then RegisterNetEvent(Constants.Events.SABOTAGE_REQUEST) end

@@ -28,3 +28,22 @@ When adding a new network event, document its accepted payload, server-side reco
 | NUI callbacks | Local NUI; close-only callback | Callback has no server mutation authority | Closes UI only |
 
 Invalid payloads are rejected before state mutation. Network-facing actions that change world state do not accept a client-selected outcome, tower failure type, or final interference multiplier.
+
+## v2.0 adversarial hardening (Phase 46)
+
+The Phase 46 review treats every network event, server export and external adapter callback as an untrusted boundary. Critical mutations fail closed when validation, authorization, rate limiting, distance resolution or integration callbacks are unavailable.
+
+| Threat | Control | Expected result |
+| --- | --- | --- |
+| Remote invocation or invalid source | Normalize positive integer player sources at every mutation boundary | Request is rejected before lookup or mutation |
+| Tower, incident or assignee spoofing | Resolve tower and incident state from server registries; bound IDs; validate assignees as server source IDs | Client cannot select an arbitrary target or non-player assignee |
+| Distance spoofing or native failure | Validate finite coordinates; prefer server entity coordinates; protect native calls with `pcall`; reject unavailable position data for protected actions | A forged point cannot satisfy proximity; native errors fail closed |
+| Oversized, deep, cyclic or metatable payloads | Shared safe-table validator with field/depth/string bounds and cycle/metatable rejection | Payload is discarded without traversing attacker-controlled structures |
+| Session replay, stale completion or cross-resource hijack | Server-generated session IDs, active/ended tracking, source ownership and creating-resource binding | Completion/update is one-shot and only the owning player/resource can use it |
+| Double completion or item duplication | Server session validation and transition ordering; inventory removal is checked and rollback paths remain authoritative | Replayed or partially completed work cannot grant a second reward |
+| Restart/reconnect abuse | Clear transient sessions, rate buckets, sabotage guards, NOC subscriptions and player bindings on lifecycle events | Old runtime authority is not carried across a resource/player lifecycle |
+| Race or malicious adapter re-entry | Sabotage per-source in-flight guard; bridge lifecycle and capability calls are protected | Re-entrant callbacks cannot duplicate a mutation or crash the boundary |
+| Custom bridge injection | Category/contract validation, duplicate rejection, started-resource and owner checks, owner-only unregister and stop cleanup | An external resource cannot replace or remove another resource’s provider |
+| NOC privilege bypass | Admin/ACE checks on snapshot and reconcile paths; bounded provider output; provider normalization is protected | Unauthorized callers receive no operational snapshot or mutation path |
+
+The adversarial suite is `tests/unit/security_adversarial_spec.lua` and is loaded by `tests/run.lua`. The Phase 46 gate is zero failed tests and no unresolved critical finding. New mutation events and exports must add a corresponding abuse case before release.

@@ -7,7 +7,7 @@ local function safeString(value, maximumLength)
 end
 
 local function actionName(value)
-    if type(value) ~= 'string' then return nil end
+    if not safeString(value, 64) then return nil end
     local normalized = value:lower()
     local aliases = {
         accept_work_order = 'accept',

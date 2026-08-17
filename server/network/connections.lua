@@ -263,9 +263,11 @@ local function resolveServerCoords(source)
         return nil
     end
 
-    local ped = GetPlayerPed(source)
+    local pedOk, ped = pcall(GetPlayerPed, source)
+    if not pedOk then return nil end
     if not ped or ped == 0 then return nil end
-    local coords = GetEntityCoords(ped)
+    local coordsOk, coords = pcall(GetEntityCoords, ped)
+    if not coordsOk then return nil end
     return Utils.IsPoint(coords) and coords or nil
 end
 

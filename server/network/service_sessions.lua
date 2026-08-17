@@ -44,6 +44,7 @@ local reservedMetadataKeys = {
 
 local sessionsById = {}
 local idsBySource = {}
+local resourceBySessionId = {}
 local endedById = {}
 local endedOrder = {}
 local sequence = tonumber(ServiceSessions._nextSequence) or 0
@@ -99,6 +100,33 @@ local function normalizeSource(source)
         return nil
     end
     return normalized
+end
+
+local function safeResourceName(value)
+    return type(value) == 'string' and value ~= '' and #value <= 128 and value or nil
+end
+
+local function currentResourceName()
+    if type(GetCurrentResourceName) ~= 'function' then return nil end
+    local ok, resourceName = pcall(GetCurrentResourceName)
+    return ok and safeResourceName(resourceName) or nil
+end
+
+local function invokingResourceName()
+    if type(GetInvokingResource) ~= 'function' then return nil end
+    local ok, resourceName = pcall(GetInvokingResource)
+    return ok and safeResourceName(resourceName) or nil
+end
+
+local function callerResourceName()
+    return invokingResourceName() or currentResourceName()
+end
+
+local function validSessionId(sessionId)
+    return type(sessionId) == 'string'
+        and #sessionId > 0
+        and #sessionId <= 128
+        and sessionId:sub(1, 8) == 'service:'
 end
 
 local function normalizeService(service)
@@ -204,6 +232,7 @@ local function removeInternal(sessionId, reason)
     if not session then return nil, {} end
 
     sessionsById[sessionId] = nil
+    resourceBySessionId[sessionId] = nil
     local sourceSessions = idsBySource[session.source]
     if sourceSessions then
         sourceSessions[sessionId] = nil
@@ -238,6 +267,12 @@ local function purgeExpired()
 end
 
 local function validateOwner(session, ownerSource)
+    local boundResource = resourceBySessionId[session.id]
+    if boundResource then
+        local caller = callerResourceName()
+        if not caller then return false, 'session_resource_required' end
+        if caller ~= boundResource then return false, 'session_resource_mismatch' end
+    end
     if ownerSource == nil then
         ownerSource = rawget(_G, 'source')
         if ownerSource == nil then return false, 'owner_required' end
@@ -328,6 +363,8 @@ function ServiceSessions.Begin(source, service, metadata)
     }
 
     sessionsById[sessionId] = session
+    local caller = callerResourceName()
+    if caller then resourceBySessionId[sessionId] = caller end
     idsBySource[normalizedSource] = idsBySource[normalizedSource] or {}
     idsBySource[normalizedSource][sessionId] = true
     refreshTowers({ [connection.towerId] = true })
@@ -335,7 +372,7 @@ function ServiceSessions.Begin(source, service, metadata)
 end
 
 function ServiceSessions.Get(sessionId)
-    if type(sessionId) ~= 'string' then return nil end
+    if not validSessionId(sessionId) then return nil end
     purgeExpired()
     local session = sessionsById[sessionId]
     return session and copy(session) or nil
@@ -368,7 +405,10 @@ end
 
 function ServiceSessions.GetForTower(towerId, sectorId)
     purgeExpired()
-    if type(towerId) ~= 'string' then return {} end
+    if type(towerId) ~= 'string' or towerId == '' or #towerId > 128 then return {} end
+    if sectorId ~= nil and (type(sectorId) ~= 'string' or #sectorId > 128) then
+        return {}
+    end
     local result = {}
     for _, session in pairs(sessionsById) do
         if session.towerId == towerId
@@ -400,7 +440,7 @@ ServiceSessions.GetTowerDemand = ServiceSessions.GetDemand
 
 function ServiceSessions.Update(sessionId, metadata, ownerSource)
     if not enabled() then return false, 'service_sessions_disabled' end
-    if type(sessionId) ~= 'string' or sessionId == '' then return false, 'session_id_required' end
+    if not validSessionId(sessionId) then return false, 'session_id_required' end
     purgeExpired()
     if endedById[sessionId] then return false, 'session_replayed' end
     local session = sessionsById[sessionId]
@@ -435,7 +475,7 @@ function ServiceSessions.Update(sessionId, metadata, ownerSource)
 end
 
 function ServiceSessions.End(sessionId, ownerSource)
-    if type(sessionId) ~= 'string' or sessionId == '' then return false, 'session_id_required' end
+    if not validSessionId(sessionId) then return false, 'session_id_required' end
     purgeExpired()
     if endedById[sessionId] then return false, 'session_replayed' end
     local session = sessionsById[sessionId]
@@ -483,6 +523,7 @@ end
 function ServiceSessions.Reset()
     sessionsById = {}
     idsBySource = {}
+    resourceBySessionId = {}
     endedById = {}
     endedOrder = {}
     purging = false

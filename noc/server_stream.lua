@@ -53,10 +53,8 @@ end
 
 local function safeData(value)
     if type(value) ~= 'table' then return false end
-    if TelecomSecurity and TelecomSecurity.IsSafeTable then
-        return TelecomSecurity.IsSafeTable(value, 4, 64)
-    end
-    return true
+    if not TelecomSecurity or not TelecomSecurity.IsSafeTable then return false end
+    return TelecomSecurity.IsSafeTable(value, 4, 64)
 end
 
 local function pointCopy(value)
@@ -133,11 +131,13 @@ end
 
 local function addProviderResult(entityMap, result)
     if type(result) ~= 'table' then return end
-    if result.entityType ~= nil then
-        addEntity(entityMap, result)
-        return
-    end
-    for _, value in ipairs(result) do addEntity(entityMap, value) end
+    pcall(function()
+        if result.entityType ~= nil then
+            addEntity(entityMap, result)
+            return
+        end
+        for _, value in ipairs(result) do addEntity(entityMap, value) end
+    end)
 end
 
 local function addTowerEntity(entityMap, tower)

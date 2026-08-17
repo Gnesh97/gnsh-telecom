@@ -14,6 +14,17 @@ local function audit(source, action, details)
     end
 end
 
+local function safeIdentifier(value, maximumLength)
+    return type(value) == 'string'
+        and value ~= ''
+        and #value <= maximumLength
+end
+
+local function validSource(value)
+    return TelecomSecurity and TelecomSecurity.NormalizeSource
+        and TelecomSecurity.NormalizeSource(value) or nil
+end
+
 local function notify(record, previous)
     if TelecomAPI and TelecomAPI.EmitIncidentEvent then
         TelecomAPI.EmitIncidentEvent(record and record.towerId, record, previous)
@@ -161,7 +172,8 @@ end
 
 if type(AddEventHandler) == 'function' then
     AddEventHandler(Constants.Events.INCIDENT_REQUEST, function(payload)
-        local sourceId = source
+        local sourceId = validSource(source)
+        if not sourceId then return end
         if not TelecomPermissions or not TelecomPermissions.RequireAdmin then return end
         local authorized = TelecomPermissions.RequireAdmin(sourceId)
         local limited = TelecomRateLimit and TelecomRateLimit.Allow
@@ -171,9 +183,27 @@ if type(AddEventHandler) == 'function' then
         local action = payload.action
         local ok, result
         if action == 'transition' then
-            ok, result = IncidentManager.Transition(payload.id, payload.state, sourceId, payload.details)
+            if not safeIdentifier(payload.id, 96)
+                or not safeIdentifier(payload.state, 32)
+                or (payload.details ~= nil
+                    and (type(payload.details) ~= 'table'
+                        or not TelecomSecurity.IsSafeTable(payload.details, 2, 16))) then
+                ok, result = false, 'invalid_incident_payload'
+            else
+                ok, result = IncidentManager.Transition(
+                    payload.id,
+                    payload.state,
+                    sourceId,
+                    payload.details
+                )
+            end
         elseif action == 'assign' then
-            ok, result = IncidentManager.Assign(payload.id, payload.assignedTo, sourceId)
+            local assignedTo = validSource(payload.assignedTo)
+            if not safeIdentifier(payload.id, 96) or not assignedTo then
+                ok, result = false, 'invalid_incident_assignment'
+            else
+                ok, result = IncidentManager.Assign(payload.id, assignedTo, sourceId)
+            end
         else
             ok, result = false, 'unknown_incident_action'
         end
