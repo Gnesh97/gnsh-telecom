@@ -57,6 +57,7 @@ server_scripts {
     'bridges/core/health.lua',
     'bridges/core/registry.lua',
     'bridges/core/manager.lua',
+    'bridges/core/sdk.lua',
     'bridges/phones/core/contract.lua',
     'bridges/phones/core/manager.lua',
     'bridges/phones/generic.lua',

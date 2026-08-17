@@ -70,6 +70,8 @@ local knownByCategory = {
         'CanUseData',
         'CanUseService',
     },
+    notify = { 'Notify' },
+    progress = { 'StartProgress' },
 }
 
 local function trim(value)

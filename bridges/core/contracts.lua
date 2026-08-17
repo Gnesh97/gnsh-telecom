@@ -6,6 +6,8 @@ BridgeContracts.Categories = {
     target = true,
     dispatch = true,
     phone = true,
+    notify = true,
+    progress = true,
 }
 
 local function copyTable(value)

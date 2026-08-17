@@ -146,14 +146,14 @@ local function finalizeInitialization(category, state)
     return state.active ~= nil
 end
 
-function BridgeManager.Register(contract)
+function BridgeManager.Register(contract, options)
     local category = type(contract) == 'table' and contract.category or nil
     local name = type(contract) == 'table' and contract.name or nil
     local state = category and stateFor(category) or nil
     local wasActive = state and state.active and state.active.name == name
     if wasActive then shutdownActive(category) end
 
-    local ok, provider, replacedOrError = BridgeRegistry.Register(contract)
+    local ok, provider, replacedOrError = BridgeRegistry.Register(contract, options)
     if not ok then
         if wasActive then BridgeManager.InitializeCategory(category) end
         return false, provider
@@ -163,13 +163,13 @@ function BridgeManager.Register(contract)
     return true, provider, replacedOrError
 end
 
-function BridgeManager.Unregister(category, name)
+function BridgeManager.Unregister(category, name, options)
     local state = stateFor(category)
     local wasActive = state.active and state.active.name == name
     if wasActive then shutdownActive(category) end
-    local removed = BridgeRegistry.Unregister(category, name)
+    local removed, errorMessage = BridgeRegistry.Unregister(category, name, options)
     if wasActive then BridgeManager.InitializeCategory(category) end
-    return removed ~= nil
+    return removed ~= nil, errorMessage
 end
 
 function BridgeManager.GetProvider(category, name)
