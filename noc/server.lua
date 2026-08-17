@@ -65,6 +65,8 @@ function NocServer.GetSnapshot(source)
             and IncidentManager.GetSnapshot() or { incidents = {}, counts = {} },
         backhaul = features.Backhaul == true and BackhaulRouting and BackhaulRouting.GetSnapshot
             and BackhaulRouting.GetSnapshot() or {},
+        backhaulLoads = features.Backhaul == true and BackhaulRouting
+            and BackhaulRouting.GetLoadSnapshot and BackhaulRouting.GetLoadSnapshot() or {},
         backhaulNodes = features.Backhaul == true and BackhaulNodes and BackhaulNodes.GetAll
             and BackhaulNodes.GetAll() or {},
         regions = features.Backhaul == true and BackhaulRouting

@@ -2,6 +2,9 @@ BackhaulRouting = BackhaulRouting or {}
 
 local cache = {}
 local cacheOrder = {}
+local routeLoads = {}
+local routeAssignments = {}
+local loadsInitialized = false
 
 local function copy(value)
     return Utils and Utils.DeepCopy and Utils.DeepCopy(value) or value
@@ -53,6 +56,10 @@ end
 
 local function maxRecomputeNodes()
     return numberConfig('maxRecomputeNodes', 128, 1)
+end
+
+local function maxLoadTowers()
+    return numberConfig('maxRegionalTowers', 128, 1)
 end
 
 local function maxPathHops()
@@ -326,6 +333,72 @@ function BackhaulRouting.GetTowerStatus(towerId)
     return ok and route.status or Enums.BackhaulState.OFFLINE
 end
 
+function BackhaulRouting.RecalculateLoads(options)
+    local nextLoads = {}
+    local nextAssignments = {}
+    local towers = TowerRegistry and TowerRegistry.GetAll and TowerRegistry.GetAll() or {}
+    local limit = maxLoadTowers()
+    local processed = 0
+
+    for _, link in ipairs(BackhaulLinks and BackhaulLinks.GetAll
+        and BackhaulLinks.GetAll() or {}) do
+        if type(link.id) == 'string' then nextLoads[link.id] = 0 end
+    end
+
+    for index = 1, math.min(#towers, limit) do
+        local tower = towers[index]
+        local ok, route = BackhaulRouting.FindRoute(tower.id, options)
+        processed = processed + 1
+        if ok and type(route) == 'table' then
+            nextAssignments[tower.id] = {
+                towerId = tower.id,
+                status = route.status,
+                regionId = route.regionId,
+                primary = copy(route.primary),
+                backup = copy(route.backup),
+            }
+            for _, linkId in ipairs(route.primary and route.primary.links or {}) do
+                nextLoads[linkId] = (nextLoads[linkId] or 0) + 1
+            end
+        else
+            nextAssignments[tower.id] = {
+                towerId = tower.id,
+                status = Enums.BackhaulState.OFFLINE,
+                routeError = route and route.error or 'route_unavailable',
+            }
+        end
+    end
+
+    routeLoads = nextLoads
+    routeAssignments = nextAssignments
+    loadsInitialized = true
+    return {
+        links = copy(routeLoads),
+        towers = copy(routeAssignments),
+        processed = processed,
+        complete = #towers <= limit,
+        bounded = true,
+    }
+end
+
+function BackhaulRouting.GetLoadSnapshot()
+    if not loadsInitialized then BackhaulRouting.RecalculateLoads() end
+    return {
+        links = copy(routeLoads),
+        towers = copy(routeAssignments),
+    }
+end
+
+function BackhaulRouting.GetLinkLoad(linkId)
+    if not loadsInitialized then BackhaulRouting.RecalculateLoads() end
+    return routeLoads[linkId] or 0
+end
+
+function BackhaulRouting.GetTowerRoute(towerId)
+    if not loadsInitialized then BackhaulRouting.RecalculateLoads() end
+    return copy(routeAssignments[towerId])
+end
+
 local function regionTowerIds(region)
     local result, seen = {}, {}
     for _, towerId in ipairs(region and region.towerIds or {}) do
@@ -421,6 +494,7 @@ function BackhaulRouting.RecomputeAffected(rootNodeId)
         local ok, result = BackhaulRouting.FindRoute(towerId)
         if ok or result then recomputed = recomputed + 1 end
     end
+    BackhaulRouting.RecalculateLoads()
     return true, {
         rootNodeId = rootNodeId,
         invalidated = #invalidated,
@@ -432,10 +506,16 @@ end
 function BackhaulRouting.Initialize()
     cache = {}
     cacheOrder = {}
+    routeLoads = {}
+    routeAssignments = {}
+    loadsInitialized = false
     return true
 end
 
 function BackhaulRouting.Invalidate(rootNodeId)
+    routeLoads = {}
+    routeAssignments = {}
+    loadsInitialized = false
     if rootNodeId then return BackhaulRouting.RecomputeAffected(rootNodeId) end
     cache = {}
     cacheOrder = {}

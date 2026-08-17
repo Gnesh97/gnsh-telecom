@@ -223,6 +223,31 @@ local function addBackhaulEntities(entityMap, backhaul)
     end
 end
 
+local function addBackhaulLoadEntities(entityMap, snapshot)
+    if type(snapshot) ~= 'table' or type(snapshot.links) ~= 'table' then return end
+    for linkId, load in pairs(snapshot.links) do
+        if safeString(linkId, 96) and isFiniteNumber(load) then
+            local link = BackhaulLinks and BackhaulLinks.Get and BackhaulLinks.Get(linkId) or {}
+            addEntity(entityMap, {
+                entityType = 'backhaul_link',
+                entityId = linkId,
+                state = {
+                    load = load,
+                    state = link.state,
+                    capacity = link.capacity,
+                },
+                metadata = {
+                    linkId = linkId,
+                    from = link.from,
+                    to = link.to,
+                    type = link.type,
+                    capacity = link.capacity,
+                },
+            })
+        end
+    end
+end
+
 local function addJammerEntities(entityMap, jammers)
     if type(jammers) ~= 'table' then return end
     for _, jammer in ipairs(jammers) do
@@ -298,6 +323,7 @@ function NocServer.BuildEntities(snapshot)
         addIncidentEntity(nextEntities, incident)
     end
     addBackhaulEntities(nextEntities, snapshot.backhaul)
+    addBackhaulLoadEntities(nextEntities, snapshot.backhaulLoads)
     addBackhaulNodeEntities(nextEntities, snapshot.backhaulNodes)
     addRegionEntities(nextEntities, snapshot.regions)
     addJammerEntities(nextEntities, snapshot.jammers)

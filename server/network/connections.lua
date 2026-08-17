@@ -416,6 +416,26 @@ function Connections.RefreshTower(towerId)
     return changedBySource
 end
 
+function Connections.RefreshTowers(towerIds)
+    local changedBySource = {}
+    local ordered = {}
+    local seen = {}
+    for key, value in pairs(towerIds or {}) do
+        local towerId = type(key) == 'number' and value or value and key
+        if type(towerId) == 'string' and not seen[towerId] then
+            seen[towerId] = true
+            ordered[#ordered + 1] = towerId
+        end
+    end
+    table.sort(ordered)
+    for _, towerId in ipairs(ordered) do
+        for source, changed in pairs(Connections.RefreshTower(towerId)) do
+            if changed then changedBySource[source] = true end
+        end
+    end
+    return changedBySource
+end
+
 function Connections.Reevaluate(source, coords, reportedEnvironment)
     local key, number = normalizeSource(source)
     if not key then return nil, false, 'invalid player source' end

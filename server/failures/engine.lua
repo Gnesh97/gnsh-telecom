@@ -61,6 +61,20 @@ local function recordSectorId(record)
     return nil
 end
 
+local function hasOutageRoot(record)
+    if type(record) ~= 'table'
+        or (record.type ~= 'FIBER_FAILURE' and record.type ~= 'BACKHAUL_FAILURE') then
+        return false
+    end
+    local metadata = record.metadata
+    if type(metadata) ~= 'table' then return false end
+    return type(metadata.linkId) == 'string'
+        or type(metadata.rootLinkId) == 'string'
+        or type(metadata.rootNodeId) == 'string'
+        or type(metadata.nodeId) == 'string'
+        or type(metadata.regionId) == 'string'
+end
+
 local function isValidId(id)
     return type(id) == 'string' and id ~= '' and #id <= 64
 end
@@ -95,7 +109,8 @@ local function aggregate(towerId, excludedId, sectorId)
                     * definition.capacityMultiplier
                 effects.coverageMultiplier = effects.coverageMultiplier
                     * (definition.coverageMultiplier or 1.0)
-                if definition.backhaulStatus == Enums.BackhaulState.OFFLINE then
+                if definition.backhaulStatus == Enums.BackhaulState.OFFLINE
+                    and not hasOutageRoot(record) then
                     effects.backhaulStatus = Enums.BackhaulState.OFFLINE
                 end
                 effects.healthDelta = effects.healthDelta + (definition.healthDelta or 0)
@@ -243,6 +258,11 @@ function FailureEngine.Create(towerId, failureType, options)
         source = options.source,
         metadata = type(options.metadata) == 'table' and copy(options.metadata) or {},
     }
+    for _, field in ipairs({ 'linkId', 'rootLinkId', 'rootNodeId', 'nodeId', 'regionId' }) do
+        if record.metadata[field] == nil and type(options[field]) == 'string' then
+            record.metadata[field] = options[field]
+        end
+    end
     local sectorId = type(options.sectorId) == 'string' and options.sectorId
         or type(record.metadata.sectorId) == 'string' and record.metadata.sectorId
         or nil
@@ -272,6 +292,15 @@ function FailureEngine.Create(towerId, failureType, options)
         recordsById[id] = nil
         removeOrderedId(id)
         return addError(effects)
+    end
+    if hasOutageRoot(record) and OutagePropagation and OutagePropagation.Propagate then
+        local propagated, propagation = OutagePropagation.Propagate(record)
+        if not propagated then
+            recordsById[id] = nil
+            removeOrderedId(id)
+            applyTower(towerId)
+            return addError('outage_propagation_' .. tostring(propagation))
+        end
     end
     if TelecomPersistence and TelecomPersistence.SaveFailure then
         TelecomPersistence.SaveFailure(record)
@@ -328,6 +357,14 @@ function FailureEngine.Restore(record)
     recordsById[restored.id] = restored
     orderedIds[#orderedIds + 1] = restored.id
     updateSequenceFromId(restored.id)
+    if hasOutageRoot(restored) and OutagePropagation and OutagePropagation.Propagate then
+        local propagated, propagation = OutagePropagation.Propagate(restored)
+        if not propagated then
+            recordsById[restored.id] = nil
+            removeOrderedId(restored.id)
+            return false, 'outage_propagation_' .. tostring(propagation)
+        end
+    end
     if IncidentManager and IncidentManager.OnFailureCreated then
         IncidentManager.OnFailureCreated(restored, true)
     end
@@ -362,6 +399,16 @@ function FailureEngine.Clear(id, actorContext)
 
     recordsById[id] = nil
     removeOrderedId(id)
+    if OutagePropagation and OutagePropagation.GetImpact
+        and OutagePropagation.GetImpact(id)
+        and OutagePropagation.Recover then
+        local recovered, recoveryError = OutagePropagation.Recover(id)
+        if not recovered then
+            recordsById[id] = record
+            orderedIds[#orderedIds + 1] = id
+            return false, recoveryError
+        end
+    end
     local ok, effects = applyTower(record.towerId)
     if not ok then
         recordsById[id] = record
@@ -399,6 +446,13 @@ function FailureEngine.ClearAll(towerId)
             removed = removed + 1
         end
     end
+    for _, record in ipairs(removedRecords) do
+        if OutagePropagation and OutagePropagation.GetImpact
+            and OutagePropagation.GetImpact(record.id)
+            and OutagePropagation.Recover then
+            OutagePropagation.Recover(record.id)
+        end
+    end
     local ok, errorMessage = applyTower(towerId)
     if not ok then return false, errorMessage end
     if TelecomPersistence and TelecomPersistence.DeleteFailure then
@@ -421,6 +475,7 @@ function FailureEngine.ApplyTower(towerId)
 end
 
 function FailureEngine.Reset()
+    if OutagePropagation and OutagePropagation.Reset then OutagePropagation.Reset() end
     recordsById = {}
     orderedIds = {}
     sequence = 0

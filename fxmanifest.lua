@@ -43,6 +43,7 @@ server_scripts {
     'server/api.lua',
     'server/failures/types.lua',
     'server/failures/engine.lua',
+    'server/backhaul/outage_propagation.lua',
     'server/failures/scheduler.lua',
     'server/incidents/severity.lua',
     'server/incidents/tickets.lua',

@@ -281,6 +281,24 @@ function Capacity.RecalculateAll(connectionStates)
     return results
 end
 
+function Capacity.RecalculateTowers(towerIds, connectionStates)
+    local results = {}
+    local ordered = {}
+    local seen = {}
+    for key, value in pairs(towerIds or {}) do
+        local towerId = type(key) == 'number' and value or value and key
+        if type(towerId) == 'string' and not seen[towerId] then
+            seen[towerId] = true
+            ordered[#ordered + 1] = towerId
+        end
+    end
+    table.sort(ordered)
+    for _, towerId in ipairs(ordered) do
+        results[towerId] = Capacity.RecalculateTower(towerId, connectionStates or {})
+    end
+    return results
+end
+
 local function recalculateDebugLoad(towerId)
     local states = Connections and Connections.GetAll
         and Connections.GetAll()
