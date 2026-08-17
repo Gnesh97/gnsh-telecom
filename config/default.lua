@@ -67,6 +67,9 @@ Config = {
 
     Signal = {
         Base = 100,
+        -- Values above 1 keep signal usable deeper into the radius while
+        -- preserving a hard zero at the coverage edge.
+        DistanceFalloffExponent = 1.25,
         Levels = {
             EXCELLENT = { min = 90, max = 100 },
             GOOD = { min = 75, max = 89 },

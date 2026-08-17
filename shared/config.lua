@@ -413,6 +413,16 @@ local function validateDebug(config, errors)
     end
 end
 
+local function validateSignalFalloff(config, errors)
+    local exponent = config.Signal and config.Signal.DistanceFalloffExponent
+    if exponent == nil then return end
+
+    if not isNumber(exponent) or exponent < 1 or exponent > 4 then
+        addError(errors,
+            'Signal.DistanceFalloffExponent must be between 1 and 4')
+    end
+end
+
 local qosClasses = {
     'EMERGENCY',
     'VOICE',
@@ -970,6 +980,7 @@ function Config.Validate(config)
         addError(errors, 'Signal.Base must be greater than zero')
     else
         validateSignalLevels(config, errors)
+        validateSignalFalloff(config, errors)
     end
 
     validateServices(config, errors)

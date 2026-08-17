@@ -14,14 +14,34 @@ local function makeTower(id, x, y, radius, state)
     }
 end
 
-TEST('raw signal attenuates predictably with distance', function()
+TEST('raw signal uses a gradual configured distance falloff', function()
     local tower = makeTower('SIGNAL', 0, 0, 100)
+    local exponent = Config.Signal.DistanceFalloffExponent
+    local halfway = Signal.CalculateRaw(tower, vector3(50, 0, 0))
+    local nearEdge = Signal.CalculateRaw(tower, vector3(99, 0, 0))
+    local expectedHalfway = 100 * (1 - (0.5 ^ exponent))
+    local expectedNearEdge = 100 * (1 - (0.99 ^ exponent))
 
     ASSERT_EQ(Signal.CalculateRaw(tower, vector3(0, 0, 0)), 100)
-    ASSERT_EQ(Signal.CalculateRaw(tower, vector3(25, 0, 0)), 75)
-    ASSERT_EQ(Signal.CalculateRaw(tower, vector3(50, 0, 0)), 50)
-    ASSERT_TRUE(math.abs(Signal.CalculateRaw(tower, vector3(99, 0, 0)) - 1) < 0.000001)
+    ASSERT_TRUE(exponent > 1)
+    ASSERT_TRUE(math.abs(halfway - expectedHalfway) < 0.000001)
+    ASSERT_TRUE(math.abs(nearEdge - expectedNearEdge) < 0.000001)
+    ASSERT_TRUE(halfway > 50)
+    ASSERT_TRUE(nearEdge > 1)
     ASSERT_EQ(Signal.CalculateRaw(tower, vector3(101, 0, 0)), 0)
+end)
+
+TEST('signal distance falloff validation rejects non-gradual curves', function()
+    local previous = Config.Signal.DistanceFalloffExponent
+    Config.Signal.DistanceFalloffExponent = 0.5
+
+    local valid, errors = Config.Validate()
+
+    Config.Signal.DistanceFalloffExponent = previous
+
+    ASSERT_FALSE(valid)
+    ASSERT_TRUE(table.concat(errors or {}, '; '):find(
+        'Signal.DistanceFalloffExponent', 1, true) ~= nil)
 end)
 
 TEST('raw signal returns no-service for invalid points and offline towers', function()

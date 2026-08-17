@@ -35,7 +35,9 @@ ise canlı uyumluluk, temiz kurulum ve çoklu oyuncu/runtime kanıtına bağlı.
 - **TP-04 runtime doğrulaması:** Kullanıcı `/telecom_heatmap current` komutunun çalıştığını doğruladı; pause-map radius hücreleri artık gerçek server coverage/selection hesabıyla üretiliyor.
 - **TP-05 uygulaması:** `Config.CoverageExpectations`, doğrulama/evaluation servisi, `/telecom_coverage_expectations` özeti ve `/telecom_coverage_capture` gerçek koordinat yakalama komutu eklendi. 13 required-service ve 7 intentional-weak anchor’ın tamamı doğrulanmış FiveM capture’larıyla kayıtlı.
 - **TP-05 runtime kabulü:** Mount Chiliad `signal=0.00/BLACK`, Blaine remote dirt road `signal=11.82/RED` ile `WEAK_OR_NONE` beklentisini geçti. Beklenen regresyon özeti artık `pass=20 fail=0 pending=0`.
-- **Sonraki aşama:** TP-06/TP-07 için şehir, kasaba ve highway güzergâhlarında heatmap/sürüş dengeleme kanıtı toplanacak; kanıt olmadan kule konumu veya radius değiştirilmeyecek.
+- **TP-06 başlangıç runtime kanıtı:** Kullanıcının downtown, Sandy Shores ve Paleto heatmap’lerinde kule konumları ve bölgesel geçişler kabul edilebilir göründü; F8 özeti `pass=20 fail=0 pending=0`.
+- **TP-06 aday tuning’i:** `Config.Signal.DistanceFalloffExponent = 1.25` ile radius içindeki sinyal düşüşü yumuşatıldı; kesin kabul için resource restart sonrası aynı heatmap’ler yeniden kontrol edilecek.
+- **Sonraki aşama:** TP-06/TP-07 için yeni eğriyle şehir, kasaba ve highway güzergâhlarında runtime kanıtı tamamlanacak; kule konumu veya radius yalnızca kanıtla değiştirilecek.
 
 ## Repository durumu
 

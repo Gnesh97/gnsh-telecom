@@ -40,6 +40,11 @@ the pause map as a translucent radius blip:
 | Red | 1–29 |
 | Black | No service |
 
+The production signal curve uses `Config.Signal.DistanceFalloffExponent`.
+The current value is `1.25`: values above `1` keep signal usable deeper into
+the configured radius, while the signal still reaches zero at the exact edge.
+The curve changes signal quality, not the production tower radius.
+
 The visual circle is a sampling cell, not an additional gameplay coverage
 radius. The production tower radius remains the value in `config/towers.lua`.
 

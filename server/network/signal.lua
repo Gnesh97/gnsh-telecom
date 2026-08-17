@@ -29,6 +29,17 @@ local function getBaseSignal()
     return base
 end
 
+local function getDistanceFalloffExponent()
+    local exponent = Config and Config.Signal
+        and Config.Signal.DistanceFalloffExponent
+    if type(exponent) ~= 'number' or exponent ~= exponent
+        or exponent == math.huge or exponent == -math.huge
+        or exponent < 1 or exponent > 4 then
+        return 1.0
+    end
+    return exponent
+end
+
 function Signal.CalculateDistance(left, right)
     if not Utils.IsPoint(left) or not Utils.IsPoint(right) then return nil end
 
@@ -127,7 +138,8 @@ function Signal.CalculateRaw(tower, coords, environmentContext, sector)
     local distance = Signal.CalculateDistance(tower.coords, coords)
     if not distance or distance >= radius then return 0 end
 
-    local distanceFactor = 1 - (distance / radius)
+    local normalizedDistance = distance / radius
+    local distanceFactor = 1 - (normalizedDistance ^ getDistanceFalloffExponent())
     local signal = getBaseSignal() * distanceFactor
     local environment = Signal.ResolveEnvironment(coords, environmentContext)
     signal = signal * environment.multiplier
