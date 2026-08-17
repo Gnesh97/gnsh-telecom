@@ -40,6 +40,15 @@ function TowerValidation.Validate(tower, path)
     end
 
     local normalized = Utils.DeepCopy(tower)
+    if TelecomDeployment and TelecomDeployment.NormalizeTower then
+        local deploymentOk, deploymentErrors, deploymentTower =
+            TelecomDeployment.NormalizeTower(tower, path)
+        for _, message in ipairs(deploymentErrors or {}) do
+            errors[#errors + 1] = message
+        end
+        if deploymentTower then normalized = deploymentTower end
+        if not deploymentOk and not deploymentTower then return false, errors, nil end
+    end
     if type(normalized.id) ~= 'string' or normalized.id:match('^%s*$') then
         addError(errors, path, 'id must be a non-empty string')
     end

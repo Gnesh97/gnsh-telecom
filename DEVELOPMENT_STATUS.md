@@ -134,7 +134,7 @@ Durum işaretleri:
 
 Son kod doğrulamasında:
 
-- **323 unit/integration/compatibility/release-gate testi geçti.**
+- **331 unit/integration/compatibility/release-gate testi geçti.**
 - **0 test başarısız oldu.**
 - Recursive Lua `loadfile` syntax kontrolü geçti.
 - `git diff --check` whitespace hatası vermedi.

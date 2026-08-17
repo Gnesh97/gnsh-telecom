@@ -27,6 +27,9 @@ Important settings:
 - `Config.Sabotage` defines action-to-failure mappings; clients cannot override them.
 - `Config.Jammers` defines limits, radius, strength, duration and supported technologies.
 - `Config.Statistics` defines aggregate flush cadence and retention limits.
+- `Config.Deployment.defaultCoverageMinimum` supplies the default coverage minimum for archetype-backed towers.
+- `Config.TowerArchetypes` defines reusable `METRO_MACRO`, `TOWN_MACRO`, `RURAL_MACRO`, `HIGHWAY_REPEATER` and `REMOTE_REPEATER` profiles.
+- `Config.CoverageZones` defines deployment-intent labels. A tower's optional `class` and `coverageZone` are validated without replacing the existing tower schema.
 - `Config.Framework` selects `auto`, `standalone`, `qbcore`, `qbox`, `esx` or `custom`; custom callbacks live under `Config.CustomFramework`.
 - Framework money methods are optional; missing framework capabilities fail closed and are never required by Telecom Core.
 - `Config.InventoryBridge` selects `auto`, `standalone`, `ox`, `qb`, `qs` or `custom`; custom callbacks live under `Config.CustomInventory`.

@@ -114,6 +114,43 @@ Config = {
         technologyPenaltyWeight = 0.10,
     },
 
+    Deployment = {
+        defaultCoverageMinimum = 50,
+    },
+
+    TowerArchetypes = {
+        METRO_MACRO = {
+            coverageRadius = 850,
+            capacity = 150,
+        },
+        TOWN_MACRO = {
+            coverageRadius = 1200,
+            capacity = 80,
+        },
+        RURAL_MACRO = {
+            coverageRadius = 1500,
+            capacity = 50,
+        },
+        HIGHWAY_REPEATER = {
+            coverageRadius = 750,
+            capacity = 30,
+        },
+        REMOTE_REPEATER = {
+            coverageRadius = 450,
+            capacity = 10,
+        },
+    },
+
+    CoverageZones = {
+        METRO_CORE = { required = true, target = 'STRONG' },
+        METRO_EDGE = { required = true, target = 'STRONG' },
+        TOWN = { required = true, target = 'GOOD' },
+        HIGHWAY = { required = true, target = 'MODERATE' },
+        RURAL = { required = false, target = 'VARIABLE' },
+        WILDERNESS = { required = false, target = 'WEAK' },
+        INTENTIONAL_DEADZONE = { required = false, target = 'WEAK_OR_NONE' },
+    },
+
     Carriers = {},
 
     Handover = {

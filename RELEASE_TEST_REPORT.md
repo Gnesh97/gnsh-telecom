@@ -18,7 +18,7 @@ multiplayer/runtime evidence.
 | Version metadata | PASS | `Config.Version` and `fxmanifest.lua` are `0.1.0-rc.1`; API schema remains `1.0` by contract |
 | MIT license | PASS | `LICENSE` present |
 | Documentation packet | PASS | Installation, API, bridges, phone, carrier, NOC, backhaul, security, compatibility and performance docs present |
-| Pure Lua release/unit suite | PASS | `lua tests/run.lua`: 323 passed, 0 failed |
+| Pure Lua release/unit suite | PASS | `lua tests/run.lua`: 331 passed, 0 failed |
 | Lua syntax | PASS | Recursive `loadfile` check: `Lua syntax OK` |
 | Diff hygiene | PASS | `git diff --check` produced no whitespace errors |
 | Synthetic scale | PASS | `lua tests/performance/scale_harness.lua`: exit code 0; results in `PERFORMANCE.md` |

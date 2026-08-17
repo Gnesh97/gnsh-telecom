@@ -18,6 +18,7 @@ shared_scripts {
     'shared/carriers.lua',
     'shared/feature_flags.lua',
     'shared/utils.lua',
+    'shared/deployment.lua',
     'shared/service_policy.lua',
     'locales/en.lua',
     'locales/tr.lua',

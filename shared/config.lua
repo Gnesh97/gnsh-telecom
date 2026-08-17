@@ -695,40 +695,63 @@ local function validateTowers(config, errors, warnings)
         if type(tower) ~= 'table' then
             addError(errors, prefix .. ' must be a table')
         else
-            if type(tower.id) ~= 'string' or tower.id == '' then
-                addError(errors, prefix .. '.id must be a non-empty string')
-            elseif seen[tower.id] then
-                addError(errors, ('duplicate tower id: %s'):format(tower.id))
+            local candidate = tower
+            if TelecomDeployment and TelecomDeployment.NormalizeTower then
+                local deploymentOk, deploymentErrors, deploymentTower =
+                    TelecomDeployment.NormalizeTower(tower, prefix, config)
+                for _, message in ipairs(deploymentErrors or {}) do
+                    addError(errors, message)
+                end
+                if deploymentTower then candidate = deploymentTower end
+                if not deploymentOk and not deploymentTower then candidate = tower end
             else
-                seen[tower.id] = true
+                if tower.class ~= nil
+                    and (type(tower.class) ~= 'string'
+                        or type(config.TowerArchetypes) ~= 'table'
+                        or type(config.TowerArchetypes[tower.class]) ~= 'table') then
+                    addError(errors, prefix .. '.unknown tower archetype')
+                end
+                if tower.coverageZone ~= nil
+                    and (type(config.CoverageZones) ~= 'table'
+                        or type(config.CoverageZones[tower.coverageZone]) ~= 'table') then
+                    addError(errors, prefix .. '.unknown coverage zone')
+                end
             end
 
-            if not isPoint(tower.coords) then
+            if type(candidate.id) ~= 'string' or candidate.id == '' then
+                addError(errors, prefix .. '.id must be a non-empty string')
+            elseif seen[candidate.id] then
+                addError(errors, ('duplicate tower id: %s'):format(candidate.id))
+            else
+                seen[candidate.id] = true
+            end
+
+            if not isPoint(candidate.coords) then
                 addError(errors, prefix .. '.coords must contain numeric x, y and z')
             end
 
-            local coverage = tower.coverage
+            local coverage = candidate.coverage
             if type(coverage) ~= 'table' or not isNumber(coverage.radius)
                 or coverage.radius <= 0 or not isNumber(coverage.minimum)
                 or coverage.minimum < 0 or coverage.radius < coverage.minimum then
                 addError(errors, prefix .. '.coverage is invalid')
             end
 
-            if type(tower.technologies) ~= 'table' or #tower.technologies == 0 then
+            if type(candidate.technologies) ~= 'table' or #candidate.technologies == 0 then
                 addError(errors, prefix .. '.technologies must not be empty')
             else
-                for _, technology in ipairs(tower.technologies) do
+                for _, technology in ipairs(candidate.technologies) do
                     local supported = Technologies
                         and Technologies.IsSupported
                         and Technologies.IsSupported(technology)
                     if not supported then
                         addError(errors, ('unsupported technology on %s: %s')
-                            :format(tostring(tower.id), tostring(technology)))
+                            :format(tostring(candidate.id), tostring(technology)))
                     end
                 end
             end
 
-            local capacity = tower.capacity
+            local capacity = candidate.capacity
             if type(capacity) ~= 'table' or not isNumber(capacity.maximum)
                 or capacity.maximum <= 0 then
                 addError(errors, prefix .. '.capacity.maximum must be greater than zero')
@@ -738,6 +761,58 @@ local function validateTowers(config, errors, warnings)
 
     if #config.Towers == 0 then
         addWarning(warnings, 'no towers configured; telecom core will start without coverage')
+    end
+end
+
+local function validateDeployment(config, errors)
+    local deployment = config.Deployment
+    if type(deployment) ~= 'table' then
+        addError(errors, 'Deployment must be a table')
+    elseif not isNumber(deployment.defaultCoverageMinimum)
+        or deployment.defaultCoverageMinimum < 0
+        or deployment.defaultCoverageMinimum > 100 then
+        addError(errors, 'Deployment.defaultCoverageMinimum must be between 0 and 100')
+    end
+
+    local archetypes = config.TowerArchetypes
+    if type(archetypes) ~= 'table' or next(archetypes) == nil then
+        addError(errors, 'TowerArchetypes must contain at least one archetype')
+    else
+        for name, archetype in pairs(archetypes) do
+            local prefix = ('TowerArchetypes.%s'):format(tostring(name))
+            if type(name) ~= 'string' or name == '' then
+                addError(errors, 'TowerArchetypes contains an invalid name')
+            elseif type(archetype) ~= 'table' then
+                addError(errors, prefix .. ' must be a table')
+            else
+                if not isNumber(archetype.coverageRadius) or archetype.coverageRadius <= 0 then
+                    addError(errors, prefix .. '.coverageRadius must be greater than zero')
+                end
+                if not isNumber(archetype.capacity) or archetype.capacity <= 0 then
+                    addError(errors, prefix .. '.capacity must be greater than zero')
+                end
+            end
+        end
+    end
+
+    local zones = config.CoverageZones
+    local requiredZones = {
+        'METRO_CORE',
+        'METRO_EDGE',
+        'TOWN',
+        'HIGHWAY',
+        'RURAL',
+        'WILDERNESS',
+        'INTENTIONAL_DEADZONE',
+    }
+    if type(zones) ~= 'table' then
+        addError(errors, 'CoverageZones must be a table')
+    else
+        for _, name in ipairs(requiredZones) do
+            if type(zones[name]) ~= 'table' then
+                addError(errors, ('CoverageZones.%s must be a table'):format(name))
+            end
+        end
     end
 end
 
@@ -865,6 +940,7 @@ function Config.Validate(config)
     validateFailureScheduler(config, errors)
     validatePersistence(config, errors)
     validateOperations(config, errors)
+    validateDeployment(config, errors)
     validateTowers(config, errors, warnings)
 
     return #errors == 0, errors, warnings
