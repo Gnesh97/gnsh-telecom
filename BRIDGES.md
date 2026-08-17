@@ -4,7 +4,7 @@ Phone bridges are optional adapters around the public `gnsh-telecom` API. Teleco
 
 ## Central bridge platform
 
-All core integration categories are registered through the central platform: `framework`, `inventory`, `target`, `dispatch` and `phone`. Providers declare a name, category, priority, optional resources, capabilities and lifecycle methods (`Detect`, `Initialize`, `Shutdown`, `HealthCheck`). Selection is deterministic by priority and provider name, with safe fallback when detection, initialization or health checks fail. Notify and progress are lightweight support registries because they are presentation helpers rather than gameplay state providers.
+All core integration categories are registered through the central platform: `framework`, `inventory`, `target`, `dispatch` and `phone`. Providers declare a name, category, priority, optional resources, capabilities and lifecycle methods (`Detect`, `Initialize`, `Shutdown`, `HealthCheck`). Selection is deterministic by priority and provider name, with safe fallback when detection, initialization or health checks fail. Notify and progress are lightweight support registries because they are presentation helpers rather than gameplay state providers. The `Config.Bridges` table controls provider preferences, fallbacks and required integrations without changing the provider contracts.
 
 Consumers can inspect the platform through the public exports:
 
@@ -15,6 +15,35 @@ local capabilities = exports['gnsh-telecom']:GetBridgeCapabilities('phone')
 ```
 
 Provider start/stop events trigger lifecycle reconciliation. Missing optional providers report `OPTIONAL`; a provider exception is isolated and reported as `FAILED` without stopping the telecom core.
+
+## Bridge configuration and health
+
+Configure all integration categories from one table:
+
+```lua
+Config.Bridges = {
+    Framework = { provider = 'auto', fallback = 'standalone' },
+    Inventory = { provider = 'auto', required = false },
+    Target = { provider = 'auto', fallback = 'native' },
+    Phone = { provider = 'auto', requireEnforcement = false },
+    Dispatch = { provider = 'auto', required = false },
+    Notify = { provider = 'auto', fallback = 'native' },
+    Progress = { provider = 'auto', fallback = 'native' },
+}
+```
+
+`provider = 'auto'` preserves deterministic provider priority. An explicit provider is tried first, then its configured fallback. When a legacy field such as `Config.Framework` or `Config.InventoryBridge` is explicitly set, it remains effective while the corresponding bridge-table provider is `auto`; an explicit `Config.Bridges` provider takes precedence. `required = true` prevents startup when that category has no healthy provider. Phone integrations can use `requireEnforcement = true` to require a `FULL` or `FUNCTIONAL` support level. Optional categories report `OPTIONAL` and do not stop telecom core.
+
+At startup the server logs an integration summary such as:
+
+```text
+Integration Summary
+Framework : QBCore ACTIVE
+Phone     : generic ACTIVE
+Compatibility : OK
+```
+
+The same data is available through `BridgeManager.GetIntegrationSummary()`, including per-category provider, state, fallback and capability information. `GetBridgeStatus()` also exposes the selected configuration and whether a fallback was used.
 
 ## Notify, progress and dispatch support bridges
 
@@ -30,14 +59,14 @@ DispatchBridge.CreateAlert(data)
 
 Progress is presentation-only. `StartProgress` never creates a server timer or accepts a client completion signal. Server workflows must keep ownership of duration, cancellation and completion validation.
 
-Notify selection is automatic (`ox`, framework, then native) and can be made explicit:
+Notify and progress selection is automatic and can be made explicit:
 
 ```lua
-Config.NotifyBridge = 'auto'       -- auto, ox, framework or native
-Config.ProgressBridge = 'auto'     -- auto, ox or native
+Config.Bridges.Notify.provider = 'auto'       -- auto, ox, framework or native
+Config.Bridges.Progress.provider = 'auto'     -- auto, ox or native
 ```
 
-The Ox provider uses the documented `lib.notify`, `lib.progressBar` and `lib.progressCircle` entry points. Server requests are routed through resource-owned client events so a missing or failing Ox client can fall back to native presentation. Dispatch remains optional: no provider is installed by default, while native and custom adapters can be selected explicitly.
+The legacy `Config.NotifyBridge` and `Config.ProgressBridge` fields remain supported for compatibility. The Ox provider uses the documented `lib.notify`, `lib.progressBar` and `lib.progressCircle` entry points. Server requests are routed through resource-owned client events so a missing or failing Ox client can fall back to native presentation. Dispatch remains optional: no provider is installed by default, while native and custom adapters can be selected explicitly.
 
 Custom dispatch can be configured before startup or installed at runtime:
 
@@ -50,6 +79,10 @@ Config.CustomDispatch = {
 }
 -- Or: DispatchBridge.SetCustomAdapter(Config.CustomDispatch)
 ```
+
+When the central table selects this adapter explicitly, set
+`Config.Bridges.Dispatch.provider` to the adapter `name` (the default is
+`custom-dispatch`).
 
 `DispatchBridge.Alert(data)` remains available for existing integrations and delegates to `CreateAlert` when that is the only method supplied.
 

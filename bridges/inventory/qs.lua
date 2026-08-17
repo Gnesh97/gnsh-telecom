@@ -31,8 +31,10 @@ if InventoryBridge and type(InventoryBridge.Register) == 'function' then
         resource = 'qs-inventory',
         priority = 100,
         Detect = function()
-            return not Config or Config.InventoryBridge == 'auto'
-                or Config.InventoryBridge == 'qs'
+            local configured = BridgeConfig and BridgeConfig.GetProvider
+                and BridgeConfig.GetProvider('inventory')
+                or (Config and Config.InventoryBridge or 'auto')
+            return configured == 'auto' or configured == 'qs'
         end,
         GetItemCount = function(_, source, item)
             return itemCount(source, item)

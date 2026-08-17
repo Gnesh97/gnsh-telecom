@@ -203,14 +203,48 @@ function ProgressBridge.StartNative(source, action, duration, options)
     )
 end
 
-function ProgressBridge.Initialize(preferred)
-    local configured = preferred
-    if configured == nil and Config then configured = Config.ProgressBridge end
-    configured = configured or 'auto'
+function ProgressBridge.GetStatus()
+    local active = ProgressBridge.GetActive()
+    return {
+        category = 'progress',
+        state = active and 'ACTIVE' or 'OPTIONAL',
+        active = active and active.name or nil,
+        provider = active and active.name or nil,
+        available = active ~= nil,
+        initialized = active ~= nil,
+        capabilities = active and { StartProgress = true } or {},
+    }
+end
 
-    local order = configured ~= 'auto'
-        and { configured, 'native' }
-        or { 'ox', 'native' }
+function ProgressBridge.Initialize(preferred)
+    local bridges = type(Config) == 'table' and Config.Bridges
+    local configuration = type(bridges) == 'table' and bridges.Progress or {}
+    local legacyConfigured = type(Config) == 'table' and Config.ProgressBridge or nil
+    local configured = preferred
+    if configured == nil then
+        configured = configuration.provider or legacyConfigured
+        if configured == 'auto' and type(legacyConfigured) == 'string'
+            and legacyConfigured ~= 'auto' then
+            configured = legacyConfigured
+        end
+    end
+    configured = configured or 'auto'
+    local fallback = configuration.fallback or 'native'
+    local order = {}
+    local seen = {}
+    local function add(name)
+        if type(name) == 'string' and name ~= '' and not seen[name] then
+            order[#order + 1] = name
+            seen[name] = true
+        end
+    end
+    if configured == 'auto' then
+        add('ox')
+    else
+        add(configured)
+    end
+    add(fallback)
+    add('native')
     for _, name in ipairs(order) do
         local provider = providers[name]
         if provider and detectProvider(provider) then

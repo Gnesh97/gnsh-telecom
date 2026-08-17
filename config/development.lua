@@ -3,6 +3,16 @@ Config.Debug.enabled = true
 Config.Debug.logLevel = 'debug'
 Config.Features.Technician = true
 
+Config.Bridges = Config.Bridges or {}
+Config.Bridges.Notify = Config.Bridges.Notify or {
+    provider = 'auto',
+    fallback = 'native',
+}
+Config.Bridges.Progress = Config.Bridges.Progress or {
+    provider = 'auto',
+    fallback = 'native',
+}
+
 if type(ConfigExampleTowers) == 'table' then
     Config.Towers = ConfigExampleTowers
 end

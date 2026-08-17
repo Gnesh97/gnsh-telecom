@@ -33,7 +33,10 @@ if InventoryBridge and type(InventoryBridge.Register) == 'function' then
         priority = 400,
         Detect = function()
             local current = configured()
-            return Config and Config.InventoryBridge == 'custom'
+            local configuredProvider = BridgeConfig and BridgeConfig.GetProvider
+                and BridgeConfig.GetProvider('inventory')
+                or (Config and Config.InventoryBridge)
+            return configuredProvider == 'custom'
                 and current ~= nil and hasMethod(current)
         end,
         HasItem = function(_, source, item, amount)

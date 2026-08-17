@@ -283,7 +283,10 @@ function PhoneBridges.CreateCustomAdapter()
     local adapter = createPublicAdapter('custom')
     adapter.priority = 400
     function adapter:Detect()
-        return Config and Config.PhoneBridge == 'custom'
+        local configured = BridgeConfig and BridgeConfig.GetProvider
+            and BridgeConfig.GetProvider('phone')
+            or (Config and Config.PhoneBridge)
+        return configured == 'custom'
     end
     return adapter
 end
@@ -338,7 +341,9 @@ function PhoneBridges.Select()
         if active then return active end
     end
 
-    local configured = Config and Config.PhoneBridge or 'auto'
+    local configured = BridgeConfig and BridgeConfig.GetProvider
+        and BridgeConfig.GetProvider('phone')
+        or (Config and Config.PhoneBridge or 'auto')
     local generic = PhoneBridges.Get('generic')
 
     if configured ~= 'auto' then
@@ -383,7 +388,9 @@ end
 
 function PhoneBridges.Initialize()
     if BridgeManager and type(BridgeManager.InitializeCategory) == 'function' then
-        local configured = Config and Config.PhoneBridge or 'auto'
+        local configured = BridgeConfig and BridgeConfig.GetProvider
+            and BridgeConfig.GetProvider('phone')
+            or (Config and Config.PhoneBridge or 'auto')
         local preferred = configured ~= 'auto' and configured or nil
         local ok, selected, errorMessage = BridgeManager.InitializeCategory('phone', preferred)
         PhoneBridges.Active = selected
@@ -505,7 +512,9 @@ function PhoneBridges.GetStatus()
     end
     return {
         apiVersion = Constants.ApiVersion,
-        configured = Config and Config.PhoneBridge or 'auto',
+        configured = BridgeConfig and BridgeConfig.GetProvider
+            and BridgeConfig.GetProvider('phone')
+            or (Config and Config.PhoneBridge or 'auto'),
         active = active,
         available = available,
         initialized = initialized,

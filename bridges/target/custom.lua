@@ -40,7 +40,10 @@ if TargetBridge and type(TargetBridge.Register) == 'function' then
         Detect = function()
             local value = configured()
             local resource = value and (value.resource or value.resourceName)
-            return Config and Config.TargetBridge == 'custom'
+            local configuredProvider = BridgeConfig and BridgeConfig.GetProvider
+                and BridgeConfig.GetProvider('target')
+                or (Config and Config.TargetBridge)
+            return configuredProvider == 'custom'
                 and value ~= nil and hasMethod(value)
                 and resourceStarted(resource)
         end,

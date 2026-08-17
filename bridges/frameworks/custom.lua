@@ -44,7 +44,10 @@ if FrameworkBridge and FrameworkBridge.Register then
         priority = 400,
         Detect = function()
             local current = customConfig()
-            if not Config or Config.Framework ~= 'custom' or not current
+            local configuredProvider = BridgeConfig and BridgeConfig.GetProvider
+                and BridgeConfig.GetProvider('framework')
+                or (Config and Config.Framework)
+            if configuredProvider ~= 'custom' or not current
                 or not hasConfiguredMethod(current) then
                 return false
             end

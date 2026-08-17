@@ -92,6 +92,9 @@ function TargetBridge.Get(name)
 end
 
 local function configuredName()
+    if BridgeConfig and type(BridgeConfig.GetProvider) == 'function' then
+        return BridgeConfig.GetProvider('target')
+    end
     local configured = Config and Config.TargetBridge
     return type(configured) == 'string' and configured ~= '' and configured or 'auto'
 end

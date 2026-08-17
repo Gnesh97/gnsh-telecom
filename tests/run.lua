@@ -189,6 +189,7 @@ dofile('server/statistics.lua')
 dofile('tests/unit/operations_spec.lua')
 dofile('tests/unit/maintenance_sessions_spec.lua')
 dofile('tests/unit/support_bridge_spec.lua')
+dofile('tests/unit/bridge_config_spec.lua')
 
 print('')
 print(('%d passed, %d failed'):format(passed, failed))

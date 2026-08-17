@@ -10,7 +10,10 @@ local function isProviderResource(resourceName)
     if providerResources[resourceName] then return true end
     local custom = Config and Config.CustomTarget
     local configured = custom and (custom.resource or custom.resourceName)
-    return Config and Config.TargetBridge == 'custom' and configured == resourceName
+    local configuredProvider = BridgeConfig and BridgeConfig.GetProvider
+        and BridgeConfig.GetProvider('target')
+        or (Config and Config.TargetBridge)
+    return configuredProvider == 'custom' and configured == resourceName
 end
 
 local function copy(value)

@@ -2,6 +2,13 @@ BridgeManager = BridgeManager or {}
 
 local categories = { 'framework', 'inventory', 'target', 'dispatch', 'phone' }
 local states = {}
+local categorySections = {
+    framework = 'Framework',
+    inventory = 'Inventory',
+    target = 'Target',
+    phone = 'Phone',
+    dispatch = 'Dispatch',
+}
 
 local function log(level, message, data)
     if Log and type(Log[level]) == 'function' then Log[level](message, data) end
@@ -12,6 +19,50 @@ local function copy(value)
     local result = {}
     for key, item in pairs(value) do result[key] = copy(item) end
     return result
+end
+
+local function configurationFor(category)
+    local sectionName = categorySections[category]
+    local bridges = type(Config) == 'table' and Config.Bridges
+    local section = type(bridges) == 'table' and bridges[sectionName] or nil
+    return type(section) == 'table' and section or {}
+end
+
+local function legacyProviderFor(category)
+    if type(Config) ~= 'table' then return nil end
+    return ({
+        framework = Config.Framework,
+        inventory = Config.InventoryBridge,
+        target = Config.TargetBridge,
+        phone = Config.PhoneBridge,
+    })[category]
+end
+
+local function configuredProviderFor(category, configuration)
+    if BridgeConfig and type(BridgeConfig.GetProvider) == 'function' then
+        return BridgeConfig.GetProvider(category)
+    end
+    local configured = configuration.provider
+    local legacy = legacyProviderFor(category)
+    if (configured == nil or configured == 'auto')
+        and type(legacy) == 'string' and legacy ~= '' and legacy ~= 'auto' then
+        return legacy
+    end
+    return configured
+end
+
+local function resolvePreferences(category, requested)
+    local configuration = configurationFor(category)
+    local configured = configuration.provider
+    if requested == nil then
+        configured = configuredProviderFor(category, configuration)
+    end
+    local preferred = type(configured) == 'string'
+        and configured ~= '' and configured ~= 'auto' and configured or requested
+    local fallback = type(configuration.fallback) == 'string'
+        and configuration.fallback ~= '' and configuration.fallback or nil
+    if fallback == nil and category == 'phone' then fallback = 'generic' end
+    return preferred, fallback, configuration
 end
 
 local function stateFor(category)
@@ -62,17 +113,31 @@ local function shutdownActive(category)
     state.initialized = false
 end
 
-local function orderProviders(providers, preferred)
-    if type(preferred) ~= 'string' or preferred == '' then return providers end
-    local result, preferredProvider = {}, nil
-    for _, provider in ipairs(providers) do
-        if provider.name == preferred then
-            preferredProvider = provider
-        else
-            result[#result + 1] = provider
+local function orderProviders(providers, preferred, fallback)
+    local result, used = {}, {}
+
+    local function add(name)
+        if type(name) ~= 'string' or name == '' or used[name] then return end
+        for _, provider in ipairs(providers) do
+            if provider.name == name then
+                result[#result + 1] = provider
+                used[name] = true
+                return
+            end
         end
     end
-    if preferredProvider then table.insert(result, 1, preferredProvider) end
+
+    add(preferred)
+    if preferred ~= nil then
+        add(fallback)
+        return result
+    end
+    for _, provider in ipairs(providers) do
+        if not (preferred == nil and provider.name == fallback) then
+            add(provider.name)
+        end
+    end
+    if preferred == nil then add(fallback) end
     return result
 end
 
@@ -129,6 +194,9 @@ function BridgeManager.InitializeCategory(category, preferred, force)
         return false, nil, 'unknown_category'
     end
 
+    local resolvedPreferred, fallback = resolvePreferences(category, preferred)
+    preferred = resolvedPreferred
+
     local state = stateFor(category)
     if state.initializing then return false, nil, 'initialization_in_progress' end
     if not force and state.active and (preferred == nil or state.active.name == preferred)
@@ -139,7 +207,7 @@ function BridgeManager.InitializeCategory(category, preferred, force)
     shutdownActive(category)
     state.initializing = true
 
-    local providers = orderProviders(BridgeRegistry.List(category), preferred)
+    local providers = orderProviders(BridgeRegistry.List(category), preferred, fallback)
     if #providers == 0 then
         state.state = BridgeHealth.States.OPTIONAL
         state.initialized = false
@@ -229,11 +297,13 @@ end
 
 function BridgeManager.InitializeAll()
     local result = {}
+    local allRequiredSatisfied = true
     for _, category in ipairs(categories) do
         BridgeManager.InitializeCategory(category)
         result[category] = BridgeManager.GetBridgeStatus(category)
+        if not result[category].requiredSatisfied then allRequiredSatisfied = false end
     end
-    return true, result
+    return allRequiredSatisfied, result
 end
 
 function BridgeManager.ShutdownCategory(category)
@@ -280,10 +350,14 @@ function BridgeManager.Refresh(category)
     local healthy, healthValue = BridgeLifecycle.HealthCheck(state.active)
     if not healthy then
         state.state = BridgeHealth.States.FAILED
-        return BridgeManager.InitializeCategory(category)
+        return BridgeManager.InitializeCategory(category, nil, true)
     end
     state.state = BridgeHealth.Normalize(healthValue, BridgeHealth.States.ACTIVE)
     mark(category, state.active, { state = state.state })
+    if state.state == BridgeHealth.States.FAILED
+        or state.state == BridgeHealth.States.UNAVAILABLE then
+        return BridgeManager.InitializeCategory(category, nil, true)
+    end
     return true, state.active
 end
 
@@ -309,6 +383,39 @@ function BridgeManager.Call(category, method, ...)
         return false, nil, third or second or 'provider_call_failed'
     end
     return true, first, second, third
+end
+
+local function requirementStatus(category, active)
+    local configuration = configurationFor(category)
+    local configured = configuredProviderFor(category, configuration)
+    local required = configuration.required == true
+    local requireEnforcement = category == 'phone'
+        and configuration.requireEnforcement == true
+    local requiredSatisfied = true
+    local activeState = stateFor(category).state
+
+    if required and (active == nil or activeState == BridgeHealth.States.FAILED
+        or activeState == BridgeHealth.States.UNAVAILABLE) then
+        requiredSatisfied = false
+    end
+    if requireEnforcement then
+        local supportLevel = active and active.supportLevel
+        if active == nil or activeState == BridgeHealth.States.FAILED
+            or activeState == BridgeHealth.States.UNAVAILABLE
+            or (supportLevel ~= 'FULL' and supportLevel ~= 'FUNCTIONAL') then
+            requiredSatisfied = false
+        end
+    end
+
+    return {
+        configured = configured,
+        fallback = type(configuration.fallback) == 'string'
+            and configuration.fallback ~= '' and configuration.fallback
+            or (category == 'phone' and 'generic' or nil),
+        required = required or requireEnforcement,
+        requireEnforcement = requireEnforcement,
+        requiredSatisfied = requiredSatisfied,
+    }
 end
 
 function BridgeManager.GetBridgeStatus(category)
@@ -342,6 +449,7 @@ function BridgeManager.GetBridgeStatus(category)
     end
 
     local active = state.active
+    local requirements = requirementStatus(category, active)
     local categoryState = state.state
     if not categoryState then
         categoryState = #providers == 0
@@ -355,6 +463,16 @@ function BridgeManager.GetBridgeStatus(category)
         available = active ~= nil,
         initialized = state.initialized == true,
         capabilities = active and BridgeCapabilities.Copy(active.capabilities) or {},
+        supportLevel = active and active.supportLevel or nil,
+        configured = requirements.configured,
+        fallback = requirements.fallback,
+        fallbackUsed = type(requirements.configured) == 'string'
+            and type(requirements.fallback) == 'string'
+            and active ~= nil and requirements.fallback == active.name
+            and requirements.configured ~= requirements.fallback or false,
+        required = requirements.required,
+        requireEnforcement = requirements.requireEnforcement,
+        requiredSatisfied = requirements.requiredSatisfied,
         providers = providerStatuses,
     }
 end
@@ -362,6 +480,94 @@ end
 function BridgeManager.GetBridgeCapabilities(category)
     local status = BridgeManager.GetBridgeStatus(category)
     return status and status.capabilities or {}
+end
+
+local function supportStatus(category, bridge, configuration)
+    local status
+    if bridge and type(bridge.GetStatus) == 'function' then
+        local ok, result = pcall(bridge.GetStatus)
+        if ok and type(result) == 'table' then status = copy(result) end
+    end
+    status = status or {
+        category = category,
+        state = 'OPTIONAL',
+        active = nil,
+        provider = nil,
+        available = false,
+        initialized = false,
+        capabilities = {},
+    }
+    status.category = category
+    status.provider = status.provider or status.active
+    status.active = status.active or status.provider
+    status.configured = BridgeConfig and type(BridgeConfig.GetProvider) == 'function'
+        and BridgeConfig.GetProvider(category) or configuration.provider
+    status.fallback = BridgeConfig and type(BridgeConfig.GetFallback) == 'function'
+        and BridgeConfig.GetFallback(category) or configuration.fallback
+    status.fallbackUsed = type(status.configured) == 'string'
+        and type(status.fallback) == 'string'
+        and status.provider ~= nil and status.provider == status.fallback
+        and status.configured ~= status.fallback or false
+    status.required = configuration.required == true
+    status.requiredSatisfied = not status.required
+        or (status.provider ~= nil
+            and status.state ~= BridgeHealth.States.FAILED
+            and status.state ~= BridgeHealth.States.UNAVAILABLE)
+    return status
+end
+
+function BridgeManager.GetIntegrationSummary()
+    local summary = {
+        compatible = true,
+        compatibility = 'OK',
+        categories = {},
+        lines = { 'Integration Summary' },
+    }
+
+    local ordered = {
+        { key = 'framework', label = 'Framework' },
+        { key = 'inventory', label = 'Inventory' },
+        { key = 'target', label = 'Target' },
+        { key = 'phone', label = 'Phone' },
+        { key = 'dispatch', label = 'Dispatch' },
+    }
+    for _, item in ipairs(ordered) do
+        local status = BridgeManager.GetBridgeStatus(item.key)
+        summary.categories[item.key] = status
+        if not status.requiredSatisfied then summary.compatible = false end
+    end
+
+    local bridges = type(Config) == 'table' and Config.Bridges or {}
+    local notifyConfig = type(bridges) == 'table' and bridges.Notify or {}
+    local progressConfig = type(bridges) == 'table' and bridges.Progress or {}
+    local supportCategories = {
+        { key = 'notify', label = 'Notify', bridge = NotifyBridge, config = notifyConfig },
+        { key = 'progress', label = 'Progress', bridge = ProgressBridge, config = progressConfig },
+    }
+    for _, item in ipairs(supportCategories) do
+        local status = supportStatus(item.key, item.bridge, item.config or {})
+        summary.categories[item.key] = status
+        if not status.requiredSatisfied then summary.compatible = false end
+    end
+
+    summary.compatibility = summary.compatible and 'OK' or 'FAILED'
+    for _, item in ipairs(ordered) do
+        local status = summary.categories[item.key]
+        local provider = status.provider or 'none'
+        local state = status.supportLevel or status.state or 'UNAVAILABLE'
+        summary.lines[#summary.lines + 1] = ('%-10s: %-14s %s')
+            :format(item.label, provider, state)
+    end
+    for _, item in ipairs(supportCategories) do
+        local status = summary.categories[item.key]
+        local provider = status.provider or 'none'
+        local state = status.state or 'UNAVAILABLE'
+        summary.lines[#summary.lines + 1] = ('%-10s: %-14s %s')
+            :format(item.label, provider, state)
+    end
+    summary.lines[#summary.lines + 1] = 'Compatibility : ' .. summary.compatibility
+    summary.text = table.concat(summary.lines, '\n')
+    return summary
 end
 
 function BridgeManager.Categories()

@@ -52,7 +52,9 @@ end
 
 function FrameworkBridge.Detect()
     if BridgeManager and type(BridgeManager.InitializeCategory) == 'function' then
-        local configured = Config and Config.Framework or 'auto'
+        local configured = BridgeConfig and BridgeConfig.GetProvider
+            and BridgeConfig.GetProvider('framework')
+            or (Config and Config.Framework or 'auto')
         local order
         if configured ~= 'auto' then
             order = { configured, 'standalone' }
@@ -90,7 +92,9 @@ function FrameworkBridge.Detect()
         return detectedName
     end
 
-    local configured = Config and Config.Framework or 'auto'
+    local configured = BridgeConfig and BridgeConfig.GetProvider
+        and BridgeConfig.GetProvider('framework')
+        or (Config and Config.Framework or 'auto')
     local order = configured ~= 'auto'
         and { configured, 'standalone' }
         or { 'qbox', 'qbcore', 'esx', 'custom', 'standalone' }

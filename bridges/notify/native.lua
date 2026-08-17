@@ -209,14 +209,49 @@ function NotifyBridge.NotifyNative(source, kind, message, data)
     )
 end
 
-function NotifyBridge.Initialize(preferred)
-    local configured = preferred
-    if configured == nil and Config then configured = Config.NotifyBridge end
-    configured = configured or 'auto'
+function NotifyBridge.GetStatus()
+    local active = NotifyBridge.GetActive()
+    return {
+        category = 'notify',
+        state = active and 'ACTIVE' or 'OPTIONAL',
+        active = active and active.name or nil,
+        provider = active and active.name or nil,
+        available = active ~= nil,
+        initialized = active ~= nil,
+        capabilities = active and { Notify = true } or {},
+    }
+end
 
-    local order = configured ~= 'auto'
-        and { configured, 'native' }
-        or { 'ox', 'framework', 'native' }
+function NotifyBridge.Initialize(preferred)
+    local bridges = type(Config) == 'table' and Config.Bridges
+    local configuration = type(bridges) == 'table' and bridges.Notify or {}
+    local legacyConfigured = type(Config) == 'table' and Config.NotifyBridge or nil
+    local configured = preferred
+    if configured == nil then
+        configured = configuration.provider or legacyConfigured
+        if configured == 'auto' and type(legacyConfigured) == 'string'
+            and legacyConfigured ~= 'auto' then
+            configured = legacyConfigured
+        end
+    end
+    configured = configured or 'auto'
+    local fallback = configuration.fallback or 'native'
+    local order = {}
+    local seen = {}
+    local function add(name)
+        if type(name) == 'string' and name ~= '' and not seen[name] then
+            order[#order + 1] = name
+            seen[name] = true
+        end
+    end
+    if configured == 'auto' then
+        add('ox')
+        add('framework')
+    else
+        add(configured)
+    end
+    add(fallback)
+    add('native')
     for _, name in ipairs(order) do
         local provider = providers[name]
         if provider and detectProvider(provider) then

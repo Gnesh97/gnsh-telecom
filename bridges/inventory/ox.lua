@@ -31,8 +31,10 @@ if InventoryBridge and type(InventoryBridge.Register) == 'function' then
         resource = 'ox_inventory',
         priority = 300,
         Detect = function()
-            return not Config or Config.InventoryBridge == 'auto'
-                or Config.InventoryBridge == 'ox'
+            local configured = BridgeConfig and BridgeConfig.GetProvider
+                and BridgeConfig.GetProvider('inventory')
+                or (Config and Config.InventoryBridge or 'auto')
+            return configured == 'auto' or configured == 'ox'
         end,
         GetItemCount = function(_, source, item)
             return itemCount(source, item)

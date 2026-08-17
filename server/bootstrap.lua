@@ -27,7 +27,9 @@ local function boot()
     if BridgeManager and type(BridgeManager.InitializeAll) == 'function' then
         local bridgesOk, bridgeStatuses = BridgeManager.InitializeAll()
         if not bridgesOk then
-            Log.warn('bridge platform initialization degraded', bridgeStatuses)
+            Log.error('required bridge configuration is not satisfied', bridgeStatuses)
+            stopAfterInvalidConfig()
+            return false
         end
     end
 
@@ -36,6 +38,16 @@ local function boot()
     end
     if ProgressBridge and type(ProgressBridge.Initialize) == 'function' then
         ProgressBridge.Initialize()
+    end
+
+    if BridgeManager and type(BridgeManager.GetIntegrationSummary) == 'function' then
+        local integrationSummary = BridgeManager.GetIntegrationSummary()
+        for _, line in ipairs(integrationSummary.lines or {}) do Log.info(line) end
+        if not integrationSummary.compatible then
+            Log.error('required integration configuration is not satisfied')
+            stopAfterInvalidConfig()
+            return false
+        end
     end
 
     local registryOk, registryErrors, registryWarnings = TowerRegistry.Init()

@@ -381,6 +381,183 @@ local function validateDebug(config, errors)
     end
 end
 
+local bridgeSections = {
+    Framework = true,
+    Inventory = true,
+    Target = true,
+    Phone = true,
+    Dispatch = true,
+    Notify = true,
+    Progress = true,
+}
+
+local bridgeProviders = {
+    Framework = {
+        auto = true,
+        standalone = true,
+        qbcore = true,
+        qbox = true,
+        esx = true,
+        custom = true,
+    },
+    Inventory = {
+        auto = true,
+        standalone = true,
+        ox = true,
+        qb = true,
+        qs = true,
+        custom = true,
+    },
+    Target = {
+        auto = true,
+        native = true,
+        ox = true,
+        qb = true,
+        custom = true,
+    },
+    Phone = {
+        auto = true,
+        generic = true,
+        lbphone = true,
+        npwd = true,
+        qs = true,
+        custom = true,
+    },
+    Dispatch = {
+        auto = true,
+        native = true,
+    },
+    Notify = {
+        auto = true,
+        native = true,
+        ox = true,
+        framework = true,
+    },
+    Progress = {
+        auto = true,
+        native = true,
+        ox = true,
+    },
+}
+
+BridgeConfig = BridgeConfig or {}
+
+local bridgeSectionNames = {
+    framework = 'Framework',
+    inventory = 'Inventory',
+    target = 'Target',
+    phone = 'Phone',
+    dispatch = 'Dispatch',
+    notify = 'Notify',
+    progress = 'Progress',
+}
+
+local legacyProviderFields = {
+    framework = 'Framework',
+    inventory = 'InventoryBridge',
+    target = 'TargetBridge',
+    phone = 'PhoneBridge',
+    notify = 'NotifyBridge',
+    progress = 'ProgressBridge',
+}
+
+function BridgeConfig.GetProvider(category, sourceConfig)
+    local sectionName = bridgeSectionNames[category]
+    local currentConfig = type(sourceConfig) == 'table' and sourceConfig or Config
+    local bridges = type(currentConfig) == 'table' and currentConfig.Bridges
+    local section = type(bridges) == 'table' and bridges[sectionName] or nil
+    local configured = type(section) == 'table' and section.provider or nil
+    local legacyField = legacyProviderFields[category]
+    local legacy = legacyField and type(currentConfig) == 'table'
+        and currentConfig[legacyField] or nil
+    if (configured == nil or configured == 'auto')
+        and type(legacy) == 'string' and legacy ~= '' and legacy ~= 'auto' then
+        configured = legacy
+    end
+    return type(configured) == 'string' and configured ~= '' and configured or 'auto'
+end
+
+function BridgeConfig.GetFallback(category, sourceConfig)
+    local sectionName = bridgeSectionNames[category]
+    local currentConfig = type(sourceConfig) == 'table' and sourceConfig or Config
+    local bridges = type(currentConfig) == 'table' and currentConfig.Bridges
+    local section = type(bridges) == 'table' and bridges[sectionName] or nil
+    local fallback = type(section) == 'table' and section.fallback or nil
+    return type(fallback) == 'string' and fallback ~= '' and fallback or nil
+end
+
+local function customDispatchName(config)
+    local custom = type(config) == 'table' and config.CustomDispatch
+    if type(custom) ~= 'table' then return 'custom-dispatch' end
+    return type(custom.name) == 'string' and custom.name ~= ''
+        and custom.name or 'custom-dispatch'
+end
+
+local function supportedBridgeValue(name, value, config)
+    if bridgeProviders[name] and bridgeProviders[name][value] then return true end
+    return name == 'Dispatch' and value == customDispatchName(config)
+end
+
+local function validBridgeName(value)
+    return type(value) == 'string' and value ~= '' and #value <= 64
+end
+
+local function validateBridgeSection(name, section, config, errors)
+    if type(section) ~= 'table' then
+        addError(errors, ('Bridges.%s must be a table'):format(name))
+        return
+    end
+
+    local provider = section.provider
+    if not validBridgeName(provider) then
+        addError(errors, ('Bridges.%s.provider must be a non-empty string'):format(name))
+    elseif not supportedBridgeValue(name, provider, config) then
+        addError(errors, ('Bridges.%s.provider is unsupported: %s'):format(name, provider))
+    end
+
+    if section.fallback ~= nil then
+        if not validBridgeName(section.fallback) then
+            addError(errors, ('Bridges.%s.fallback must be a non-empty string'):format(name))
+        elseif not supportedBridgeValue(name, section.fallback, config) then
+            addError(errors, ('Bridges.%s.fallback is unsupported: %s')
+                :format(name, section.fallback))
+        end
+    end
+
+    if section.required ~= nil and type(section.required) ~= 'boolean' then
+        addError(errors, ('Bridges.%s.required must be boolean'):format(name))
+    end
+    if section.requireEnforcement ~= nil and type(section.requireEnforcement) ~= 'boolean' then
+        addError(errors, ('Bridges.%s.requireEnforcement must be boolean'):format(name))
+    end
+end
+
+local function validateBridges(config, errors)
+    local bridges = config.Bridges
+    if type(bridges) ~= 'table' then
+        addError(errors, 'Bridges must be a table')
+        return
+    end
+
+    for name in pairs(bridges) do
+        if not bridgeSections[name] then
+            addError(errors, ('Bridges contains unknown category: %s'):format(tostring(name)))
+        end
+    end
+    for name in pairs(bridgeSections) do
+        validateBridgeSection(name, bridges[name], config, errors)
+    end
+end
+
+local function hasConfiguredMethod(config, field, methods)
+    local value = config[field]
+    if type(value) ~= 'table' then return false end
+    for _, method in ipairs(methods) do
+        if type(value[method]) == 'function' then return true end
+    end
+    return false
+end
+
 local function validateTowers(config, errors, warnings)
     if type(config.Towers) ~= 'table' then
         addError(errors, 'Towers must be a table')
@@ -456,6 +633,7 @@ function Config.Validate(config)
     if type(config.Features) ~= 'table' then addError(errors, 'Features must be a table') end
     validateDebug(config, errors)
     validateFeatures(config, errors)
+    validateBridges(config, errors)
     local validFrameworks = {
         auto = true,
         standalone = true,
@@ -464,10 +642,21 @@ function Config.Validate(config)
         esx = true,
         custom = true,
     }
-    if not validFrameworks[config.Framework] then
+    local configuredFramework = BridgeConfig.GetProvider('framework', config)
+    if not validFrameworks[configuredFramework] then
         addError(errors, 'Framework must be auto, standalone, qbcore, qbox, esx or custom')
-    elseif config.Framework == 'custom' and type(config.CustomFramework) ~= 'table' then
-        addError(errors, 'CustomFramework must be a table when Framework is custom')
+    elseif configuredFramework == 'custom'
+        and not hasConfiguredMethod(config, 'CustomFramework', {
+            'GetPlayer',
+            'GetStablePlayerId',
+            'GetJob',
+            'HasJob',
+            'IsAdmin',
+            'GetCharacterName',
+            'AddMoney',
+            'RemoveMoney',
+        }) then
+        addError(errors, 'CustomFramework must define at least one adapter method')
     end
     local validInventoryBridges = {
         auto = true,
@@ -477,10 +666,18 @@ function Config.Validate(config)
         qs = true,
         custom = true,
     }
-    if not validInventoryBridges[config.InventoryBridge] then
+    local configuredInventory = BridgeConfig.GetProvider('inventory', config)
+    if not validInventoryBridges[configuredInventory] then
         addError(errors, 'InventoryBridge must be auto, standalone, ox, qb, qs or custom')
-    elseif config.InventoryBridge == 'custom' and type(config.CustomInventory) ~= 'table' then
-        addError(errors, 'CustomInventory must be a table when InventoryBridge is custom')
+    elseif configuredInventory == 'custom'
+        and not hasConfiguredMethod(config, 'CustomInventory', {
+            'HasItem',
+            'RemoveItem',
+            'AddItem',
+            'CanCarry',
+            'GetItemCount',
+        }) then
+        addError(errors, 'CustomInventory must define at least one adapter method')
     end
     local validTargetBridges = {
         auto = true,
@@ -489,13 +686,21 @@ function Config.Validate(config)
         qb = true,
         custom = true,
     }
-    if not validTargetBridges[config.TargetBridge] then
+    local configuredTarget = BridgeConfig.GetProvider('target', config)
+    if not validTargetBridges[configuredTarget] then
         addError(errors, 'TargetBridge must be auto, native, ox, qb or custom')
-    elseif config.TargetBridge == 'custom' and type(config.CustomTarget) ~= 'table' then
-        addError(errors, 'CustomTarget must be a table when TargetBridge is custom')
+    elseif configuredTarget == 'custom'
+        and not hasConfiguredMethod(config, 'CustomTarget', {
+            'AddEntityInteraction',
+            'AddModelInteraction',
+            'AddZoneInteraction',
+            'RemoveInteraction',
+        }) then
+        addError(errors, 'CustomTarget must define at least one adapter method')
     end
     local validPhoneBridges = { auto = true, generic = true, lbphone = true, npwd = true, qs = true, custom = true }
-    if not validPhoneBridges[config.PhoneBridge] then
+    local configuredPhone = BridgeConfig.GetProvider('phone', config)
+    if not validPhoneBridges[configuredPhone] then
         addError(errors, 'PhoneBridge must be auto, generic, lbphone, npwd, qs or custom')
     end
     if type(config.Spatial) ~= 'table' or not isNumber(config.Spatial.cellSize)

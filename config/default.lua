@@ -231,6 +231,38 @@ Config = {
     TargetBridge = 'auto',
     CustomTarget = nil,
     CustomDispatch = nil,
+    NotifyBridge = 'auto',
+    ProgressBridge = 'auto',
     PhoneBridge = 'auto',
+    Bridges = {
+        Framework = {
+            provider = 'auto',
+            fallback = 'standalone',
+        },
+        Inventory = {
+            provider = 'auto',
+            required = false,
+        },
+        Target = {
+            provider = 'auto',
+            fallback = 'native',
+        },
+        Phone = {
+            provider = 'auto',
+            requireEnforcement = false,
+        },
+        Dispatch = {
+            provider = 'auto',
+            required = false,
+        },
+        Notify = {
+            provider = 'auto',
+            fallback = 'native',
+        },
+        Progress = {
+            provider = 'auto',
+            fallback = 'native',
+        },
+    },
     Towers = {},
 }

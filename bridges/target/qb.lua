@@ -87,7 +87,9 @@ local adapter = {
 }
 
 function adapter:Detect()
-    local configured = Config and Config.TargetBridge or 'auto'
+    local configured = BridgeConfig and BridgeConfig.GetProvider
+        and BridgeConfig.GetProvider('target')
+        or (Config and Config.TargetBridge or 'auto')
     return (configured == 'auto' or configured == 'qb')
         and resourceStarted('qb-target')
         and hasRequiredExports()

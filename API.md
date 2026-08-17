@@ -71,7 +71,9 @@ Every event receives `source`, `current` and `previous`. Payload tables are defe
 
 Core state remains server-authoritative. Consumers must treat event payloads as snapshots and use exports for current queries.
 
-Bridge status is grouped by `framework`, `inventory`, `target`, `dispatch` and `phone`. A category status reports the active provider, health state, initialized/available flags, provider priorities and normalized capabilities. Phone status additionally reports `supportLevel` (`FULL`, `FUNCTIONAL` or `DISPLAY`) and a `support` map. Provider failures are isolated and do not stop the telecom core.
+Bridge status is grouped by `framework`, `inventory`, `target`, `dispatch` and `phone`, with `notify` and `progress` support statuses included in the integration summary. A category status reports the active provider, configured provider, fallback, fallback usage, health state, initialized/available flags, provider priorities, required status and normalized capabilities. Phone status additionally reports `supportLevel` (`FULL`, `FUNCTIONAL` or `DISPLAY`) and a `support` map. Provider failures are isolated; required provider failures stop startup, while optional integrations do not stop the telecom core.
+
+`BridgeManager.GetIntegrationSummary()` returns the startup-compatible summary with `categories`, `lines`, `compatible` and `compatibility` fields. The server logs its `lines` during bootstrap so deployment problems are visible without inspecting internal bridge state.
 
 Presentation and dispatch helpers are exposed through provider-neutral bridge calls rather than core state exports:
 

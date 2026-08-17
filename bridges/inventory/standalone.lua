@@ -3,8 +3,10 @@ if InventoryBridge and type(InventoryBridge.Register) == 'function' then
         name = 'standalone',
         priority = 0,
         Detect = function()
-            return not Config or Config.InventoryBridge == 'auto'
-                or Config.InventoryBridge == 'standalone'
+            local configured = BridgeConfig and BridgeConfig.GetProvider
+                and BridgeConfig.GetProvider('inventory')
+                or (Config and Config.InventoryBridge or 'auto')
+            return configured == 'auto' or configured == 'standalone'
         end,
         HasItem = function() return false end,
         RemoveItem = function() return false end,
