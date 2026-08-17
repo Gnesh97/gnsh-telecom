@@ -1,6 +1,6 @@
 # gnsh-telecom Geliştirme Durumu
 
-> Son güncelleme: 2026-08-16
+> Son güncelleme: 2026-08-17
 > Kaynak plan: `C:\Users\Gnesh\Desktop\TELECOM_DEVELOPMENT_PLAN.md`
 > Gerçek resource adı: `gnsh-telecom`
 > Plan dokümanındaki hedef ad: `city_telecom`
@@ -11,25 +11,32 @@ Bu belge, geliştirme planının yerine geçmez. Planın hangi bölümlerinin ko
 
 Proje artık basit bir kule/sinyal prototipi değil. Server-authoritative telecom çekirdeği, public API, phone bridge mimarisi, failure sistemi, persistence, admin/debug araçları, backhaul, handover, jammer, incident ve NOC modülleri kod tabanında bulunuyor.
 
-Ancak proje henüz resmi `v1.0.0`, `v1.5.0` veya `v2.0.0` release durumunda değil. Runtime sürüm bilgisi hâlâ `0.1.0`, API sürümü ise `1.0` olarak tanımlı.
+Ancak proje henüz production release durumunda değil. Mevcut paket gerçek
+FiveM runtime ve harici provider kanıtı bekleyen `0.1.0-rc.1` release
+candidate’tır; API sürümü `1.0` olarak korunur.
 
 Mevcut aktif aşama:
 
-> **v1.5 operasyon katmanının tamamlanması** — incident, technician workflow ve NOC özelliklerinin ürünleştirilmesi.
+> **0.1.0-rc.1 release candidate gate’i** — security, synthetic scale,
+> compatibility evidence ve packaging tamamlandı; gerçek runtime kapıları açık.
 
-`v2.0.0` aşamasına henüz geçilmiş sayılmıyoruz. Handover, backhaul ve advanced failure kodları mevcut olsa da v2.0 hedefindeki regional network ve partial outage kapsamları tamamlanmadı. Ayrıca release öncesi uyumluluk, temiz kurulum ve çoklu oyuncu testleri bekliyor.
+`v2.0.0` aşamasına henüz geçilmiş sayılmıyoruz. Handover, backhaul ve
+advanced failure kodları mevcut; release candidate’ın production’a çıkması
+ise canlı uyumluluk, temiz kurulum ve çoklu oyuncu/runtime kanıtına bağlı.
 
 ## Repository durumu
 
-- Branch: `main`
-- Son pushlanan commit: `ee25aed feat(telecom): harden operations and bridges`
+- Branch: `dev`
+- Son pushlanan commit: Phase 49 release-candidate packaging commit’i (git history’deki HEAD)
 - Son pushlanan commit GitHub üzerindedir: `https://github.com/Gnesh97/gnsh-telecom`
-- Sonraki technician client değişiklikleri şu anda yerel çalışma ağacındadır; henüz commit/push edilmemiştir.
-- `Config.Version`: `0.1.0`
-- `fxmanifest.lua` version: `0.1.0`
+- Phase 45–48 değişiklikleri commit/push edilmiştir; Phase 49 release gate’i bu paketle birlikte tutulur.
+- `Config.Version`: `0.1.0-rc.1`
+- `fxmanifest.lua` version: `0.1.0-rc.1`
 - `Constants.ApiVersion`: `1.0`
 
-Sürüm numarasının `0.1.0` kalması bilinçlidir: kodda ileri faz özellikleri bulunsa da production release kapıları henüz tamamlanmış değildir.
+`0.1.0-rc.1` seçimi gerçek milestone geçmişine dayanır: repository’de daha
+önce stable release tag’i yoktur ve `0.1.0` changelog geçmişi release edilmemiş
+temel milestone’dur. API schema sürümü release metadata’sından ayrıdır.
 
 ## Sürüm milestone durumu
 
@@ -41,6 +48,7 @@ Sürüm numarasının `0.1.0` kalması bilinçlidir: kodda ileri faz özellikler
 | `v1.5.0` Telecom Operations | Incident, technician, repair workflow, NOC | Aktif geliştirme aşaması; server workflow ve NOC mevcut, client technician yüzeyi yeni eklendi |
 | `v2.0.0` Advanced Network Simulation | Handover, backhaul, regional network, advanced failures, partial outages | Handover/backhaul/advanced failure mevcut; regional network ve partial outage eksik |
 | `v3.0.0` Infrastructure RP Expansion | Sabotage, jammer, security alerts, dispatch, advanced statistics | Bazı modüller mevcut fakat çoğu opsiyonel/kapalı ve release doğrulaması yapılmadı |
+| `0.1.0-rc.1` Release Candidate | Security 2.0, synthetic scale, compatibility packet, packaging | Otomatik ve sentetik gate’ler tamam; gerçek FiveM/provider gate’leri açık |
 
 ## Phase durumu
 
@@ -77,8 +85,8 @@ Durum işaretleri:
 | 22 | Statistics & Telemetry | 🟡 | Statistics aggregation kodu mevcut fakat feature varsayılan olarak kapalı (`false`); üretim telemetry kabul testi bekliyor. |
 | 23 | Optimization Pass | 🟡 | Spatial index ve bounded input/loop yaklaşımı uygulandı. 32/64/128 oyuncu, 100 kule, mass handover/incident ve NOC-under-load testleri kullanıcı kararıyla sona bırakıldı. |
 | 24 | Security Audit | ✅ | Network payload validation, finite coordinate kontrolü, server coordinate önceliği, rate limit, permission, audit ve trust-boundary dokümantasyonu eklendi. Adversarial runtime matrisi henüz ayrı gate. |
-| 25 | Compatibility & Release Matrix | 🟡 | Standalone/generic fallback, framework detection ve bridge lifecycle unit testleri mevcut. Gerçek QBCore/Qbox/ESX ve LB/NPWD/QS kombinasyonları runtime’da doğrulanmadı. |
-| 26 | Documentation & Production Release | 🟡 | README, API, installation, bridge, security, technician, NOC ve troubleshooting dokümanları mevcut. Version bump, release tag, production defaults, clean install ve final test raporu bekliyor. |
+| 25 | Compatibility & Release Matrix | 🟡 | Standalone/generic fallback, framework detection, bridge lifecycle ve dated compatibility evidence packet mevcut. Gerçek QBCore/Qbox/ESX ve LB/NPWD/QS kombinasyonları runtime’da doğrulanmadı; satırlar `EXPERIMENTAL`. |
+| 26 | Documentation & Production Release | 🟡 | `0.1.0-rc.1`, MIT license, changelog, release report, production defaults ve release gate mevcut. Gerçek runtime/clean install kanıtı ve final tag bekliyor. |
 
 ## Şu ana kadar yapılan başlıca işler
 
@@ -126,14 +134,15 @@ Durum işaretleri:
 
 Son kod doğrulamasında:
 
-- **136 unit/integration testi geçti.**
+- **323 unit/integration/compatibility/release-gate testi geçti.**
 - **0 test başarısız oldu.**
-- **97 Lua dosyası `luac -p` syntax kontrolünden geçti.**
+- Recursive Lua `loadfile` syntax kontrolü geçti.
 - `git diff --check` whitespace hatası vermedi.
+- Synthetic scale harness exit code `0` ile tamamlandı; sonuçlar `PERFORMANCE.md` içinde.
 
 Bu testler pure Lua harness ile çalışıyor. FiveM client/server native davranışının ve gerçek harici resource’ların tamamını temsil etmiyor.
 
-### Tek oyunculu runtime gözlemleri
+### Runtime ve synthetic evidence ayrımı
 
 Şu akışlar kullanıcı tarafından çalıştırılarak gözlendi:
 
@@ -146,20 +155,24 @@ Bu testler pure Lua harness ile çalışıyor. FiveM client/server native davran
 - Jammer oluşturma, listeleme, sinyal düşüşü ve kaldırma.
 - Server admin yetkisiyle debug komutlarının çalışması.
 
-`telecom noc` snapshot komutu daha önce kullanıldı. Aynı komutu tekrar etmek yeni bir davranış doğrulamadığı için NOC smoke testini tekrar etmiyoruz.
+`telecom noc` snapshot komutu daha önce kullanıldı. Aynı komutu tekrar etmek yeni bir davranış doğrulamadığı için NOC smoke testini tekrar etmiyoruz. Phase 47
+sentetik koşumu gerçek FiveM client ölçümü olarak sayılmadı; bu ortamda bağlı
+client sayısı `0`.
 
 ## Bilinçli olarak sonraya bırakılan testler
 
-Kullanıcı kararıyla tüm çoklu oyuncu testleri final aşamasına bırakıldı:
+Gerçek runtime kanıtı gerektiren testler hâlâ açık:
 
 - 2+ oyuncu connection/selection testi.
-- 32, 64 ve 128 oyuncu simülasyonu.
+- Gerçek FiveM üzerinde 32, 64 ve 128 oyuncu.
 - Mass handover.
 - Mass incident.
 - NOC açıkken yük testi.
-- Gerçek framework + phone resource kombinasyonları.
+- Gerçek framework + phone resource + inventory + target kombinasyonları ve restart sırası.
 
-Bunlar kodun mevcut olmadığını değil, production release kapısının henüz kapatılmadığını gösterir.
+Sentetik 2/16/32/64/128/200 oyuncu, 20/50/100/200 kule, outage, incident,
+NOC, jammer ve 0/50/200/500 session senaryoları `PERFORMANCE.md` içinde
+ayrıca raporlandı. Eksik olanlar production runtime kanıtıdır.
 
 ## Aktif configuration durumu
 
@@ -167,15 +180,15 @@ Bunlar kodun mevcut olmadığını değil, production release kapısının henü
 
 | Ayar | Değer | Anlamı |
 | --- | --- | --- |
-| `Config.Debug.enabled` | `true` | Debug overlay/çıktılar açık; release öncesi kapatılmalı |
-| `Config.Debug.logLevel` | `debug` | Ayrıntılı connection logları açık |
+| `config/default.lua: Config.Debug.enabled` | `false` | Production default kapalı |
+| `config/default.lua: Config.Debug.logLevel` | `info` | Production default |
 | `Config.Features.Capacity` | `true` | Aktif |
 | `Config.Features.Failures` | `true` | Aktif |
 | `Config.Features.Incidents` | `true` | Aktif |
 | `Config.Features.NOC` | `true` | Aktif |
 | `Config.Features.Handover` | `true` | Aktif |
 | `Config.Features.Backhaul` | `true` | Aktif |
-| `Config.Features.Jammers` | `true` | Aktif |
+| `Config.Features.Jammers` | `false` | Production default kapalı; development/test harness açıkça etkinleştirir |
 | `Config.Features.Technician` | `false` | Kod mevcut, gameplay activation bekliyor |
 | `Config.Features.Sabotage` | `false` | Opsiyonel RP modülü kapalı |
 | `Config.Features.Statistics` | `false` | Opsiyonel telemetry modülü kapalı |
@@ -183,21 +196,21 @@ Bunlar kodun mevcut olmadığını değil, production release kapısının henü
 
 ## Bundan sonra izlenecek sıra
 
-1. Technician client wrapper değişikliklerini commit/pushlamak.
-2. v1.5 operasyon katmanında target/inventory/framework entegrasyonlarını gerçek server setup’ına bağlamak.
-3. Incident ve technician workflow’un production konfigürasyonunu netleştirmek.
-4. v1.0/v1.5 release notlarını ve version metadata’sını güncellemek; debug/test varsayılanlarını production’a uygun hale getirmek.
-5. Çoklu oyuncu ve compatibility matrisi testlerini en sonda çalıştırmak.
-6. Regional network ve partial outage kapsamlarını ekleyerek gerçek v2.0 geliştirmesine başlamak.
+1. Gerçek FiveM/provider compatibility matrix’ini exact version ve bağlı client bilgisiyle çalıştırmak.
+2. Clean install, upgrade, restart, persistence ve multiplayer runtime kanıtını release report’a eklemek.
+3. Kanıt destekliyorsa `COMPATIBILITY.md` satırlarını `SUPPORTED` seviyesine yükseltmek; kanıt yoksa `EXPERIMENTAL` bırakmak.
+4. Açık release gate’ler kapandıktan sonra explicit approval ile final tag/release yayınlamak.
+5. Sonraki milestone’da regional network/partial outage kapsamını planlamak.
 
 ## Son karar
 
 Projenin mevcut teknik seviyesi:
 
 > **Core telecom: tamamlanmış ve çalışan**
-> **v1.0 release hardening: büyük ölçüde tamamlanmış**
-> **v1.5 operations: aktif geliştirme aşamasında**
+> **Security 2.0 / synthetic scale / compatibility packet: tamamlanmış**
+> **0.1.0-rc.1 packaging: tamamlanmış**
+> **Production release: gerçek runtime kanıtı bekliyor**
 > **v2.0: henüz başlanmış sayılmaz; bazı altyapı parçaları hazır**
-> **Production release: henüz yapılmadı**
 
-Bu nedenle şu anda en doğru ifade `v1.5 operasyon aşamasına geçiş`tir; `v2.0` aşamasında değiliz.
+Bu nedenle şu anda en doğru ifade `0.1.0-rc.1 release candidate, production
+gate’leri açık` ifadesidir; `v2.0` aşamasında değiliz.

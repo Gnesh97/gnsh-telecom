@@ -24,7 +24,7 @@ TEST('foundation exposes the configured optional module state', function()
     ASSERT_TRUE(Config.Features.NOC)
     ASSERT_TRUE(Config.Features.Backhaul)
     ASSERT_FALSE(Config.Features.Sabotage)
-    ASSERT_TRUE(Config.Features.Jammers)
+    ASSERT_FALSE(Config.Features.Jammers)
     ASSERT_FALSE(Config.Features.Statistics)
 end)
 

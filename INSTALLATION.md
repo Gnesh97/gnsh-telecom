@@ -1,5 +1,9 @@
 # Installation
 
+This checkout is release candidate `0.1.0-rc.1`, not a final production
+release. Review [RELEASE_TEST_REPORT.md](RELEASE_TEST_REPORT.md) and
+[COMPATIBILITY.md](COMPATIBILITY.md) before deploying it to a live server.
+
 1. Copy `gnsh-telecom` into the server's resources directory.
 2. Add `ensure gnsh-telecom` after optional `oxmysql` and before resources that consume the API.
 3. Edit `config/towers.lua` and add the server's tower definitions under `Config.Towers`.

@@ -1,5 +1,9 @@
 # Carrier and roaming guide
 
+This guide targets release candidate `0.1.0-rc.1`. Carrier behavior is covered
+by synthetic contract tests; live provider/runtime certification remains
+tracked in [COMPATIBILITY.md](COMPATIBILITY.md).
+
 Carrier simulation is opt-in. The legacy single-network behavior remains active
 when `Config.Features.Carriers` is `false`.
 

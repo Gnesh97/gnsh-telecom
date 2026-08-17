@@ -1,6 +1,23 @@
 # Changelog
 
-## 0.1.0 - Unreleased
+## 0.1.0-rc.1 - 2026-08-17
+
+Release candidate packaging for the completed telecom foundation and
+operations milestone. This is not a production release until the real FiveM
+runtime, provider compatibility and clean-install gates in
+`RELEASE_TEST_REPORT.md` are closed.
+
+- Added custom bridge registration SDK and lifecycle-safe provider contracts.
+- Added adversarial security validation for trust boundaries, rate limits,
+  audit payloads, session ownership and malicious callbacks.
+- Added external-resource session cleanup on `onResourceStop`.
+- Added synthetic scale metrics for movement, handover, outage, incidents,
+  NOC, jammers and phone sessions without presenting them as live-client data.
+- Added the universal compatibility evidence matrix and conservative
+  `EXPERIMENTAL` labels for combinations without live runtime evidence.
+- Added MIT licensing and a release-gate test/report packet.
+
+## 0.1.0 - Unreleased history
 
 - Added standalone FiveM resource foundation.
 - Added centralized configuration, enums, feature flags, utilities and localization.

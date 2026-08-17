@@ -1,6 +1,6 @@
 Config = {
     ResourceName = 'gnsh-telecom',
-    Version = '0.1.0',
+    Version = '0.1.0-rc.1',
     Locale = 'en',
 
     Debug = {
@@ -19,7 +19,7 @@ Config = {
         Backhaul = true,
         Carriers = false,
         Sabotage = false,
-        Jammers = true,
+        Jammers = false,
         Statistics = false,
         ServiceSessions = true,
         QoS = true,

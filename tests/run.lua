@@ -230,6 +230,7 @@ dofile('tests/unit/carriers_spec.lua')
 dofile('tests/unit/roaming_spec.lua')
 dofile('server/sabotage.lua')
 dofile('tests/unit/security_adversarial_spec.lua')
+dofile('tests/release/release_gate_spec.lua')
 
 print('')
 print(('%d passed, %d failed'):format(passed, failed))

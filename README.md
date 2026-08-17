@@ -1,5 +1,11 @@
 # gnsh-telecom
 
+Release candidate: `0.1.0-rc.1`. The package is not a production release yet:
+real FiveM runtime, provider-version compatibility and clean-install gates are
+tracked in [RELEASE_TEST_REPORT.md](RELEASE_TEST_REPORT.md). The public API
+schema remains `1.0`; the resource version and API schema are separate
+contracts.
+
 Standalone, server-authoritative GSM and telecom infrastructure for FiveM.
 
 ## Core and operations status

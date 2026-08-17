@@ -38,7 +38,8 @@ Allowed matrix labels are exactly:
 ## Evidence records
 
 Every record was produced by `tests/compat/*.lua` and loaded by
-`tests/run.lua`. The synthetic gate completed with 320 passed and 0 failed.
+`tests/run.lua`. The final runner, including the release gate, completed with
+323 passed and 0 failed.
 
 | Record | Provider version | Test date | Capabilities verified | Capabilities unavailable |
 | --- | --- | --- | --- | --- |

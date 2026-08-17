@@ -1,6 +1,8 @@
 # gnsh-telecom Public API
 
-Schema version: `1.0` (`Constants.ApiVersion`). API is server-side, framework-independent and safe to use without a phone resource.
+Schema version: `1.0` (`Constants.ApiVersion`). Resource release candidate:
+`0.1.0-rc.1` (`Config.Version`). API is server-side, framework-independent and
+safe to use without a phone resource.
 
 ## Exports
 

@@ -6,7 +6,7 @@ ui_page 'noc/web/index.html'
 
 author 'gnsh'
 description 'Standalone server-authoritative GSM and telecom infrastructure'
-version '0.1.0'
+version '0.1.0-rc.1'
 
 shared_scripts {
     'config/default.lua',
