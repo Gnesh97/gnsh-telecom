@@ -21,6 +21,7 @@ Config = {
         Sabotage = false,
         Jammers = true,
         Statistics = false,
+        ServiceSessions = true,
     },
 
     Signal = {
@@ -288,6 +289,25 @@ Config = {
         Progress = {
             provider = 'auto',
             fallback = 'native',
+        },
+    },
+
+    ServiceSessions = {
+        maxActive = 256,
+        maxActivePerSource = 4,
+        maxMetadataFields = 16,
+        maxMetadataDepth = 3,
+        maxDurationMs = 1800000,
+        maxBeginsPerSecond = 8,
+        maxUpdatesPerSecond = 20,
+        maxEndsPerSecond = 20,
+        demands = {
+            VOICE = 2.0,
+            SMS = 0.5,
+            DATA = 5.0,
+            GPS = 0.75,
+            EMERGENCY = 3.0,
+            BACKGROUND_DATA = 1.0,
         },
     },
     Towers = {},

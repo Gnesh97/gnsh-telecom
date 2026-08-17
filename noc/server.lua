@@ -35,6 +35,8 @@ function NocServer.GetSnapshot(source)
         connectedClients = Connections and Connections.Count and Connections.Count() or 0,
         averageLoad = 0,
         criticalCongestion = 0,
+        activeSessions = 0,
+        serviceDemand = 0,
     }
     local loadTotal = 0
     for index, tower in ipairs(towers) do
@@ -57,6 +59,14 @@ function NocServer.GetSnapshot(source)
     if #towers > 0 then counts.averageLoad = loadTotal / #towers end
 
     local features = Config and Config.Features or {}
+    local serviceSessions = features.ServiceSessions == true and ServiceSessions
+        and ServiceSessions.GetAll and ServiceSessions.GetAll(
+            tonumber(Config.NOC and Config.NOC.maxEntities) or 500
+        ) or {}
+    for _, session in ipairs(serviceSessions) do
+        counts.activeSessions = counts.activeSessions + 1
+        counts.serviceDemand = counts.serviceDemand + (tonumber(session.demand) or 0)
+    end
     local snapshot = {
         generatedAt = type(os.time) == 'function' and os.time() or 0,
         counts = counts,
@@ -78,6 +88,8 @@ function NocServer.GetSnapshot(source)
             and SubscriberRegistry.GetAll and SubscriberRegistry.GetAll(
                 tonumber(Config.NOC and Config.NOC.maxEntities) or 500
             ) or {},
+        serviceSessions = serviceSessions,
+        sessions = serviceSessions,
         statistics = TelecomStatistics and TelecomStatistics.GetSnapshot
             and TelecomStatistics.GetSnapshot() or {},
     }

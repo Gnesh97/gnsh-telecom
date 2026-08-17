@@ -129,10 +129,19 @@ function Capacity.Calculate(connectedClients, effectiveCapacity, options)
     local capacity = isFiniteNumber(effectiveCapacity) and effectiveCapacity or 0
     if capacity <= 0 then capacity = 1 end
 
-    local loadPercent = (clients / capacity) * 100
+    local serviceDemand = options and options.serviceDemand
+    serviceDemand = isFiniteNumber(serviceDemand) and math.max(0, serviceDemand) or 0
+    local loadUnits = clients + serviceDemand
+    local serviceSessionCount = options and options.serviceSessionCount
+    serviceSessionCount = isFiniteNumber(serviceSessionCount)
+        and math.max(0, serviceSessionCount) or 0
+    local loadPercent = (loadUnits / capacity) * 100
     local congestion = Capacity.GetCongestionState(loadPercent, options)
     return {
         connectedClients = clients,
+        serviceDemand = serviceDemand,
+        serviceSessionCount = serviceSessionCount,
+        loadUnits = loadUnits,
         effectiveCapacity = capacity,
         loadPercent = loadPercent,
         congestion = congestion,
@@ -176,6 +185,17 @@ local function sectorDefinitions(towerId)
     return TowerSectors.GetForTower(towerId)
 end
 
+local function getServiceDemand(towerId, sectorId)
+    if not ServiceSessions or not ServiceSessions.GetDemand then
+        return 0, 0
+    end
+    local ok, result = pcall(ServiceSessions.GetDemand, towerId, sectorId)
+    if not ok or type(result) ~= 'table' then return 0, 0 end
+    local demand = isFiniteNumber(result.demand) and math.max(0, result.demand) or 0
+    local count = isFiniteNumber(result.count) and math.max(0, result.count) or 0
+    return demand, count
+end
+
 function Capacity.RecalculateSector(towerId, sectorId, connectionStates)
     if type(towerId) ~= 'string' or type(sectorId) ~= 'string'
         or not TowerRegistry or not TowerState or not TowerSectors then
@@ -196,9 +216,14 @@ function Capacity.RecalculateSector(towerId, sectorId, connectionStates)
         end
     end
 
+    local serviceDemand, serviceSessionCount = getServiceDemand(towerId, sectorId)
     local result = Capacity.Calculate(
         connectedClients,
-        Capacity.GetEffectiveSectorCapacity(towerId, sectorId, runtime)
+        Capacity.GetEffectiveSectorCapacity(towerId, sectorId, runtime),
+        {
+            serviceDemand = serviceDemand,
+            serviceSessionCount = serviceSessionCount,
+        }
     )
     if isFiniteNumber(runtime.debugLoadPercent) then
         result.loadPercent = math.max(0, runtime.debugLoadPercent)
@@ -210,6 +235,9 @@ function Capacity.RecalculateSector(towerId, sectorId, connectionStates)
 
     TowerSectors.UpdateRuntime(towerId, sectorId, {
         connectedClients = result.connectedClients,
+        serviceDemand = result.serviceDemand,
+        serviceSessionCount = result.serviceSessionCount,
+        loadUnits = result.loadUnits,
         effectiveCapacity = result.effectiveCapacity,
         loadPercent = result.loadPercent,
         congestion = result.congestion,
@@ -248,9 +276,14 @@ function Capacity.RecalculateTower(towerId, connectionStates)
         if effectiveCapacity <= 0 then effectiveCapacity = nil end
     end
 
+    local serviceDemand, serviceSessionCount = getServiceDemand(towerId)
     local result = Capacity.Calculate(
         connectedClients,
-        effectiveCapacity or Capacity.GetEffectiveCapacity(tower, runtime)
+        effectiveCapacity or Capacity.GetEffectiveCapacity(tower, runtime),
+        {
+            serviceDemand = serviceDemand,
+            serviceSessionCount = serviceSessionCount,
+        }
     )
     if isFiniteNumber(runtime.debugLoadPercent) then
         result.loadPercent = math.max(0, runtime.debugLoadPercent)
@@ -262,6 +295,9 @@ function Capacity.RecalculateTower(towerId, connectionStates)
 
     TowerState.Update(towerId, {
         connectedClients = result.connectedClients,
+        serviceDemand = result.serviceDemand,
+        serviceSessionCount = result.serviceSessionCount,
+        loadUnits = result.loadUnits,
         effectiveCapacity = result.effectiveCapacity,
         loadPercent = result.loadPercent,
         congestion = result.congestion,
@@ -394,6 +430,9 @@ function Capacity.ApplyToConnection(connectionState, runtimeState)
     nextState.signalLevel = Signal.GetLevel(nextState.signal)
     nextState.congestion = congestion
     nextState.loadPercent = runtimeState.loadPercent or 0
+    nextState.serviceDemand = runtimeState.serviceDemand or 0
+    nextState.serviceSessionCount = runtimeState.serviceSessionCount or 0
+    nextState.loadUnits = runtimeState.loadUnits or nextState.connectedClients
     nextState.effectiveCapacity = runtimeState.effectiveCapacity
     nextState.capacityEffects = copy(effects)
     nextState.technologyCapacityMultiplier = Technologies

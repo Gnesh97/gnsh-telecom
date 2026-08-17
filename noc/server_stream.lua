@@ -361,6 +361,38 @@ local function addSubscriberEntities(entityMap, subscribers)
     end
 end
 
+local function addServiceSessionEntities(entityMap, sessions)
+    if type(sessions) ~= 'table' then return end
+    for _, session in ipairs(sessions) do
+        if type(session) == 'table'
+            and safeString(session.id or session.sessionId, 96)
+            and safeString(session.service, 32)
+            and safeString(session.towerId, 96) then
+            local sessionId = session.id or session.sessionId
+            addEntity(entityMap, {
+                entityType = 'service_session',
+                entityId = sessionId,
+                state = {
+                    source = session.source,
+                    service = session.service,
+                    towerId = session.towerId,
+                    sectorId = session.sectorId,
+                    demand = session.demand,
+                    createdAt = session.createdAt,
+                    updatedAt = session.updatedAt,
+                },
+                metadata = {
+                    ownerSource = session.ownerSource or session.source,
+                    carrierId = session.carrierId,
+                    technology = session.technology,
+                    expiresAt = session.expiresAt,
+                    details = copy(session.metadata or {}),
+                },
+            })
+        end
+    end
+end
+
 function NocServer.BuildEntities(snapshot)
     if type(snapshot) ~= 'table' then return {} end
     local nextEntities = {}
@@ -379,6 +411,7 @@ function NocServer.BuildEntities(snapshot)
     addRegionEntities(nextEntities, snapshot.regions)
     addJammerEntities(nextEntities, snapshot.jammers)
     addSubscriberEntities(nextEntities, snapshot.subscribers)
+    addServiceSessionEntities(nextEntities, snapshot.serviceSessions or snapshot.sessions)
 
     for key, entity in pairs(registeredEntitiesByKey) do
         nextEntities[key] = copy(entity)

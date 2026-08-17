@@ -76,6 +76,32 @@ function TelecomAPI.HasDataConnection(source)
     return TelecomAPI.CanUseService(source, 'data')
 end
 
+function TelecomAPI.BeginServiceSession(source, service, metadata)
+    if not ServiceSessions or not ServiceSessions.Begin then
+        return false, 'service_sessions_unavailable'
+    end
+    return ServiceSessions.Begin(source, service, metadata)
+end
+
+function TelecomAPI.UpdateServiceSession(sessionId, metadata, ownerSource)
+    if not ServiceSessions or not ServiceSessions.Update then
+        return false, 'service_sessions_unavailable'
+    end
+    return ServiceSessions.Update(sessionId, metadata, ownerSource)
+end
+
+function TelecomAPI.EndServiceSession(sessionId, ownerSource)
+    if not ServiceSessions or not ServiceSessions.End then
+        return false, 'service_sessions_unavailable'
+    end
+    return ServiceSessions.End(sessionId, ownerSource)
+end
+
+function TelecomAPI.GetServiceSessions(limit)
+    if not ServiceSessions or not ServiceSessions.GetAll then return {} end
+    return copy(ServiceSessions.GetAll(limit))
+end
+
 function TelecomAPI.GetTowerState(towerId)
     if not TowerRegistry or not TowerRegistry.GetRuntimeState then return nil end
     return copy(TowerRegistry.GetRuntimeState(towerId))
@@ -227,6 +253,10 @@ local exportNames = {
     'CanSendSMS',
     'HasDataConnection',
     'CanUseService',
+    'BeginServiceSession',
+    'UpdateServiceSession',
+    'EndServiceSession',
+    'GetServiceSessions',
     'GetTowerState',
     'GetIncidentSnapshot',
     'GetBackhaulStatus',

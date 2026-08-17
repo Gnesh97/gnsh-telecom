@@ -156,6 +156,35 @@ local publicApi = {
         end
         return clientServiceState(service)
     end,
+    BeginServiceSession = function(source, service, metadata)
+        local ok, created, session = callApi('BeginServiceSession', source, service, metadata)
+        if ok then return created == true, copy(session) end
+        if ServiceSessions and ServiceSessions.Begin then
+            return ServiceSessions.Begin(source, service, metadata)
+        end
+        return false, 'service_sessions_unavailable'
+    end,
+    UpdateServiceSession = function(sessionId, metadata, ownerSource)
+        local ok, updated, session = callApi(
+            'UpdateServiceSession',
+            sessionId,
+            metadata,
+            ownerSource
+        )
+        if ok then return updated == true, copy(session) end
+        if ServiceSessions and ServiceSessions.Update then
+            return ServiceSessions.Update(sessionId, metadata, ownerSource)
+        end
+        return false, 'service_sessions_unavailable'
+    end,
+    EndServiceSession = function(sessionId, ownerSource)
+        local ok, ended, session = callApi('EndServiceSession', sessionId, ownerSource)
+        if ok then return ended == true, copy(session) end
+        if ServiceSessions and ServiceSessions.End then
+            return ServiceSessions.End(sessionId, ownerSource)
+        end
+        return false, 'service_sessions_unavailable'
+    end,
 }
 
 function PhoneBridges.GetTelecomAPI()
@@ -226,6 +255,18 @@ local function createPublicAdapter(name)
 
     function adapter:CanUseService(source, service)
         return self.api.CanUseService(source, service)
+    end
+
+    function adapter:BeginServiceSession(source, service, metadata)
+        return self.api.BeginServiceSession(source, service, metadata)
+    end
+
+    function adapter:UpdateServiceSession(sessionId, metadata, ownerSource)
+        return self.api.UpdateServiceSession(sessionId, metadata, ownerSource)
+    end
+
+    function adapter:EndServiceSession(sessionId, ownerSource)
+        return self.api.EndServiceSession(sessionId, ownerSource)
     end
 
     return adapter
@@ -498,6 +539,18 @@ function PhoneBridges.GetNetworkState(source)
     return callActive('GetNetworkState', source)
 end
 
+function PhoneBridges.BeginServiceSession(source, service, metadata)
+    return callActive('BeginServiceSession', source, service, metadata)
+end
+
+function PhoneBridges.UpdateServiceSession(sessionId, metadata, ownerSource)
+    return callActive('UpdateServiceSession', sessionId, metadata, ownerSource)
+end
+
+function PhoneBridges.EndServiceSession(sessionId, ownerSource)
+    return callActive('EndServiceSession', sessionId, ownerSource)
+end
+
 function PhoneBridges.GetStatus()
     local bridgeStatus = BridgeManager and BridgeManager.GetBridgeStatus
         and BridgeManager.GetBridgeStatus('phone') or nil
@@ -574,4 +627,7 @@ if isServerRuntime() and type(exports) == 'function' then
     exports('CanUsePhoneData', PhoneBridges.CanUseData)
     exports('GetPhoneNetworkState', PhoneBridges.GetNetworkState)
     exports('GetPhoneBridgeStatus', PhoneBridges.GetStatus)
+    exports('BeginPhoneServiceSession', PhoneBridges.BeginServiceSession)
+    exports('UpdatePhoneServiceSession', PhoneBridges.UpdateServiceSession)
+    exports('EndPhoneServiceSession', PhoneBridges.EndServiceSession)
 end

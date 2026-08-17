@@ -71,6 +71,33 @@ TEST('active phone bridge delegates queries through public telecom API', functio
     Connections.Clear()
 end)
 
+TEST('phone bridge integrates with the service session lifecycle', function()
+    ServiceSessions.Reset()
+    TelecomRateLimit.Clear(40)
+    Connections.Clear()
+    ASSERT_TRUE(Connections.Set(40, makeBridgeState(40), { skipCapacity = true }))
+    ASSERT_TRUE(PhoneBridges.Initialize())
+
+    local started, session = PhoneBridges.BeginServiceSession(40, 'VOICE', {
+        callId = 'bridge-call-1',
+    })
+    ASSERT_TRUE(started)
+    ASSERT_EQ(session.service, 'VOICE')
+    ASSERT_EQ(ServiceSessions.Count(), 1)
+
+    local updated, updatedSession = PhoneBridges.UpdateServiceSession(
+        session.id,
+        { quality = 'HD' },
+        40
+    )
+    ASSERT_TRUE(updated)
+    ASSERT_EQ(updatedSession.metadata.quality, 'HD')
+
+    ASSERT_TRUE(PhoneBridges.EndServiceSession(session.id, 40))
+    ASSERT_EQ(ServiceSessions.Count(), 0)
+    Connections.Clear()
+end)
+
 TEST('phone bridge follows dependency resource lifecycle changes', function()
     local previousConfig = Config.PhoneBridge
     local previousGetResourceState = GetResourceState
