@@ -142,11 +142,10 @@ end
 
 local function addTowerEntity(entityMap, tower)
     if type(tower) ~= 'table' or not safeString(tower.id, 96) then return end
-    local carriers = tower.carriers
-    if type(carriers) ~= 'table' or next(carriers) == nil then
-        carriers = TowerRegistry and TowerRegistry.GetCarriers
-            and TowerRegistry.GetCarriers(tower.id) or {}
-    end
+    local carriers = CarrierSelection and CarrierSelection.GetEffectiveCarrierIds
+        and CarrierSelection.GetEffectiveCarrierIds(tower) or tower.carriers or {}
+    local carrierDetails = CarrierSelection and CarrierSelection.GetEffectiveCarriers
+        and CarrierSelection.GetEffectiveCarriers(tower) or {}
     addEntity(entityMap, {
         entityType = 'tower',
         entityId = tower.id,
@@ -156,6 +155,7 @@ local function addTowerEntity(entityMap, tower)
             coverage = copy(tower.coverage),
             technologies = copy(tower.technologies),
             carriers = copy(carriers),
+            carrierDetails = copy(carrierDetails),
             capacity = copy(tower.capacity),
             backhaulStatus = tower.backhaulStatus,
         },
@@ -190,7 +190,17 @@ local function addSectorEntities(entityMap, tower)
                     beamWidth = sector.beamWidth,
                     coverageRadius = sector.coverageRadius,
                     technologies = copy(sector.technologies),
-                    carriers = copy(sector.carriers or tower.carriers),
+                    carriers = CarrierSelection and CarrierSelection.GetEffectiveCarrierIds
+                        and CarrierSelection.GetEffectiveCarrierIds({
+                            tower = tower,
+                            sector = sector,
+                        }) or copy(sector.carriers or tower.carriers),
+                    carrierDetails = CarrierSelection
+                        and CarrierSelection.GetEffectiveCarriers
+                        and CarrierSelection.GetEffectiveCarriers({
+                            tower = tower,
+                            sector = sector,
+                        }) or {},
                     capacity = sector.capacity,
                 },
             })

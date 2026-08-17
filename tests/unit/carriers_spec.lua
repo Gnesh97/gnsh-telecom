@@ -64,6 +64,13 @@ TEST('disabled carrier selection preserves the single-carrier path', function()
     Config.Features.Carriers = previousEnabled
 end)
 
+TEST('disabled carrier config does not invalidate the core configuration', function()
+    local candidate = Utils.DeepCopy(Config)
+    candidate.Features.Carriers = false
+    candidate.Carriers = { { id = 'invalid-only' } }
+    ASSERT_TRUE(Config.Validate(candidate))
+end)
+
 TEST('single carrier is selected and projected through ranking', function()
     withCarriers({ makeCarrier('carrier_a', 10) }, function()
         local result = CarrierSelection.Resolve(
@@ -179,6 +186,22 @@ TEST('carrier metadata is exposed in NOC tower entities', function()
     end)
 end)
 
+TEST('empty sector carrier declarations inherit the tower operator pool', function()
+    withCarriers({ makeCarrier('carrier_a', 10) }, function()
+        local tower = makeTower('INHERITED_CARRIER_TOWER', { 'carrier_a' })
+        local result = CarrierSelection.Resolve({
+            tower = tower,
+            sector = { id = 'SECTOR_A', carriers = {} },
+        }, { technology = '4G' })
+        ASSERT_TRUE(result.available)
+        ASSERT_EQ(result.carrierId, 'carrier_a')
+        ASSERT_EQ(CarrierSelection.GetEffectiveCarrierIds({
+            tower = tower,
+            sector = { id = 'SECTOR_A', carriers = {} },
+        })[1], 'carrier_a')
+    end)
+end)
+
 TEST('connection state carries the selected operator identity', function()
     withCarriers({ makeCarrier('carrier_a', 10) }, function()
         ASSERT_TRUE(TowerRegistry.Init({
@@ -188,5 +211,20 @@ TEST('connection state carries the selected operator identity', function()
         local state = Connections.Reevaluate(301, vector3(0, 0, 0))
         ASSERT_EQ(state.towerId, 'LIVE_CARRIER_TOWER')
         ASSERT_EQ(state.carrierId, 'carrier_a')
+    end)
+end)
+
+TEST('carrier availability refreshes active connections immediately', function()
+    withCarriers({
+        makeCarrier('carrier_a', 10),
+        makeCarrier('carrier_b', 20),
+    }, function()
+        local tower = makeTower('AVAILABILITY_LIVE_TOWER', { 'carrier_a', 'carrier_b' })
+        ASSERT_TRUE(TowerRegistry.Init({ tower }))
+        ASSERT_TRUE(SpatialIndex.Rebuild(TowerRegistry.GetAll()))
+        local initial = Connections.Reevaluate(302, vector3(0, 0, 0))
+        ASSERT_EQ(initial.carrierId, 'carrier_b')
+        ASSERT_TRUE(CarrierRegistry.SetAvailability('carrier_b', false))
+        ASSERT_EQ(Connections.Get(302).carrierId, 'carrier_a')
     end)
 end)

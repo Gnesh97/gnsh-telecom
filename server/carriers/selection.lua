@@ -75,6 +75,34 @@ local function declaredCarriers(candidate, tower, sector, options)
     return {}, false
 end
 
+local function buildPool(candidate, tower, sector, options)
+    local declared, hasDeclared = declaredCarriers(candidate, tower, sector, options)
+    local pool, invalidCount, knownCount = {}, 0, 0
+    local seen = {}
+
+    if hasDeclared then
+        for _, entry in ipairs(declared) do
+            local id = carrierId(entry)
+            local carrier = CarrierRegistry.Get(id)
+            if carrier then
+                knownCount = knownCount + 1
+                if not seen[carrier.id] then
+                    seen[carrier.id] = true
+                    pool[#pool + 1] = carrier
+                end
+            else
+                invalidCount = invalidCount + 1
+            end
+        end
+        if knownCount == 0 then
+            pool = CarrierRegistry.GetAll()
+        end
+    else
+        pool = CarrierRegistry.GetAll()
+    end
+    return pool, invalidCount, knownCount, hasDeclared
+end
+
 local function mapBlocks(map, id)
     if type(map) ~= 'table' then return false end
     if map[id] ~= nil then return map[id] == true end
@@ -127,32 +155,9 @@ function CarrierSelection.Resolve(candidate, options)
     local tower = towerOf(candidate)
     local sector = sectorOf(candidate, tower)
     local requested = options.preferredCarrier or options.requestedCarrier
-    local declared, hasDeclared = declaredCarriers(candidate, tower, sector, options)
-    local pool, invalidCount, knownCount = {}, 0, 0
-    local seen = {}
-
-    if hasDeclared then
-        for _, entry in ipairs(declared) do
-            local id = carrierId(entry)
-            local carrier = CarrierRegistry.Get(id)
-            if carrier then
-                knownCount = knownCount + 1
-                if not seen[carrier.id] then
-                    seen[carrier.id] = true
-                    pool[#pool + 1] = carrier
-                end
-            else
-                invalidCount = invalidCount + 1
-            end
-        end
-        if knownCount == 0 then
-            pool = CarrierRegistry.GetAll()
-            for _, carrier in ipairs(pool) do seen[carrier.id] = true end
-        end
-    else
-        pool = CarrierRegistry.GetAll()
-        for _, carrier in ipairs(pool) do seen[carrier.id] = true end
-    end
+    local pool, invalidCount, knownCount, hasDeclared = buildPool(
+        candidate, tower, sector, options
+    )
 
     local eligible = {}
     local unavailable = false
@@ -206,6 +211,24 @@ function CarrierSelection.Resolve(candidate, options)
         reason = usedFallback and 'fallback' or 'selected',
         invalidCount = invalidCount,
     }
+end
+
+function CarrierSelection.GetEffectiveCarriers(candidate, options)
+    if not enabled() or not CarrierRegistry or not CarrierRegistry.GetAll then return {} end
+    options = type(options) == 'table' and options or {}
+    local tower = towerOf(candidate)
+    local sector = sectorOf(candidate, tower)
+    local pool = buildPool(candidate, tower, sector, options)
+    table.sort(pool, sortCarriers)
+    return copy(pool)
+end
+
+function CarrierSelection.GetEffectiveCarrierIds(candidate, options)
+    local ids = {}
+    for _, carrier in ipairs(CarrierSelection.GetEffectiveCarriers(candidate, options)) do
+        ids[#ids + 1] = carrier.id
+    end
+    return ids
 end
 
 CarrierSelection.ResolveCarrier = CarrierSelection.Resolve

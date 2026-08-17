@@ -85,6 +85,21 @@ end
 function CarrierRegistry.SetAvailability(id, available)
     if not CarrierRegistry.Exists(id) or type(available) ~= 'boolean' then return false end
     availabilityById[id] = available
+    local affectedTowers = {}
+    if CarrierSelection and CarrierSelection.GetEffectiveCarrierIds
+        and TowerRegistry and TowerRegistry.GetAll then
+        for _, tower in ipairs(TowerRegistry.GetAll()) do
+            for _, carrierId in ipairs(CarrierSelection.GetEffectiveCarrierIds(tower)) do
+                if carrierId == id then
+                    affectedTowers[#affectedTowers + 1] = tower.id
+                    break
+                end
+            end
+        end
+    end
+    if #affectedTowers > 0 and Connections and Connections.RefreshTowers then
+        Connections.RefreshTowers(affectedTowers)
+    end
     return true
 end
 

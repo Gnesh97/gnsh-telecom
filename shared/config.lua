@@ -414,6 +414,7 @@ local function validateDebug(config, errors)
 end
 
 local function validateCarriers(config, errors)
+    if not (config.Features and config.Features.Carriers == true) then return end
     if config.Carriers == nil then return end
     if type(config.Carriers) ~= 'table' then
         addError(errors, 'Carriers must be a table')
