@@ -120,6 +120,7 @@ server_scripts {
     'server/security/permissions.lua',
     'server/security/audit.lua',
     'server/debug.lua',
+    'server/coverage_debug.lua',
     'server/deployment_editor.lua',
     'server/bootstrap.lua',
 }
@@ -146,6 +147,7 @@ client_scripts {
     'client/environment.lua',
     'client/state.lua',
     'client/debug.lua',
+    'client/coverage_debug.lua',
     'client/deployment_editor.lua',
     'client/handover.lua',
     'client/nui.lua',

@@ -93,7 +93,7 @@ The post-core modules are present but the gameplay-facing modules remain disable
 - `Sabotage` and `Jammers` are server-authoritative, rate-limited and disabled by default. Clients send a target request; they never choose an arbitrary failure effect or final interference state.
 - `Statistics` aggregates load, handover, failure, incident, sabotage and jammer counters in memory and flushes summaries at a configured interval.
 
-Configuration examples, deployment authoring and security boundaries are documented in [CONFIGURATION.md](CONFIGURATION.md), [DEPLOYMENT_EDITOR.md](DEPLOYMENT_EDITOR.md), [TECHNICIAN_CONFIGURATION.md](TECHNICIAN_CONFIGURATION.md), [NOC_GUIDE.md](NOC_GUIDE.md) and [SECURITY.md](SECURITY.md).
+Configuration examples, deployment authoring, coverage inspection and security boundaries are documented in [CONFIGURATION.md](CONFIGURATION.md), [DEPLOYMENT_EDITOR.md](DEPLOYMENT_EDITOR.md), [COVERAGE_DEBUG.md](COVERAGE_DEBUG.md), [TECHNICIAN_CONFIGURATION.md](TECHNICIAN_CONFIGURATION.md), [NOC_GUIDE.md](NOC_GUIDE.md) and [SECURITY.md](SECURITY.md).
 
 ## Phase 13 persistence
 
@@ -138,9 +138,18 @@ Do not copy another server's identifier lines. Keep each installation's own `add
 /telecom load <towerId> <percent|clear>
 /telecom noc
 /telecomnoc
+/telecom_heatmap current
+/telecom_heatmap region <downtown|sandy|paleto>
+/telecom_heatmap clear
+/telecom_signal_inspect [playerId]
 ```
 
 `/telecomdebug` toggles a client-only overlay. It is off by default and shows the current tower, distance, signal, capacity/congestion, environment, failure modifiers and alternative scores when those values are available. `/telecom load` is an in-memory test override and is cleared by restart or by using `clear`.
+
+The heatmap and signal inspector are separate development-only tools. Enable
+them with `setr gnsh_telecom_coverage_tools 1`, then follow
+[COVERAGE_DEBUG.md](COVERAGE_DEBUG.md) for bounded pause-map sampling and F8
+diagnostics. Keep the convar disabled in production.
 
 Production tower definitions belong in `config/towers.lua` under `Config.Towers`:
 
@@ -183,7 +192,7 @@ Config.Backhaul.links = {
 
 Production defaults now contain 37 active tower definitions: the 32 verified captures imported from the `/telecom_tower_export` batch plus five additional manually placed sites. The resource still contains no test backhaul nodes. Development fixtures live in `config/examples/towers.lua`; `config/development.lua` is an optional development overlay and is not loaded by the production manifest.
 
-The coordinate-free deployment catalog lives in `config/deployment_sites.lua`. Development-only first-pass map anchors live separately in `config/deployment_drafts.lua`; they are visual waypoints, not tower topology. The point/3D marker is only an anchor; the translucent pause-map radius blip is the actual coverage visualization. Use `/telecom_tower_production` in the admin editor to view the validated active `Config.Towers` locations and `coverage.radius` values on the pause map. To add or revise real positions in FiveM, enable the admin-only development editor with `setr gnsh_telecom_deployment_tools 1`, run `/telecom_tower_drafts`, follow [DEPLOYMENT_EDITOR.md](DEPLOYMENT_EDITOR.md), then review and import the export entries into `config/towers.lua`.
+The coordinate-free deployment catalog lives in `config/deployment_sites.lua`. Development-only first-pass map anchors live separately in `config/deployment_drafts.lua`; they are visual waypoints, not tower topology. The point/3D marker is only an anchor; the translucent pause-map radius blip is the actual coverage visualization. Use `/telecom_tower_production` in the admin editor to view the validated active `Config.Towers` locations and `coverage.radius` values on the pause map. To add or revise real positions in FiveM, enable the admin-only development editor with `setr gnsh_telecom_deployment_tools 1`, run `/telecom_tower_drafts`, follow [DEPLOYMENT_EDITOR.md](DEPLOYMENT_EDITOR.md), then review and import the export entries into `config/towers.lua`. Use the separate [COVERAGE_DEBUG.md](COVERAGE_DEBUG.md) heatmap when you need to inspect signal bands across an area rather than only tower radii.
 
 ## Start
 

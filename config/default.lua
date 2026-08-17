@@ -9,6 +9,44 @@ Config = {
         adminAce = 'gnsh-telecom.admin',
     },
 
+    CoverageDebug = {
+        convar = 'gnsh_telecom_coverage_tools',
+        gridSpacing = 125.0,
+        currentRadius = 750.0,
+        maxSamples = 512,
+        batchSize = 24,
+        cooldownMs = 1500,
+        bands = {
+            strong = 80,
+            good = 55,
+            moderate = 30,
+            weak = 1,
+        },
+        regions = {
+            downtown = {
+                minX = -1500.0,
+                maxX = 1500.0,
+                minY = -1800.0,
+                maxY = 600.0,
+                z = 30.0,
+            },
+            sandy = {
+                minX = 900.0,
+                maxX = 2700.0,
+                minY = 2500.0,
+                maxY = 4300.0,
+                z = 40.0,
+            },
+            paleto = {
+                minX = -1800.0,
+                maxX = -300.0,
+                minY = 5600.0,
+                maxY = 6800.0,
+                z = 35.0,
+            },
+        },
+    },
+
     Features = {
         Capacity = true,
         Failures = true,
@@ -22,6 +60,7 @@ Config = {
         Jammers = false,
         Statistics = false,
         DeploymentTools = false,
+        CoverageDebug = false,
         ServiceSessions = true,
         QoS = true,
     },
