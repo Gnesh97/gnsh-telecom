@@ -30,6 +30,10 @@ Phase 36 renders the currently supported tower, incident, backhaul and jammer
 entities. New providers can add sectors, regions, carriers or other entity
 types without changing the stream protocol.
 
+Regional backhaul snapshots add `region` entities for configured regional POPs
+and `backhaul` entities for aggregation, POP and core nodes. Their state is
+derived from the same bounded route engine used by tower service status.
+
 ## Server interface
 
 ```lua

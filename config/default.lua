@@ -194,8 +194,14 @@ Config = {
 
     Backhaul = {
         routeCacheTtlMs = 5000,
+        maxRouteCacheEntries = 256,
+        maxRecomputeNodes = 128,
+        maxPathHops = 64,
+        maxRegionalTowers = 128,
         coreNodes = {},
         towerNodes = {},
+        towerRegions = {},
+        regions = {},
         nodes = {},
         links = {},
     },

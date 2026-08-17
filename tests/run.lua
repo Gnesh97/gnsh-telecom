@@ -58,6 +58,11 @@ dofile('server/network/coverage.lua')
 dofile('server/network/selection.lua')
 dofile('server/network/capacity.lua')
 dofile('server/network/services.lua')
+dofile('server/backhaul/nodes.lua')
+dofile('server/backhaul/links.lua')
+dofile('server/backhaul/regions.lua')
+dofile('server/backhaul/graph.lua')
+dofile('server/backhaul/routing.lua')
 local eventHandlers = {}
 registeredExports = {}
 triggeredEvents = {}
@@ -198,6 +203,7 @@ dofile('tests/unit/technician_work_orders_spec.lua')
 dofile('tests/unit/support_bridge_spec.lua')
 dofile('tests/unit/bridge_config_spec.lua')
 dofile('tests/unit/noc_delta_spec.lua')
+dofile('tests/unit/regional_backhaul_spec.lua')
 
 print('')
 print(('%d passed, %d failed'):format(passed, failed))

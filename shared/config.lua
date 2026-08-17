@@ -328,6 +328,20 @@ local function validateOperations(config, errors)
         if type(backhaul.nodes) ~= 'table' or type(backhaul.links) ~= 'table' then
             addError(errors, 'Backhaul.nodes and Backhaul.links must be tables')
         end
+        for _, field in ipairs({ 'towerRegions', 'regions' }) do
+            if backhaul[field] ~= nil and type(backhaul[field]) ~= 'table' then
+                addError(errors, ('Backhaul.%s must be a table'):format(field))
+            end
+        end
+        for _, field in ipairs({
+            'routeCacheTtlMs', 'maxRouteCacheEntries', 'maxRecomputeNodes',
+            'maxPathHops', 'maxRegionalTowers',
+        }) do
+            local value = backhaul[field]
+            if value ~= nil and (not isNumber(value) or value ~= math.floor(value) or value < 1) then
+                addError(errors, ('Backhaul.%s must be a positive integer'):format(field))
+            end
+        end
     end
 
     local incidents = config.Incidents

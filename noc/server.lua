@@ -65,6 +65,11 @@ function NocServer.GetSnapshot(source)
             and IncidentManager.GetSnapshot() or { incidents = {}, counts = {} },
         backhaul = features.Backhaul == true and BackhaulRouting and BackhaulRouting.GetSnapshot
             and BackhaulRouting.GetSnapshot() or {},
+        backhaulNodes = features.Backhaul == true and BackhaulNodes and BackhaulNodes.GetAll
+            and BackhaulNodes.GetAll() or {},
+        regions = features.Backhaul == true and BackhaulRouting
+            and BackhaulRouting.GetRegionalSnapshot
+            and BackhaulRouting.GetRegionalSnapshot() or {},
         jammers = features.Jammers == true and Jammers and Jammers.GetAll
             and Jammers.GetAll() or {},
         statistics = TelecomStatistics and TelecomStatistics.GetSnapshot

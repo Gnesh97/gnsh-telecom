@@ -11,15 +11,28 @@ local function validId(value)
     return type(value) == 'string' and value ~= '' and #value <= 64
 end
 
+local function validType(value)
+    local types = Enums and Enums.BackhaulNodeType or {
+        TOWER = 'TOWER',
+        AGGREGATION = 'AGGREGATION',
+        REGIONAL_POP = 'REGIONAL_POP',
+        CORE = 'CORE',
+    }
+    return value == types.TOWER or value == types.AGGREGATION
+        or value == types.REGIONAL_POP or value == types.CORE
+end
+
 function BackhaulNodes.Initialize(definitions)
     local nextNodes = {}
     local nextOrder = {}
     for _, definition in ipairs(definitions or {}) do
+        local nodeType = type(definition) == 'table'
+            and (definition.type or 'AGGREGATION') or nil
         if type(definition) == 'table' and validId(definition.id)
-            and not nextNodes[definition.id] then
+            and validType(nodeType) and not nextNodes[definition.id] then
             nextNodes[definition.id] = {
                 id = definition.id,
-                type = definition.type or 'AGGREGATION',
+                type = nodeType,
                 state = definition.state or Enums.BackhaulNodeState.ONLINE,
                 metadata = copy(definition.metadata or {}),
             }
@@ -42,6 +55,14 @@ function BackhaulNodes.GetAll()
     return result
 end
 
+function BackhaulNodes.GetByType(nodeType)
+    local result = {}
+    for _, id in ipairs(orderedIds) do
+        if nodesById[id].type == nodeType then result[#result + 1] = copy(nodesById[id]) end
+    end
+    return result
+end
+
 function BackhaulNodes.Exists(id)
     return nodesById[id] ~= nil
 end
@@ -54,6 +75,9 @@ function BackhaulNodes.SetState(id, state)
     end
     nodesById[id].state = state
     if BackhaulGraph and BackhaulGraph.Invalidate then BackhaulGraph.Invalidate() end
+    if BackhaulRouting and BackhaulRouting.RecomputeAffected then
+        BackhaulRouting.RecomputeAffected(id)
+    end
     return true, copy(nodesById[id])
 end
 

@@ -73,6 +73,12 @@ Enums = {
         ONLINE = 'ONLINE',
         OFFLINE = 'OFFLINE',
     },
+    BackhaulNodeType = {
+        TOWER = 'TOWER',
+        AGGREGATION = 'AGGREGATION',
+        REGIONAL_POP = 'REGIONAL_POP',
+        CORE = 'CORE',
+    },
     LinkState = {
         ONLINE = 'ONLINE',
         DEGRADED = 'DEGRADED',

@@ -51,15 +51,20 @@ function BackhaulLinks.GetAll()
 end
 
 function BackhaulLinks.SetState(id, state)
-    if not linksById[id]
+    local link = linksById[id]
+    if not link
         or state ~= Enums.LinkState.ONLINE
         and state ~= Enums.LinkState.DEGRADED
         and state ~= Enums.LinkState.OFFLINE then
         return false, 'invalid_backhaul_link_state'
     end
-    linksById[id].state = state
+    link.state = state
     if BackhaulGraph and BackhaulGraph.Invalidate then BackhaulGraph.Invalidate() end
-    return true, copy(linksById[id])
+    if BackhaulRouting and BackhaulRouting.RecomputeAffected then
+        BackhaulRouting.RecomputeAffected(link.from)
+        if link.to ~= link.from then BackhaulRouting.RecomputeAffected(link.to) end
+    end
+    return true, copy(link)
 end
 
 function BackhaulLinks.Reset()

@@ -211,6 +211,45 @@ local function addJammerEntities(entityMap, jammers)
     end
 end
 
+local function addBackhaulNodeEntities(entityMap, nodes)
+    if type(nodes) ~= 'table' then return end
+    for _, node in ipairs(nodes) do
+        if type(node) == 'table' and safeString(node.id, 96) then
+            addEntity(entityMap, {
+                entityType = 'backhaul',
+                entityId = node.id,
+                state = {
+                    state = node.state,
+                    nodeType = node.type,
+                },
+                metadata = copy(node.metadata or {}),
+            })
+        end
+    end
+end
+
+local function addRegionEntities(entityMap, regions)
+    if type(regions) ~= 'table' then return end
+    for regionId, region in pairs(regions) do
+        if safeString(regionId, 96) and type(region) == 'table' then
+            addEntity(entityMap, {
+                entityType = 'region',
+                entityId = regionId,
+                state = {
+                    status = region.status,
+                    onlineCount = region.onlineCount,
+                    degradedCount = region.degradedCount,
+                    offlineCount = region.offlineCount,
+                    towerCount = region.towerCount,
+                },
+                metadata = {
+                    popNode = region.popNode,
+                },
+            })
+        end
+    end
+end
+
 function NocServer.BuildEntities(snapshot)
     if type(snapshot) ~= 'table' then return {} end
     local nextEntities = {}
@@ -221,6 +260,8 @@ function NocServer.BuildEntities(snapshot)
         addIncidentEntity(nextEntities, incident)
     end
     addBackhaulEntities(nextEntities, snapshot.backhaul)
+    addBackhaulNodeEntities(nextEntities, snapshot.backhaulNodes)
+    addRegionEntities(nextEntities, snapshot.regions)
     addJammerEntities(nextEntities, snapshot.jammers)
 
     for key, entity in pairs(registeredEntitiesByKey) do

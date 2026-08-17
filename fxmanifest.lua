@@ -35,6 +35,7 @@ server_scripts {
     'server/network/connections.lua',
     'server/backhaul/nodes.lua',
     'server/backhaul/links.lua',
+    'server/backhaul/regions.lua',
     'server/backhaul/graph.lua',
     'server/backhaul/routing.lua',
     'server/api.lua',
