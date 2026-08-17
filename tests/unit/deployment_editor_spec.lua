@@ -264,6 +264,7 @@ TEST('client preview creates a visible map coverage radius', function()
     local previous = {
         AddBlipForCoord = rawget(_G, 'AddBlipForCoord'),
         AddBlipForRadius = rawget(_G, 'AddBlipForRadius'),
+        SetBlipSprite = rawget(_G, 'SetBlipSprite'),
         SetBlipColour = rawget(_G, 'SetBlipColour'),
         SetBlipScale = rawget(_G, 'SetBlipScale'),
         SetBlipAsShortRange = rawget(_G, 'SetBlipAsShortRange'),
@@ -274,6 +275,7 @@ TEST('client preview creates a visible map coverage radius', function()
     }
     local calls = {
         radius = {},
+        sprite = {},
         alpha = {},
         display = {},
         highDetail = {},
@@ -291,6 +293,7 @@ TEST('client preview creates a visible map coverage radius', function()
         }
         return { kind = 'radius', id = nextBlip }
     end
+    SetBlipSprite = function(_, sprite) calls.sprite[#calls.sprite + 1] = sprite end
     SetBlipColour = function() end
     SetBlipScale = function() end
     SetBlipAsShortRange = function() end
@@ -311,6 +314,8 @@ TEST('client preview creates a visible map coverage radius', function()
         }))
         ASSERT_EQ(#calls.radius, 1)
         ASSERT_EQ(calls.radius[1].radius, 850)
+        ASSERT_EQ(math.type(calls.radius[1].radius), 'float')
+        ASSERT_EQ(calls.sprite[2], 9)
         ASSERT_EQ(calls.alpha[1], 180)
         ASSERT_EQ(#calls.display, 0)
         ASSERT_EQ(calls.highDetail[1], true)

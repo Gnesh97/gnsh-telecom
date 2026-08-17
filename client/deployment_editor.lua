@@ -83,6 +83,7 @@ local function createBlips(coords, radius, label, colour)
     if not isPoint(coords) then return nil, nil end
     local markerBlip
     local radiusBlip
+    local numericRadius = tonumber(radius)
 
     if type(AddBlipForCoord) == 'function' then
         markerBlip = AddBlipForCoord(coords.x, coords.y, coords.z)
@@ -92,15 +93,25 @@ local function createBlips(coords, radius, label, colour)
         if type(SetBlipAsShortRange) == 'function' then SetBlipAsShortRange(markerBlip, false) end
         setBlipName(markerBlip, label)
     end
-    if type(AddBlipForRadius) == 'function' and isFiniteNumber(radius) and radius > 0 then
-        radiusBlip = AddBlipForRadius(coords.x, coords.y, coords.z, radius)
+    if type(AddBlipForRadius) == 'function'
+        and isFiniteNumber(numericRadius) and numericRadius > 0 then
+        -- FiveM's native bridge can treat an integer radius as an invalid
+        -- value on some runtimes. Force the native argument to a float.
+        numericRadius = numericRadius + 0.0
+        radiusBlip = AddBlipForRadius(
+            coords.x + 0.0,
+            coords.y + 0.0,
+            coords.z + 0.0,
+            numericRadius
+        )
+        if type(SetBlipSprite) == 'function' then SetBlipSprite(radiusBlip, 9) end
         if type(SetBlipColour) == 'function' then SetBlipColour(radiusBlip, colour or 3) end
         if type(SetBlipAlpha) == 'function' then SetBlipAlpha(radiusBlip, 180) end
         -- Keep the native radius blip's default display mode. Applying
         -- SetBlipDisplay to a radius blip can suppress its pause-map area.
         if type(SetBlipHighDetail) == 'function' then SetBlipHighDetail(radiusBlip, true) end
-        if type(SetBlipAsShortRange) == 'function' then SetBlipAsShortRange(radiusBlip, false) end
-        setBlipName(radiusBlip, ('%s | coverage %s'):format(label, formatRadius(radius)))
+        if type(SetBlipAsShortRange) == 'function' then SetBlipAsShortRange(radiusBlip, true) end
+        setBlipName(radiusBlip, ('%s | coverage %s'):format(label, formatRadius(numericRadius)))
     end
     return markerBlip, radiusBlip
 end
