@@ -4,8 +4,8 @@
 
 TP-05 turns the deployment coverage plan into deterministic regression
 anchors. Required urban, town and highway anchors are backed by coordinates
-already captured for production towers. Intentional weak anchors remain
-coordinate-free until they are visited and verified in FiveM.
+already captured for production towers. All intentional weak anchors are now
+backed by coordinates visited and verified in FiveM.
 
 ## Implemented
 
@@ -23,20 +23,16 @@ coordinate-free until they are visited and verified in FiveM.
 - Added unit coverage for catalog validation, threshold boundaries, pending
   anchors, real pipeline evaluation and command registration.
 
-## Intentional pending work
+## Final intentional-weak captures
 
-Five intentional-weak anchors are now backed by in-game captures. The
-following two anchors still need a point whose measured signal is below 30:
+All seven intentional-weak anchors are backed by in-game captures. The final
+two captures are:
 
-- `MOUNT_CHILIAD_WILDERNESS`
-- `BLAINE_REMOTE_DIRT_ROAD`
+- `MOUNT_CHILIAD_WILDERNESS`: signal `0.00`, band `BLACK`, status `PASS`
+- `BLAINE_REMOTE_DIRT_ROAD`: signal `11.82`, band `RED`, status `PASS`
 
-The submitted `BLAINE_REMOTE_DIRT_ROAD` capture measured signal `50.08`
-(`ORANGE`) and was correctly rejected as `FAIL`; it must be recaptured farther
-from service.
-
-This is deliberate. A red/black heatmap sample alone is not a final anchor;
-the exact point must be chosen and visually verified in FiveM.
+The earlier Blaine candidate measured `50.08` (`ORANGE`) and was correctly
+rejected; the final point was recaptured farther from service.
 
 ## Runtime handoff
 
@@ -53,6 +49,8 @@ Copy each F8 `coverage config` line into
 ## Verification status
 
 - `/telecom_heatmap current` was confirmed working by the user.
+- All 20 configured anchors now evaluate without pending captures; expected
+  runtime summary is `pass=20 fail=0 pending=0`.
 - Pure Lua test execution is still pending on this workstation because Lua
   5.4/`luac` is not installed.
 - `git diff --check` and repository indexing remain part of the delivery gate.

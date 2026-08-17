@@ -68,8 +68,8 @@ server-authoritative coverage pipeline:
 `/telecom_coverage_expectations` evaluates every configured anchor and prints
 `PASS`, `FAIL` or `PENDING_CAPTURE` in F8. Required urban, town and highway
 anchors use verified production capture coordinates. Intentional weak anchors
-are intentionally left without coordinates until they are visited in FiveM;
-the capture command prints a copyable `vector3(...)` configuration entry.
+are also stored only after a FiveM visit; the capture command prints a
+copyable `vector3(...)` configuration entry for future anchor additions.
 
 For each weak anchor, drive to the intended wilderness area and run:
 

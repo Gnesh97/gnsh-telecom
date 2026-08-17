@@ -15,7 +15,7 @@ local function resetExpectationState()
     SpatialIndex.Rebuild({})
 end
 
-TEST('coverage expectation catalog contains required and pending anchors', function()
+TEST('coverage expectation catalog contains required and verified weak anchors', function()
     local valid, errors = TelecomCoverageExpectations.Validate()
     ASSERT_TRUE(valid, table.concat(errors or {}, '; '))
 
@@ -25,14 +25,12 @@ TEST('coverage expectation catalog contains required and pending anchors', funct
     ASSERT_TRUE(TelecomCoverageExpectations.Find('LSIA_CORE'))
     ASSERT_TRUE(TelecomCoverageExpectations.Find('SENORA_CORRIDOR'))
 
-    local remote = TelecomCoverageExpectations.Find('MOUNT_CHILIAD_WILDERNESS')
-    ASSERT_TRUE(remote)
-    ASSERT_TRUE(remote.captureRequired)
-    ASSERT_EQ(remote.position, nil)
+    ASSERT_TRUE(TelecomCoverageExpectations.Find('MOUNT_CHILIAD_WILDERNESS').position)
     ASSERT_TRUE(TelecomCoverageExpectations.Find('RATON_REMOTE').position)
+    ASSERT_TRUE(TelecomCoverageExpectations.Find('BLAINE_REMOTE_DIRT_ROAD').position)
 end)
 
-TEST('configured production topology satisfies captured anchors and preserves pending weak zones', function()
+TEST('configured production topology satisfies all captured coverage anchors', function()
     resetExpectationState()
     TowerRegistry.Init(Config.Towers)
     ASSERT_TRUE(SpatialIndex.Rebuild(TowerRegistry.GetAll()))
@@ -46,9 +44,9 @@ TEST('configured production topology satisfies captured anchors and preserves pe
     end
 
     ASSERT_EQ(#results, 20)
-    ASSERT_EQ(pass, 18)
+    ASSERT_EQ(pass, 20)
     ASSERT_EQ(fail, 0)
-    ASSERT_EQ(pending, 2)
+    ASSERT_EQ(pending, 0)
 
     resetExpectationState()
 end)
@@ -81,7 +79,12 @@ end)
 
 TEST('pending weak anchor does not fabricate an evaluation', function()
     local result = TelecomCoverageExpectations.Evaluate(
-        TelecomCoverageExpectations.Find('MOUNT_CHILIAD_WILDERNESS')
+        {
+            id = 'PENDING_TEST_ANCHOR',
+            category = 'INTENTIONAL_WEAK_ZONE',
+            expectation = 'WEAK_OR_NONE',
+            captureRequired = true,
+        }
     )
 
     ASSERT_EQ(result.status, 'PENDING_CAPTURE')
