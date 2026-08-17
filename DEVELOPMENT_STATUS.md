@@ -27,7 +27,7 @@ ise canlı uyumluluk, temiz kurulum ve çoklu oyuncu/runtime kanıtına bağlı.
 ## Tower deployment coverage plan
 
 - **TP-01 tamamlandı:** deployment archetype’leri ve coverage-zone policy’si eklendi; üretim kule kayıtları artık ayrı `config/towers.lua` topology dosyasında tutuluyor.
-- **TP-02 tamamlandı:** `/telecom_tower_export` çıktısından doğrulanan 32 capture kaydı `Config.Towers` içine aktarıldı; koordinat, radius, teknoloji ve kapasite metadata’sı startup validation’dan geçiyor.
+- **TP-02 tamamlandı:** `/telecom_tower_export` çıktısından doğrulanan 32 capture kaydı ve 5 ek manuel saha kaydı `Config.Towers` içine aktarıldı; toplam 37 kule için koordinat, radius, teknoloji ve kapasite metadata’sı startup validation’dan geçiyor.
 - **TP-03 uygulaması başladı:** 32 hedefli koordinatsız site kataloğu, ACE/admin korumalı FiveM preview/capture/export aracı, append-safe deterministic Lua export ve development-only sabit taslak harita işaretleri eklendi. Araç üretim `TowerRegistry`’sini değiştirmiyor; capture’lar resource restart’ında kayboluyor.
 - **TP-03 doğrulama durumu:** TP-03/TP-03b için 21 yeni test ile toplam 353 test geçti; recursive Lua syntax kontrolü 189 dosyada geçti. Taslak koordinatlar yalnızca ilk harita waypoint’leridir; production capture’ları `/telecom_tower_export` çıktısından ayrı tutulur.
 - **Sonraki kullanıcı adımı:** development server’ı yeniden başlatıp aktarılan 32 üretim kulesinin konum/radius görünümünü FiveM içinde doğrulamak; hatalı görünen kayıtları yeni export ile düzeltmek ve sonraki kule/özellik eklemelerini aynı kontrollü import akışından geçirmek.

@@ -515,4 +515,79 @@ maximum = 10.00,
 },
 -- capturedHeading = 102.05; validate before using as sector azimuth
 },
+{
+id = 'CUSTOM-LARGE-01',
+class = 'RURAL_MACRO',
+coverageZone = 'WILDERNESS',
+purpose = 'Additional large-area wilderness coverage',
+coords = vector3(-562.31, 1897.28, 209.07),
+coverage = {
+radius = 1500.00,
+minimum = 50.00,
+},
+technologies = { '4G', '5G' },
+capacity = {
+maximum = 50.00,
+},
+},
+{
+id = 'CUSTOM-MEDIUM-01',
+class = 'TOWN_MACRO',
+coverageZone = 'RURAL',
+purpose = 'Additional medium-area coverage site 1',
+coords = vector3(-1978.43, 370.34, 92.76),
+coverage = {
+radius = 1200.00,
+minimum = 50.00,
+},
+technologies = { '4G', '5G' },
+capacity = {
+maximum = 80.00,
+},
+},
+{
+id = 'CUSTOM-MEDIUM-02',
+class = 'TOWN_MACRO',
+coverageZone = 'RURAL',
+purpose = 'Additional medium-area coverage site 2',
+coords = vector3(2475.05, 1492.62, 36.04),
+coverage = {
+radius = 1200.00,
+minimum = 50.00,
+},
+technologies = { '4G', '5G' },
+capacity = {
+maximum = 80.00,
+},
+},
+{
+id = 'CUSTOM-HIGHWAY-01',
+class = 'HIGHWAY_REPEATER',
+coverageZone = 'HIGHWAY',
+purpose = 'Additional highway repeater coverage',
+coords = vector3(1560.59, 868.66, 77.45),
+coverage = {
+radius = 750.00,
+minimum = 50.00,
+},
+technologies = { '4G' },
+capacity = {
+maximum = 30.00,
+},
+},
+{
+id = 'CUSTOM-MEDIUM-03',
+class = 'TOWN_MACRO',
+coverageZone = 'TOWN',
+purpose = 'Additional medium-area coverage site 3',
+coords = vector3(1728.63, 6414.19, 41.07),
+coverage = {
+radius = 1200.00,
+minimum = 50.00,
+},
+technologies = { '4G', '5G' },
+capacity = {
+maximum = 80.00,
+},
+},
 }
