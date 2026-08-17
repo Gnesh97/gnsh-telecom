@@ -153,6 +153,25 @@ Automatic detection checks started resources in this order: LB Phone, NPWD, QS S
 
 Detection is re-evaluated when a supported phone resource starts or stops, so the telecom resource may be started before the phone resource. Stopping an active phone dependency safely returns the active adapter to generic.
 
+## Phone enforcement support levels
+
+Phone providers report an honest support level and capability map through `PhoneBridges.GetStatus()` and `GetPhoneBridgeStatus()`:
+
+| Level | Meaning |
+| --- | --- |
+| `FULL` | signal UI, call/SMS/data gates, call lifecycle and network-change hooks are all integrated |
+| `FUNCTIONAL` | signal UI and call/SMS/data gates are integrated; provider lifecycle remains outside this resource |
+| `DISPLAY` | signal UI/network state can be displayed, but unsupported provider operations fail closed |
+
+The current providers are intentionally conservative:
+
+- `generic`: `FUNCTIONAL`; uses the server-authoritative telecom service policy.
+- `lbphone`: `FUNCTIONAL`; adds documented phone-item and busy-call checks, and maps connection changes to LB service bars on the client.
+- `npwd`: `FUNCTIONAL` on the server; uses the documented busy-player export in addition to telecom service gates.
+- `qs`: `DISPLAY`; stable generic call/SMS interception surfaces are not assumed, so its provider gates return `provider_gate_unsupported` rather than pretending to enforce them.
+
+The adapters call documented provider exports only. They do not monkey-patch phone internals, rewrite provider databases or change third-party resources. `CanCall`/`CanSendSMS`/`HasDataConnection` remain core network-policy queries; the provider-aware exports are `CanStartCall`, `CanSendPhoneSMS` and `CanUsePhoneData`.
+
 ## Bridge interface
 
 Every adapter exposes these methods:
@@ -165,8 +184,10 @@ bridge:GetNetworkType(source)
 bridge:GetConnectedTower(source)
 bridge:GetNetworkState(source)
 bridge:CanCall(source)
+bridge:CanStartCall(source)
 bridge:CanSendSMS(source)
 bridge:HasDataConnection(source)
+bridge:CanUseData(source)
 bridge:CanUseService(source, service)
 ```
 

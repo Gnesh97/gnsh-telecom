@@ -35,9 +35,6 @@ end
 local function callApi(name, ...)
     local fn = getApiFunction(name)
     if not fn then
-        log('error', 'phone bridge public API function unavailable', {
-            functionName = name,
-        })
         return false, nil, 'api_unavailable'
     end
 
@@ -52,50 +49,112 @@ local function callApi(name, ...)
     return true, first, second
 end
 
+local function getClientState()
+    if ClientState and type(ClientState.Get) == 'function' then
+        return ClientState.Get()
+    end
+    return nil
+end
+
+local function clientServiceState(service)
+    local state = getClientState()
+    local serviceState = state and state.services and state.services[service]
+    if type(serviceState) == 'table' then
+        return serviceState.available == true, copy(serviceState)
+    end
+    if type(serviceState) == 'boolean' then
+        return serviceState, {
+            available = serviceState,
+            reason = serviceState and 'available' or 'service_unavailable',
+            blockedBy = serviceState and nil or 'connection',
+        }
+    end
+    return false, fallbackServiceState('connection_unavailable', 'connection')
+end
+
 local publicApi = {
     HasSignal = function(source)
         local ok, value = callApi('HasSignal', source)
-        return ok and value == true or false
+        if ok then return value == true end
+        local state = getClientState()
+        return state ~= nil and type(state.signal) == 'number' and state.signal > 0
     end,
     GetSignalStrength = function(source)
         local ok, value = callApi('GetSignalStrength', source)
-        return ok and tonumber(value) or 0
+        if ok then return tonumber(value) or 0 end
+        local state = getClientState()
+        return state and tonumber(state.signal) or 0
     end,
     GetSignalLevel = function(source)
         local ok, value = callApi('GetSignalLevel', source)
-        return ok and value or Enums.SignalLevel.NO_SERVICE
+        if ok then return value or Enums.SignalLevel.NO_SERVICE end
+        local state = getClientState()
+        return state and state.signalLevel or Enums.SignalLevel.NO_SERVICE
     end,
     GetNetworkType = function(source)
         local ok, value = callApi('GetNetworkType', source)
-        return ok and value or nil
+        if ok then return value end
+        local state = getClientState()
+        return state and state.technology or nil
     end,
     GetConnectedTower = function(source)
         local ok, value = callApi('GetConnectedTower', source)
-        return ok and value or nil
+        if ok then return value end
+        local state = getClientState()
+        return state and state.towerId or nil
     end,
     GetNetworkState = function(source)
         local ok, value = callApi('GetNetworkState', source)
-        return ok and copy(value) or nil
+        if ok then return copy(value) end
+        return copy(getClientState())
     end,
     CanCall = function(source)
         local ok, available, state = callApi('CanCall', source)
-        if not ok then return false, fallbackServiceState() end
-        return available == true, copy(state)
+        if ok then return available == true, copy(state) end
+        if PhoneBridgeManager and PhoneBridgeManager.ServiceGate then
+            return PhoneBridgeManager.ServiceGate(source, 'voice')
+        end
+        return clientServiceState('voice')
+    end,
+    CanStartCall = function(source)
+        local ok, available, state = callApi('CanCall', source)
+        if ok then return available == true, copy(state) end
+        if PhoneBridgeManager and PhoneBridgeManager.ServiceGate then
+            return PhoneBridgeManager.ServiceGate(source, 'voice')
+        end
+        return clientServiceState('voice')
     end,
     CanSendSMS = function(source)
         local ok, available, state = callApi('CanSendSMS', source)
-        if not ok then return false, fallbackServiceState() end
-        return available == true, copy(state)
+        if ok then return available == true, copy(state) end
+        if PhoneBridgeManager and PhoneBridgeManager.ServiceGate then
+            return PhoneBridgeManager.ServiceGate(source, 'sms')
+        end
+        return clientServiceState('sms')
     end,
     HasDataConnection = function(source)
         local ok, available, state = callApi('HasDataConnection', source)
-        if not ok then return false, fallbackServiceState() end
-        return available == true, copy(state)
+        if ok then return available == true, copy(state) end
+        if PhoneBridgeManager and PhoneBridgeManager.ServiceGate then
+            return PhoneBridgeManager.ServiceGate(source, 'data')
+        end
+        return clientServiceState('data')
+    end,
+    CanUseData = function(source)
+        local ok, available, state = callApi('HasDataConnection', source)
+        if ok then return available == true, copy(state) end
+        if PhoneBridgeManager and PhoneBridgeManager.ServiceGate then
+            return PhoneBridgeManager.ServiceGate(source, 'data')
+        end
+        return clientServiceState('data')
     end,
     CanUseService = function(source, service)
         local ok, available, state = callApi('CanUseService', source, service)
-        if not ok then return false, fallbackServiceState() end
-        return available == true, copy(state)
+        if ok then return available == true, copy(state) end
+        if PhoneBridgeManager and PhoneBridgeManager.ServiceGate then
+            return PhoneBridgeManager.ServiceGate(source, service)
+        end
+        return clientServiceState(service)
     end,
 }
 
@@ -149,12 +208,20 @@ local function createPublicAdapter(name)
         return self.api.CanCall(source)
     end
 
+    function adapter:CanStartCall(source)
+        return self.api.CanStartCall(source)
+    end
+
     function adapter:CanSendSMS(source)
         return self.api.CanSendSMS(source)
     end
 
     function adapter:HasDataConnection(source)
         return self.api.HasDataConnection(source)
+    end
+
+    function adapter:CanUseData(source)
+        return self.api.CanUseData(source)
     end
 
     function adapter:CanUseService(source, service)
@@ -166,6 +233,16 @@ end
 
 function PhoneBridges.CreateGenericAdapter()
     local adapter = createPublicAdapter('generic')
+    adapter.supportLevel = PhoneBridgeContract and PhoneBridgeContract.Levels.FUNCTIONAL
+        or 'FUNCTIONAL'
+    adapter.support = {
+        signalUI = true,
+        callGate = true,
+        smsGate = true,
+        dataGate = true,
+        callLifecycle = false,
+        networkChangeHooks = false,
+    }
     function adapter:Detect()
         return true
     end
@@ -181,14 +258,21 @@ local function resourceStarted(resourceName)
     return ok and state == 'started'
 end
 
-function PhoneBridges.CreateResourceAdapter(name, resourceNames)
+function PhoneBridges.CreateResourceAdapter(name, resourceNames, options)
     local adapter = createPublicAdapter(name)
     adapter.resourceNames = copy(resourceNames or {})
     adapter.resources = copy(resourceNames or {})
     adapter.priority = ({ lbphone = 300, npwd = 200, qs = 100 })[name] or 0
+    for key, value in pairs(options or {}) do adapter[key] = copy(value) end
     function adapter:Detect()
         for _, resourceName in ipairs(self.resourceNames) do
-            if resourceStarted(resourceName) then return true end
+            local started
+            if PhoneBridgeManager and type(PhoneBridgeManager.ResourceStarted) == 'function' then
+                started = PhoneBridgeManager.ResourceStarted(resourceName)
+            else
+                started = resourceStarted(resourceName)
+            end
+            if started then return true end
         end
         return false
     end
@@ -210,14 +294,21 @@ function PhoneBridges.Register(adapter)
         return false, 'invalid phone bridge adapter'
     end
 
+    local normalized = adapter
+    if PhoneBridgeContract and type(PhoneBridgeContract.Normalize) == 'function' then
+        local errorMessage
+        normalized, errorMessage = PhoneBridgeContract.Normalize(adapter)
+        if not normalized then return false, errorMessage end
+    end
+
     if BridgeManager and type(BridgeManager.Register) == 'function' then
-        local contract = copy(adapter)
+        local contract = copy(normalized)
         contract.category = 'phone'
         local ok, errorMessage = BridgeManager.Register(contract)
         if not ok then return false, errorMessage end
     end
 
-    PhoneBridges.Registry[adapter.name] = adapter
+    PhoneBridges.Registry[normalized.name] = normalized
     return true
 end
 
@@ -356,9 +447,54 @@ function PhoneBridges.GetActive()
     return PhoneBridges.Active
 end
 
+local function callActive(method, ...)
+    local active = PhoneBridges.GetActive()
+    if not active or type(active[method]) ~= 'function' then
+        local generic = PhoneBridges.Get('generic')
+        if not generic or type(generic[method]) ~= 'function' then
+            return false, fallbackServiceState('capability_unavailable', 'provider')
+        end
+        active = generic
+    end
+
+    local arguments = { ... }
+    local ok, first, second, third = pcall(function()
+        return active[method](active, table.unpack(arguments))
+    end)
+    if not ok then
+        return false, fallbackServiceState('provider_error', 'provider')
+    end
+    return first, second, third
+end
+
+function PhoneBridges.CanStartCall(source)
+    return callActive('CanStartCall', source)
+end
+
+function PhoneBridges.CanCall(source)
+    return PhoneBridges.CanStartCall(source)
+end
+
+function PhoneBridges.CanSendSMS(source)
+    return callActive('CanSendSMS', source)
+end
+
+function PhoneBridges.CanUseData(source)
+    return callActive('CanUseData', source)
+end
+
+function PhoneBridges.HasDataConnection(source)
+    return PhoneBridges.CanUseData(source)
+end
+
+function PhoneBridges.GetNetworkState(source)
+    return callActive('GetNetworkState', source)
+end
+
 function PhoneBridges.GetStatus()
     local bridgeStatus = BridgeManager and BridgeManager.GetBridgeStatus
         and BridgeManager.GetBridgeStatus('phone') or nil
+    local activeProvider = PhoneBridges.GetActive()
     local active = bridgeStatus and bridgeStatus.active
         or PhoneBridges.Active and PhoneBridges.Active.name or nil
     local available = PhoneBridges.Active ~= nil
@@ -376,7 +512,57 @@ function PhoneBridges.GetStatus()
         state = bridgeStatus and bridgeStatus.state or nil,
         capabilities = bridgeStatus and bridgeStatus.capabilities or {},
         providers = bridgeStatus and bridgeStatus.providers or {},
+        supportLevel = activeProvider and activeProvider.supportLevel
+            or bridgeStatus and bridgeStatus.supportLevel or nil,
+        support = PhoneBridgeContract and PhoneBridgeContract.CopySupport
+            and PhoneBridgeContract.CopySupport(
+                activeProvider and activeProvider.support
+                    or bridgeStatus and bridgeStatus.support
+            ) or {},
     }
 end
 
 PhoneBridges.Register(PhoneBridges.CreateGenericAdapter())
+
+local function isServerRuntime()
+    if type(IsDuplicityVersion) == 'function' then return IsDuplicityVersion() end
+    return true
+end
+
+local function providerUsesResource(resourceName)
+    for _, adapter in pairs(PhoneBridges.Registry or {}) do
+        for _, dependency in ipairs(adapter.resources or adapter.resourceNames or {}) do
+            if dependency == resourceName then return true end
+        end
+    end
+    return false
+end
+
+local function refreshForResource(resourceName)
+    if resourceName == GetCurrentResourceName() then return end
+    if providerUsesResource(resourceName) then PhoneBridges.Initialize() end
+end
+
+if type(AddEventHandler) == 'function' then
+    local resourceStartEvent = isServerRuntime() and 'onResourceStart' or 'onClientResourceStart'
+    local resourceStopEvent = isServerRuntime() and 'onResourceStop' or 'onClientResourceStop'
+    AddEventHandler(resourceStartEvent, refreshForResource)
+    AddEventHandler(resourceStopEvent, refreshForResource)
+
+    if not isServerRuntime() and Constants and Constants.Events then
+        AddEventHandler(Constants.Events.CONNECTION_STATE, function(state)
+            local active = PhoneBridges.GetActive()
+            if active and type(active.OnNetworkState) == 'function' then
+                pcall(function() active:OnNetworkState(state) end)
+            end
+        end)
+    end
+end
+
+if isServerRuntime() and type(exports) == 'function' then
+    exports('CanStartCall', PhoneBridges.CanStartCall)
+    exports('CanSendPhoneSMS', PhoneBridges.CanSendSMS)
+    exports('CanUsePhoneData', PhoneBridges.CanUseData)
+    exports('GetPhoneNetworkState', PhoneBridges.GetNetworkState)
+    exports('GetPhoneBridgeStatus', PhoneBridges.GetStatus)
+end

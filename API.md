@@ -24,6 +24,11 @@ All exports accept a player `source` unless noted otherwise.
 | `CanSendSMS(source)` | `available, serviceState` | `false, serviceState` |
 | `HasDataConnection(source)` | `available, serviceState` | `false, serviceState` |
 | `CanUseService(source, service)` | `available, serviceState` | `false, serviceState` |
+| `CanStartCall(source)` | selected phone provider gate, `available, serviceState` | `false, serviceState` |
+| `CanSendPhoneSMS(source)` | selected phone provider SMS gate, `available, serviceState` | `false, serviceState` |
+| `CanUsePhoneData(source)` | selected phone provider data gate, `available, serviceState` | `false, serviceState` |
+| `GetPhoneNetworkState(source)` | selected phone provider network snapshot | `nil` |
+| `GetPhoneBridgeStatus()` | selected phone provider and support level | display status |
 | `GetTowerState(towerId)` | defensive tower runtime state or `nil` | `nil` |
 | `GetIncidentSnapshot()` | incident list and status counts | empty snapshot |
 | `GetBackhaulStatus(towerId)` | `ONLINE`, `DEGRADED` or `OFFLINE` | `ONLINE` when the optional graph is disabled |
@@ -66,4 +71,4 @@ Every event receives `source`, `current` and `previous`. Payload tables are defe
 
 Core state remains server-authoritative. Consumers must treat event payloads as snapshots and use exports for current queries.
 
-Bridge status is grouped by `framework`, `inventory`, `target`, `dispatch` and `phone`. A category status reports the active provider, health state, initialized/available flags, provider priorities and normalized capabilities. Provider failures are isolated and do not stop the telecom core.
+Bridge status is grouped by `framework`, `inventory`, `target`, `dispatch` and `phone`. A category status reports the active provider, health state, initialized/available flags, provider priorities and normalized capabilities. Phone status additionally reports `supportLevel` (`FULL`, `FUNCTIONAL` or `DISPLAY`) and a `support` map. Provider failures are isolated and do not stop the telecom core.

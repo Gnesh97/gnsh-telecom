@@ -336,6 +336,8 @@ function BridgeManager.GetBridgeStatus(category)
             error = current.error,
             capabilities = BridgeCapabilities.Copy(provider.capabilities),
             resources = copy(provider.resources),
+            supportLevel = provider.supportLevel,
+            support = copy(provider.support),
         }
     end
 

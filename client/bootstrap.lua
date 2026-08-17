@@ -3,6 +3,9 @@ local started = false
 local function boot()
     if started then return end
     started = true
+    if PhoneBridges and type(PhoneBridges.Initialize) == 'function' then
+        PhoneBridges.Initialize()
+    end
     print(('[gnsh-telecom] %s'):format(Locale.Translate(Config.Locale, 'startup.ready')))
 end
 
