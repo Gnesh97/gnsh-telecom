@@ -57,6 +57,40 @@ Config.CustomFramework = {
 
 Custom callbacks are isolated with protected calls. They must return validated server-side values; client input must never decide permission, identity or money outcomes.
 
+## Inventory bridges
+
+Inventory selection is automatic by default and supports standalone, `ox_inventory`, `qb-inventory`, `qs-inventory` and custom providers:
+
+```lua
+Config.InventoryBridge = 'auto'
+-- explicit values: standalone, ox, qb, qs or custom
+```
+
+The server-side inventory contract is:
+
+```lua
+InventoryBridge.HasItem(source, item, amount)
+InventoryBridge.RemoveItem(source, item, amount)
+InventoryBridge.AddItem(source, item, amount, metadata)
+InventoryBridge.CanCarry(source, item, amount)
+InventoryBridge.GetItemCount(source, item)
+```
+
+Item-free actions continue without an inventory provider. Item-required actions fail closed, and destructive operations require an explicit provider success result. Technician repairs and sabotage consume items only on the server; repair rollback refunds through the same provider contract.
+
+Custom inventory callbacks can be configured before the resource starts:
+
+```lua
+Config.InventoryBridge = 'custom'
+Config.CustomInventory = {
+    HasItem = function(source, item, amount) return MyInventory:HasItem(source, item, amount) end,
+    RemoveItem = function(source, item, amount, metadata) return MyInventory:RemoveItem(source, item, amount, metadata) end,
+    AddItem = function(source, item, amount, metadata) return MyInventory:AddItem(source, item, amount, metadata) end,
+    CanCarry = function(source, item, amount) return MyInventory:CanCarry(source, item, amount) end,
+    GetItemCount = function(source, item) return MyInventory:GetCount(source, item) end,
+}
+```
+
 ## Configuration
 
 Use automatic detection by default:

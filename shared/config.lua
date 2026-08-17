@@ -469,6 +469,19 @@ function Config.Validate(config)
     elseif config.Framework == 'custom' and type(config.CustomFramework) ~= 'table' then
         addError(errors, 'CustomFramework must be a table when Framework is custom')
     end
+    local validInventoryBridges = {
+        auto = true,
+        standalone = true,
+        ox = true,
+        qb = true,
+        qs = true,
+        custom = true,
+    }
+    if not validInventoryBridges[config.InventoryBridge] then
+        addError(errors, 'InventoryBridge must be auto, standalone, ox, qb, qs or custom')
+    elseif config.InventoryBridge == 'custom' and type(config.CustomInventory) ~= 'table' then
+        addError(errors, 'CustomInventory must be a table when InventoryBridge is custom')
+    end
     local validPhoneBridges = { auto = true, generic = true, lbphone = true, npwd = true, qs = true, custom = true }
     if not validPhoneBridges[config.PhoneBridge] then
         addError(errors, 'PhoneBridge must be auto, generic, lbphone, npwd, qs or custom')

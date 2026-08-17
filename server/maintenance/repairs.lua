@@ -50,6 +50,15 @@ local function requiredItem(failure)
     return configured[failure.type] or configured.default
 end
 
+local function canRefundItem(source, item)
+    if not item then return true end
+    if InventoryBridge and type(InventoryBridge.CanCarry) == 'function' then
+        return InventoryBridge.CanCarry(source, item, 1) == true
+    end
+    return InventoryBridge and type(InventoryBridge.CanAddItem) == 'function'
+        and InventoryBridge.CanAddItem(source, item, 1) == true
+end
+
 local function validateIncident(source, incidentId, checkDistance)
     if not enabled() then return false, 'technician_disabled' end
     if not safeString(incidentId, 64) then return false, 'incident_id_required' end
@@ -127,7 +136,7 @@ function MaintenanceRepairs.Begin(source, incidentId)
     local item = requiredItem(failure)
     local hasItem, itemError = InventoryBridge.HasItem(source, item, 1)
     if not hasItem then return false, itemError or 'required_item_missing' end
-    if item and not InventoryBridge.CanAddItem(source, item) then
+    if item and not canRefundItem(source, item) then
         return false, 'inventory_refund_unavailable'
     end
 
@@ -217,7 +226,7 @@ function MaintenanceRepairs.Complete(source, sessionId)
     local item = requiredItem(failure)
     local hasItem, itemError = InventoryBridge.HasItem(source, item, 1)
     if not hasItem then return false, itemError or 'required_item_missing' end
-    if item and not InventoryBridge.CanAddItem(source, item) then
+    if item and not canRefundItem(source, item) then
         return false, 'inventory_refund_unavailable'
     end
     if incident.failureId ~= failure.id then return false, 'failure_changed' end

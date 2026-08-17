@@ -226,6 +226,8 @@ Config = {
 
     Framework = 'auto',
     CustomFramework = nil,
+    InventoryBridge = 'auto',
+    CustomInventory = nil,
     PhoneBridge = 'auto',
     Towers = {},
 }

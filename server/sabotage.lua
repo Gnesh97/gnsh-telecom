@@ -16,6 +16,21 @@ local function actionConfig(actionId)
     return actions[actionId]
 end
 
+local function requiredItemRequest(action)
+    local item = action and action.requiredItem
+    if item == nil or item == '' then return nil, 1 end
+    if type(item) ~= 'string' or #item > 64 then
+        return nil, 'invalid_required_item'
+    end
+
+    local amount = tonumber(action.requiredAmount) or 1
+    if amount ~= math.floor(amount) or amount <= 0 or amount > 10000
+        or amount ~= amount or amount == math.huge or amount == -math.huge then
+        return nil, 'invalid_required_amount'
+    end
+    return item, amount
+end
+
 function Sabotage.Execute(source, towerId, actionId)
     if not enabled() then return false, 'sabotage_disabled' end
     local configured = Config.Sabotage or {}
@@ -39,8 +54,12 @@ function Sabotage.Execute(source, towerId, actionId)
     )
     if not near then return false, tower end
 
-    local requiredItem = action.requiredItem
-    local hasItem, itemError = InventoryBridge.HasItem(source, requiredItem, action.requiredAmount or 1)
+    local requiredItem, requiredAmountOrError = requiredItemRequest(action)
+    if requiredItem == nil and requiredAmountOrError ~= 1 then
+        return false, requiredAmountOrError
+    end
+    local requiredAmount = requiredAmountOrError
+    local hasItem, itemError = InventoryBridge.HasItem(source, requiredItem, requiredAmount)
     if not hasItem then return false, itemError or 'required_item_missing' end
 
     local existing = FailureEngine.GetTowerFailures(towerId)
@@ -64,7 +83,7 @@ function Sabotage.Execute(source, towerId, actionId)
         local removed, removeError = InventoryBridge.RemoveItem(
             source,
             requiredItem,
-            action.requiredAmount or 1
+            requiredAmount
         )
         if not removed then
             FailureEngine.Clear(failure.id)

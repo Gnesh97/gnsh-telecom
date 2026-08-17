@@ -29,5 +29,7 @@ Important settings:
 - `Config.Statistics` defines aggregate flush cadence and retention limits.
 - `Config.Framework` selects `auto`, `standalone`, `qbcore`, `qbox`, `esx` or `custom`; custom callbacks live under `Config.CustomFramework`.
 - Framework money methods are optional; missing framework capabilities fail closed and are never required by Telecom Core.
+- `Config.InventoryBridge` selects `auto`, `standalone`, `ox`, `qb`, `qs` or `custom`; custom callbacks live under `Config.CustomInventory`.
+- Inventory-dependent actions fail closed when no provider is available; item-free actions remain usable.
 
 Production defaults have `Debug.enabled = false` and `Debug.logLevel = 'info'`. Keep debug logging off in production. The development fixture overlay is opt-in through `config/examples/towers.lua` followed by `config/development.lua`; neither file is loaded by the production manifest.
