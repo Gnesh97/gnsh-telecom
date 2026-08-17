@@ -6,7 +6,10 @@
 local function deploymentToolsEnabledAtLoad()
     if Config.Features and Config.Features.DeploymentTools == true then return true end
     if type(GetConvar) ~= 'function' then return true end
-    local value = tostring(GetConvar('gnsh_telecom_deployment_tools', '0')):lower()
+    local convarName = Config.DeploymentTools
+        and Config.DeploymentTools.convar
+        or 'gnsh_telecom_deployment_tools'
+    local value = tostring(GetConvar(convarName, '0')):lower()
     return value == '1' or value == 'true' or value == 'on'
 end
 

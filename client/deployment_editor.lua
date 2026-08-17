@@ -74,6 +74,11 @@ local function setBlipName(blip, name)
     EndTextCommandSetBlipName(blip)
 end
 
+local function formatRadius(radius)
+    if not isFiniteNumber(radius) or radius <= 0 then return 'n/a' end
+    return ('%dm'):format(math.floor(radius + 0.5))
+end
+
 local function createBlips(coords, radius, label, colour)
     if not isPoint(coords) then return nil, nil end
     local markerBlip
@@ -90,7 +95,11 @@ local function createBlips(coords, radius, label, colour)
     if type(AddBlipForRadius) == 'function' and isFiniteNumber(radius) and radius > 0 then
         radiusBlip = AddBlipForRadius(coords.x, coords.y, coords.z, radius)
         if type(SetBlipColour) == 'function' then SetBlipColour(radiusBlip, colour or 3) end
-        if type(SetBlipAlpha) == 'function' then SetBlipAlpha(radiusBlip, 55) end
+        if type(SetBlipAlpha) == 'function' then SetBlipAlpha(radiusBlip, 110) end
+        if type(SetBlipDisplay) == 'function' then SetBlipDisplay(radiusBlip, 4) end
+        if type(SetBlipHighDetail) == 'function' then SetBlipHighDetail(radiusBlip, true) end
+        if type(SetBlipAsShortRange) == 'function' then SetBlipAsShortRange(radiusBlip, false) end
+        setBlipName(radiusBlip, ('%s | coverage %s'):format(label, formatRadius(radius)))
     end
     return markerBlip, radiusBlip
 end
@@ -183,13 +192,12 @@ local function render()
         }
 
         if type(DrawMarker) == 'function' then
-            local markerSize = math.min(radius * 2.0, 120.0)
             DrawMarker(
                 1,
                 coords.x, coords.y, coords.z - 1.0,
                 0.0, 0.0, 0.0,
                 0.0, 0.0, 0.0,
-                markerSize, markerSize, 2.0,
+                8.0, 8.0, 2.0,
                 40, 170, 255, 90,
                 false, false, 2, false, nil, nil, false
             )
@@ -208,7 +216,7 @@ local function render()
                 tostring(preview.id),
                 tostring(preview.class),
                 state,
-                tostring(preview.coverageRadius),
+                formatRadius(radius),
                 heading
             ))
     end
@@ -234,9 +242,10 @@ local function render()
                 150,
                 false, false, 2, false, nil, nil, false
             )
-            drawText(marker.coords, ('%s | %s'):format(
+            drawText(marker.coords, ('%s | %s | map coverage=%s'):format(
                 tostring(marker.id),
-                marker.captured and 'captured' or 'draft'
+                marker.captured and 'captured anchor' or 'draft anchor',
+                formatRadius(marker.coverageRadius)
             ))
         end
     end

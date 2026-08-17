@@ -7,11 +7,14 @@ memory and do not mutate `Config.Towers` or the authoritative `TowerRegistry`.
 
 `config/deployment_drafts.lua` contains first-pass map anchors for the same
 site IDs. They are explicitly draft-only waypoints. The editor draws a map
-blip and blue radius for each draft; a captured site is shown in green. Draft
-anchors are never loaded into `Config.Towers` and must be replaced by a real
-FiveM capture before export. When the feature flag and development convar are
-off, the runtime leaves `Config.DeploymentDrafts` empty and no draft payload is
-sent to clients.
+blip and a visible blue radius blip for each draft; a captured site is shown
+in green. The point blip and the 3D world marker are only location anchors: the
+3D marker is intentionally small and is not the coverage area. The actual
+coverage radius is the translucent circle on the pause map and is also printed
+in the preview label. Draft anchors are never loaded into `Config.Towers` and
+must be replaced by a real FiveM capture before export. When the feature flag
+and development convar are off, the runtime leaves `Config.DeploymentDrafts`
+empty and no draft payload is sent to clients.
 
 ## Enable it in a development server
 
@@ -32,7 +35,9 @@ tool is always ACE/admin protected through `Config.Debug.adminAce`, `admin`,
 
 1. Run `/telecom_tower_help` or `/telecom_tower_list`.
 2. Run `/telecom_tower_drafts`. Open the pause map to see the draft blips and
-   blue radius circles for all planned sites.
+   blue radius circles for all planned sites. If circles overlap or are outside
+   the current map viewport, run `/telecom_tower_preview <siteId>` and zoom to
+   that one site; its map circle is the coverage visualization.
 3. Drive to the draft marker and inspect the actual ground, rooftop or road
    location. The draft marker is fixed; it does not follow the player.
 4. Optionally preview one site with `/telecom_tower_preview LS-DOWNTOWN-01`.
@@ -53,7 +58,7 @@ tool is always ACE/admin protected through `Config.Debug.adminAce`, `admin`,
    table in `config/towers.lua` only after checking every position, altitude,
    ground/rooftop placement and intended coverage. The export is append-safe
    and does not replace existing towers or backhaul configuration.
-8. Turn the convar off and restart the resource before production use:
+9. Turn the convar off and restart the resource before production use:
 
 ```text
 setr gnsh_telecom_deployment_tools 0

@@ -260,6 +260,67 @@ TEST('client preview retains a fixed draft coordinate when supplied', function()
     TelecomClientDeploymentEditor.ClearPreview()
 end)
 
+TEST('client preview creates a visible map coverage radius', function()
+    local previous = {
+        AddBlipForCoord = rawget(_G, 'AddBlipForCoord'),
+        AddBlipForRadius = rawget(_G, 'AddBlipForRadius'),
+        SetBlipColour = rawget(_G, 'SetBlipColour'),
+        SetBlipScale = rawget(_G, 'SetBlipScale'),
+        SetBlipAsShortRange = rawget(_G, 'SetBlipAsShortRange'),
+        SetBlipAlpha = rawget(_G, 'SetBlipAlpha'),
+        SetBlipDisplay = rawget(_G, 'SetBlipDisplay'),
+        SetBlipHighDetail = rawget(_G, 'SetBlipHighDetail'),
+        RemoveBlip = rawget(_G, 'RemoveBlip'),
+    }
+    local calls = {
+        radius = {},
+        alpha = {},
+        display = {},
+        highDetail = {},
+    }
+    local nextBlip = 0
+
+    AddBlipForCoord = function(x, y, z)
+        nextBlip = nextBlip + 1
+        return { kind = 'coord', x = x, y = y, z = z, id = nextBlip }
+    end
+    AddBlipForRadius = function(x, y, z, radius)
+        nextBlip = nextBlip + 1
+        calls.radius[#calls.radius + 1] = {
+            x = x, y = y, z = z, radius = radius,
+        }
+        return { kind = 'radius', id = nextBlip }
+    end
+    SetBlipColour = function() end
+    SetBlipScale = function() end
+    SetBlipAsShortRange = function() end
+    SetBlipAlpha = function(_, alpha) calls.alpha[#calls.alpha + 1] = alpha end
+    SetBlipDisplay = function(_, display) calls.display[#calls.display + 1] = display end
+    SetBlipHighDetail = function(_, highDetail)
+        calls.highDetail[#calls.highDetail + 1] = highDetail
+    end
+    RemoveBlip = function() end
+
+    local ok, errorMessage = pcall(function()
+        TelecomClientDeploymentEditor.SetEnabled(false)
+        ASSERT_TRUE(TelecomClientDeploymentEditor.SetPreview({
+            id = 'LS-DOWNTOWN-01',
+            class = 'METRO_MACRO',
+            coverageRadius = 850,
+            coords = { x = 10, y = 20, z = 30 },
+        }))
+        ASSERT_EQ(#calls.radius, 1)
+        ASSERT_EQ(calls.radius[1].radius, 850)
+        ASSERT_EQ(calls.alpha[1], 110)
+        ASSERT_EQ(calls.display[1], 4)
+        ASSERT_EQ(calls.highDetail[1], true)
+        TelecomClientDeploymentEditor.SetEnabled(false)
+    end)
+
+    for name, value in pairs(previous) do rawset(_G, name, value) end
+    if not ok then error(errorMessage, 0) end
+end)
+
 TEST('client draft markers can be shown and cleared without native blips', function()
     TelecomClientDeploymentEditor.SetEnabled(false)
     local count = TelecomClientDeploymentEditor.SetDrafts({
