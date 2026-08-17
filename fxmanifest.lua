@@ -62,6 +62,10 @@ server_scripts {
     'bridges/inventory/standalone.lua',
     'bridges/inventory/custom.lua',
     'bridges/target/generic.lua',
+    'bridges/target/ox.lua',
+    'bridges/target/qb.lua',
+    'bridges/target/native.lua',
+    'bridges/target/custom.lua',
     'bridges/dispatch/generic.lua',
     'server/security/validation.lua',
     'server/security/rate_limit.lua',
@@ -93,6 +97,11 @@ server_scripts {
 }
 
 client_scripts {
+    'bridges/target/generic.lua',
+    'bridges/target/ox.lua',
+    'bridges/target/qb.lua',
+    'bridges/target/native.lua',
+    'bridges/target/custom.lua',
     'client/bootstrap.lua',
     'client/environment.lua',
     'client/state.lua',
@@ -100,6 +109,7 @@ client_scripts {
     'client/handover.lua',
     'client/nui.lua',
     'client/technician.lua',
+    'client/interactions.lua',
     'noc/client.lua',
 }
 

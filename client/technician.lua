@@ -57,6 +57,28 @@ function TechnicianClient.Request(action, identifier, reason)
     return true
 end
 
+function TechnicianClient.RequestTower(action, towerId)
+    action = normalizeAction(action)
+    if not Config or not Config.Features
+        or Config.Features.Technician ~= true
+        or Config.Features.Incidents ~= true then
+        return false, 'technician_disabled'
+    end
+    if action ~= 'diagnose' and action ~= 'begin' then
+        return false, 'unknown_target_action'
+    end
+    if not safeString(towerId, 64) then return false, 'tower_id_required' end
+    if type(TriggerServerEvent) ~= 'function' then
+        return false, 'event_api_unavailable'
+    end
+
+    TriggerServerEvent(Constants.Events.MAINTENANCE_TARGET_REQUEST, {
+        action = action,
+        towerId = towerId,
+    })
+    return true
+end
+
 function TechnicianClient.GetLastResponse()
     return copy(lastResponse)
 end

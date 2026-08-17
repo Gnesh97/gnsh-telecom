@@ -91,6 +91,46 @@ Config.CustomInventory = {
 }
 ```
 
+## Target and native interaction bridges
+
+Target interactions are optional. The bridge selects `ox_target`, `qb-target`, a configured custom adapter, or the native prompt/key fallback:
+
+```lua
+Config.TargetBridge = 'auto'
+-- explicit values: native, ox, qb or custom
+```
+
+The provider-neutral client contract is:
+
+```lua
+TargetBridge.AddEntityInteraction(id, entity, options)
+TargetBridge.AddModelInteraction(id, models, options)
+TargetBridge.AddZoneInteraction(id, zone, options)
+TargetBridge.RemoveInteraction(id, handle)
+```
+
+`options` contains intent callbacks such as `onSelect`; callbacks may submit a bounded request, but they must not decide tower state, permissions, incidents, sessions or inventory outcomes. The server validates the source, tower record, player distance, technician job/permission, incident assignment and session state before changing gameplay. When no target resource is available, the native provider uses the configured distance, prompt and key fields and invokes the same client intent callback.
+
+Custom target adapters can be configured before startup:
+
+```lua
+Config.TargetBridge = 'custom'
+Config.CustomTarget = {
+    AddEntityInteraction = function(id, entity, options)
+        return MyTarget:AddEntity(id, options)
+    end,
+    AddModelInteraction = function(id, models, options)
+        return MyTarget:AddModels(models, options)
+    end,
+    AddZoneInteraction = function(id, zone, options)
+        return MyTarget:AddZone(id, zone, options)
+    end,
+    RemoveInteraction = function(id, handle)
+        return MyTarget:Remove(id, handle)
+    end,
+}
+```
+
 ## Configuration
 
 Use automatic detection by default:

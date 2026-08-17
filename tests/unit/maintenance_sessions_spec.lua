@@ -338,6 +338,39 @@ TEST('maintenance wire handler returns session results and supports legacy incid
     restoreMaintenancePlayer(previous)
 end)
 
+TEST('target maintenance wire rejects spoofed and remote tower intents', function()
+    local previous = configureMaintenancePlayer()
+    local previousTriggerClient = rawget(_G, 'TriggerClientEvent')
+    local response
+    TriggerClientEvent = function(_, _, payload) response = payload end
+    resetMaintenanceState()
+    local created = FailureEngine.Create('MAINTENANCE_TOWER', 'RADIO_FAILURE')
+    ASSERT_TRUE(created)
+    local incident = IncidentManager.GetSnapshot().incidents[1]
+
+    rawset(_G, 'source', 7)
+    TriggerTestEvent(Constants.Events.MAINTENANCE_TARGET_REQUEST, {
+        action = 'begin',
+        towerId = 'SPOOFED_TOWER',
+    })
+    ASSERT_FALSE(response.ok)
+    ASSERT_EQ(response.error, 'unknown_tower')
+    ASSERT_EQ(IncidentManager.Get(incident.id).status, Enums.IncidentState.OPEN)
+
+    GetEntityCoords = function() return vector3(1000, 1000, 1000) end
+    TriggerTestEvent(Constants.Events.MAINTENANCE_TARGET_REQUEST, {
+        action = 'begin',
+        towerId = 'MAINTENANCE_TOWER',
+    })
+    ASSERT_FALSE(response.ok)
+    ASSERT_EQ(response.error, 'too_far')
+    ASSERT_EQ(IncidentManager.Get(incident.id).status, Enums.IncidentState.OPEN)
+    rawset(_G, 'source', nil)
+
+    TriggerClientEvent = previousTriggerClient
+    restoreMaintenancePlayer(previous)
+end)
+
 TEST('maintenance sessions clean up on disconnect and resource stop', function()
     local previous = configureMaintenancePlayer()
     MaintenanceSessions.ClearAll()

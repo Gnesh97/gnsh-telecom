@@ -16,6 +16,7 @@ Constants = {
         INCIDENT_REQUEST = 'gnsh-telecom:server:incidentRequest',
         INCIDENT_STATE = 'gnsh-telecom:client:incidentState',
         MAINTENANCE_REQUEST = 'gnsh-telecom:server:maintenanceRequest',
+        MAINTENANCE_TARGET_REQUEST = 'gnsh-telecom:server:maintenanceTargetRequest',
         MAINTENANCE_STATE = 'gnsh-telecom:client:maintenanceState',
         NOC_REQUEST = 'gnsh-telecom:server:nocRequest',
         NOC_STATE = 'gnsh-telecom:client:nocState',

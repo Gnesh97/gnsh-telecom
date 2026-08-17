@@ -482,6 +482,18 @@ function Config.Validate(config)
     elseif config.InventoryBridge == 'custom' and type(config.CustomInventory) ~= 'table' then
         addError(errors, 'CustomInventory must be a table when InventoryBridge is custom')
     end
+    local validTargetBridges = {
+        auto = true,
+        native = true,
+        ox = true,
+        qb = true,
+        custom = true,
+    }
+    if not validTargetBridges[config.TargetBridge] then
+        addError(errors, 'TargetBridge must be auto, native, ox, qb or custom')
+    elseif config.TargetBridge == 'custom' and type(config.CustomTarget) ~= 'table' then
+        addError(errors, 'CustomTarget must be a table when TargetBridge is custom')
+    end
     local validPhoneBridges = { auto = true, generic = true, lbphone = true, npwd = true, qs = true, custom = true }
     if not validPhoneBridges[config.PhoneBridge] then
         addError(errors, 'PhoneBridge must be auto, generic, lbphone, npwd, qs or custom')

@@ -2,6 +2,9 @@ BridgeCapabilities = BridgeCapabilities or {}
 
 local aliases = {
     additem = 'AddItem',
+    addentityinteraction = 'AddEntityInteraction',
+    addmodelinteraction = 'AddModelInteraction',
+    addzoneinteraction = 'AddZoneInteraction',
     addtowertarget = 'AddTowerTarget',
     alert = 'Alert',
     canadditem = 'CanAddItem',
@@ -24,6 +27,7 @@ local aliases = {
     hasjob = 'HasJob',
     isadmin = 'IsAdmin',
     removeitem = 'RemoveItem',
+    removeinteraction = 'RemoveInteraction',
     removetowertarget = 'RemoveTowerTarget',
     removemoney = 'RemoveMoney',
     addmoney = 'AddMoney',
@@ -41,7 +45,14 @@ local knownByCategory = {
         'RemoveMoney',
     },
     inventory = { 'HasItem', 'RemoveItem', 'AddItem', 'CanCarry', 'GetItemCount' },
-    target = { 'AddTowerTarget', 'RemoveTowerTarget' },
+    target = {
+        'AddEntityInteraction',
+        'AddModelInteraction',
+        'AddZoneInteraction',
+        'RemoveInteraction',
+        'AddTowerTarget',
+        'RemoveTowerTarget',
+    },
     dispatch = { 'Alert' },
     phone = {
         'HasSignal',
