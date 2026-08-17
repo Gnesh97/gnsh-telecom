@@ -74,6 +74,10 @@ function NocServer.GetSnapshot(source)
             and BackhaulRouting.GetRegionalSnapshot() or {},
         jammers = features.Jammers == true and Jammers and Jammers.GetAll
             and Jammers.GetAll() or {},
+        subscribers = features.Carriers == true and SubscriberRegistry
+            and SubscriberRegistry.GetAll and SubscriberRegistry.GetAll(
+                tonumber(Config.NOC and Config.NOC.maxEntities) or 500
+            ) or {},
         statistics = TelecomStatistics and TelecomStatistics.GetSnapshot
             and TelecomStatistics.GetSnapshot() or {},
     }

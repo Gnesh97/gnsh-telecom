@@ -22,6 +22,7 @@ function MemoryRepository.New()
         schemaVersion = 0,
         failures = {},
         audits = {},
+        subscribers = {},
     }
 
     function repository:Initialize()
@@ -71,6 +72,33 @@ function MemoryRepository.New()
         if not self.initialized then return false, 'repository_not_initialized' end
         if type(id) ~= 'string' or id == '' then return false, 'failure_id_invalid' end
         self.failures[id] = nil
+        return true
+    end
+
+    function repository:LoadSubscribers()
+        if not self.initialized then return false, nil, 'repository_not_initialized' end
+        local rows = {}
+        for _, playerId in ipairs(sortedKeys(self.subscribers)) do
+            rows[#rows + 1] = copy(self.subscribers[playerId])
+        end
+        return true, rows
+    end
+
+    function repository:SaveSubscriber(row)
+        if not self.initialized then return false, 'repository_not_initialized' end
+        if type(row) ~= 'table' or type(row.player_id) ~= 'string' then
+            return false, 'subscriber_row_invalid'
+        end
+        self.subscribers[row.player_id] = copy(row)
+        return true
+    end
+
+    function repository:DeleteSubscriber(playerId)
+        if not self.initialized then return false, 'repository_not_initialized' end
+        if type(playerId) ~= 'string' or playerId == '' then
+            return false, 'subscriber_player_id_invalid'
+        end
+        self.subscribers[playerId] = nil
         return true
     end
 

@@ -35,6 +35,9 @@ local function boot()
         end
     elseif CarrierRegistry and CarrierRegistry.Reset then
         CarrierRegistry.Reset()
+        if SubscriberRegistry and SubscriberRegistry.Reset then
+            SubscriberRegistry.Reset()
+        end
     end
 
     if BridgeManager and type(BridgeManager.InitializeAll) == 'function' then
@@ -119,6 +122,7 @@ local function shutdown()
     end
     if TelecomStatistics and TelecomStatistics.Shutdown then TelecomStatistics.Shutdown() end
     if Jammers and Jammers.Reset then Jammers.Reset() end
+    if SubscriberRegistry and SubscriberRegistry.Reset then SubscriberRegistry.Reset() end
     started = false
     Log.event(Constants.LogEvent.RESOURCE_STOPPED)
     Log.info(Locale.Translate(Config.Locale, 'startup.stopped'))

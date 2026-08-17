@@ -28,6 +28,23 @@ TEST('memory persistence repository is portable and returns defensive copies', f
     local _, empty = repository:LoadFailures()
     ASSERT_EQ(#empty, 0)
 
+    local subscriber = {
+        player_id = 'license:memory',
+        sim_id = 'sim-memory',
+        carrier_id = 'carrier_a',
+        roaming_allowed = 1,
+        service_class = 'standard',
+    }
+    ASSERT_TRUE(repository:SaveSubscriber(subscriber))
+    subscriber.service_class = 'mutated-after-save'
+    local subscribersOk, subscribers = repository:LoadSubscribers()
+    ASSERT_TRUE(subscribersOk)
+    ASSERT_EQ(#subscribers, 1)
+    ASSERT_EQ(subscribers[1].service_class, 'standard')
+    ASSERT_TRUE(repository:DeleteSubscriber('license:memory'))
+    local _, emptySubscribers = repository:LoadSubscribers()
+    ASSERT_EQ(#emptySubscribers, 0)
+
     local audit = {
         id = 'AUDIT-000201',
         source = 7,

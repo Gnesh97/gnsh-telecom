@@ -11,11 +11,13 @@ local retryRunning = false
 local startRetryLoop
 local pendingFailures = {}
 local pendingAudits = {}
+local pendingSubscribers = {}
 local status = {
     mode = 'uninitialized',
     schemaVersion = 0,
     restoredFailures = 0,
     restoredAudits = 0,
+    restoredSubscribers = 0,
     skippedRows = 0,
     pendingWrites = 0,
     lastError = nil,
@@ -59,6 +61,7 @@ local function updatePendingCount()
     local count = 0
     for _ in pairs(pendingFailures) do count = count + 1 end
     for _ in pairs(pendingAudits) do count = count + 1 end
+    for _ in pairs(pendingSubscribers) do count = count + 1 end
     status.pendingWrites = count
 end
 
@@ -84,6 +87,16 @@ local function queueAudit(row)
     updatePendingCount()
 end
 
+local function queueSubscriberSave(row)
+    pendingSubscribers[row.player_id] = { operation = 'save', row = copy(row) }
+    updatePendingCount()
+end
+
+local function queueSubscriberDelete(playerId)
+    pendingSubscribers[playerId] = { operation = 'delete', playerId = playerId }
+    updatePendingCount()
+end
+
 local function serializeFailure(record)
     if not PersistenceSerializers or not PersistenceSerializers.SerializeFailure then
         return nil, 'serializer_unavailable'
@@ -96,6 +109,13 @@ local function serializeAudit(record)
         return nil, 'serializer_unavailable'
     end
     return PersistenceSerializers.SerializeAudit(record)
+end
+
+local function serializeSubscriber(record)
+    if not PersistenceSerializers or not PersistenceSerializers.SerializeSubscriber then
+        return nil, 'serializer_unavailable'
+    end
+    return PersistenceSerializers.SerializeSubscriber(record)
 end
 
 local function pruneAudit()
@@ -166,6 +186,42 @@ local function persistAudit(record)
     return wrote or repository ~= nil, writeError
 end
 
+local function persistSubscriber(record)
+    local row, serializationError = serializeSubscriber(record)
+    if not row then
+        logError('subscriber persistence serialization failed', { error = serializationError })
+        return false, serializationError
+    end
+
+    local wrote = false
+    local writeError = 'persistence_not_initialized'
+    if initialized and repository and repository:IsAvailable()
+        and type(repository.SaveSubscriber) == 'function' then
+        wrote, writeError = repository:SaveSubscriber(row)
+    end
+    if not wrote or (repository and repository.Name == 'memory' and databaseExpected()) then
+        queueSubscriberSave(row)
+    end
+    if not wrote and writeError then status.lastError = writeError end
+    updatePendingCount()
+    return wrote or repository ~= nil, writeError
+end
+
+local function persistSubscriberDelete(playerId)
+    local wrote = false
+    local writeError = 'persistence_not_initialized'
+    if initialized and repository and repository:IsAvailable()
+        and type(repository.DeleteSubscriber) == 'function' then
+        wrote, writeError = repository:DeleteSubscriber(playerId)
+    end
+    if not wrote or (repository and repository.Name == 'memory' and databaseExpected()) then
+        queueSubscriberDelete(playerId)
+    end
+    if not wrote and writeError then status.lastError = writeError end
+    updatePendingCount()
+    return wrote or repository ~= nil, writeError
+end
+
 local function restoreRows(mergeLocalState)
     if not TowerRegistry or not TowerRegistry.IsInitialized
         or not TowerRegistry.IsInitialized() then
@@ -185,6 +241,16 @@ local function restoreRows(mergeLocalState)
         configSnapshot and configSnapshot.auditRetention or 200
     )
     if not auditOk then return false, auditError or 'audit_load_failed' end
+    local subscriberRows = {}
+    local carriersEnabled = Config and Config.Features
+        and Config.Features.Carriers == true
+    if carriersEnabled and type(repository.LoadSubscribers) == 'function' then
+        local subscribersOk, rows, subscribersError = repository:LoadSubscribers()
+        if not subscribersOk then
+            return false, subscribersError or 'subscriber_load_failed'
+        end
+        subscriberRows = rows or {}
+    end
     if observedGeneration ~= mutationGeneration then return false, 'restore_conflict' end
 
     if not mergeLocalState then
@@ -238,9 +304,36 @@ local function restoreRows(mergeLocalState)
         TelecomAudit.Restore(validAudits, mergeLocalState)
     end
 
+    local validSubscribers = {}
+    local skippedSubscribers = 0
+    if carriersEnabled then
+        for _, row in ipairs(subscriberRows or {}) do
+            local record, errorCode = PersistenceSerializers.DeserializeSubscriber(row)
+            if record then
+                validSubscribers[#validSubscribers + 1] = record
+            else
+                skippedSubscribers = skippedSubscribers + 1
+                logWarn('persistent subscriber row skipped', { error = errorCode })
+            end
+        end
+    end
+
+    local restoredSubscribers = 0
+    if carriersEnabled
+        and SubscriberRegistry and SubscriberRegistry.Restore then
+        local restoredOk, restoredCount, skippedCount = SubscriberRegistry.Restore(
+            validSubscribers, mergeLocalState
+        )
+        if restoredOk then
+            restoredSubscribers = restoredCount or 0
+            skippedSubscribers = skippedSubscribers + (skippedCount or 0)
+        end
+    end
+
     status.restoredFailures = restoredFailures
     status.restoredAudits = #validAudits
-    status.skippedRows = skippedRows
+    status.restoredSubscribers = restoredSubscribers
+    status.skippedRows = skippedRows + skippedSubscribers
     status.lastError = nil
     lastRestoreGeneration = mutationGeneration
     restorePending = false
@@ -313,7 +406,7 @@ local function flushPending(maxPasses)
                 status.lastError = errorCode or 'failure_retry_failed'
             end
         end
-    for _, id in ipairs(sortedKeys(pendingAudits)) do
+        for _, id in ipairs(sortedKeys(pendingAudits)) do
             local item = pendingAudits[id]
             local ok, errorCode = repository:AppendAudit(item.row)
             if ok then
@@ -321,6 +414,23 @@ local function flushPending(maxPasses)
                 flushed = flushed + 1
             else
                 status.lastError = errorCode or 'audit_retry_failed'
+            end
+        end
+        for _, playerId in ipairs(sortedKeys(pendingSubscribers)) do
+            local item = pendingSubscribers[playerId]
+            local ok, errorCode
+            if item.operation == 'delete' and type(repository.DeleteSubscriber) == 'function' then
+                ok, errorCode = repository:DeleteSubscriber(item.playerId)
+            elseif item.operation ~= 'delete' and type(repository.SaveSubscriber) == 'function' then
+                ok, errorCode = repository:SaveSubscriber(item.row)
+            else
+                ok, errorCode = false, 'subscriber_persistence_unsupported'
+            end
+            if ok then
+                pendingSubscribers[playerId] = nil
+                flushed = flushed + 1
+            else
+                status.lastError = errorCode or 'subscriber_retry_failed'
             end
         end
         updatePendingCount()
@@ -394,6 +504,18 @@ function TelecomPersistence.AppendAudit(record)
     if not TelecomPersistence.IsEnabled() then return true end
     mutationGeneration = mutationGeneration + 1
     return persistAudit(record)
+end
+
+function TelecomPersistence.SaveSubscriber(record)
+    if not TelecomPersistence.IsEnabled() then return true end
+    mutationGeneration = mutationGeneration + 1
+    return persistSubscriber(record)
+end
+
+function TelecomPersistence.DeleteSubscriber(playerId)
+    if not TelecomPersistence.IsEnabled() then return true end
+    mutationGeneration = mutationGeneration + 1
+    return persistSubscriberDelete(playerId)
 end
 
 function TelecomPersistence.Flush(maxPasses)
@@ -490,6 +612,14 @@ function TelecomPersistence.GetStatus()
     return copy(status)
 end
 
+function TelecomPersistence.LoadSubscribers()
+    if not repository or not repository:IsAvailable()
+        or type(repository.LoadSubscribers) ~= 'function' then
+        return false, nil, 'subscriber_repository_unavailable'
+    end
+    return repository:LoadSubscribers()
+end
+
 function TelecomPersistence.SetRepository(testRepository)
     stopRetryLoop()
     injectedRepository = testRepository
@@ -514,11 +644,13 @@ function TelecomPersistence.Reset()
     restorePending = false
     pendingFailures = {}
     pendingAudits = {}
+    pendingSubscribers = {}
     status = {
         mode = 'uninitialized',
         schemaVersion = 0,
         restoredFailures = 0,
         restoredAudits = 0,
+        restoredSubscribers = 0,
         skippedRows = 0,
         pendingWrites = 0,
         lastError = nil,
@@ -540,6 +672,11 @@ local function handleResourceStop(resourceName)
     for _, record in ipairs(TelecomAudit and TelecomAudit.GetAll and TelecomAudit.GetAll() or {}) do
         local row = serializeAudit(record)
         if row then queueAudit(row) end
+    end
+    for _, record in ipairs(SubscriberRegistry and SubscriberRegistry.GetAll
+        and SubscriberRegistry.GetAll() or {}) do
+        local row = serializeSubscriber(record)
+        if row then queueSubscriberSave(row) end
     end
     logWarn('oxmysql stopped; persistence switched to memory mode')
 end

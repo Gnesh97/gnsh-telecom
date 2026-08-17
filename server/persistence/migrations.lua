@@ -29,6 +29,14 @@ local fallbackStatements = {
         timestamp BIGINT NOT NULL,
         INDEX idx_telecom_audit_timestamp (timestamp, id)
     )]],
+    [[CREATE TABLE IF NOT EXISTS telecom_subscribers (
+        player_id VARCHAR(128) NOT NULL PRIMARY KEY,
+        sim_id VARCHAR(64) NOT NULL UNIQUE,
+        carrier_id VARCHAR(64) NOT NULL,
+        roaming_allowed TINYINT NOT NULL,
+        service_class VARCHAR(32) NOT NULL,
+        INDEX idx_telecom_subscribers_carrier (carrier_id)
+    )]],
 }
 
 local function trim(value)

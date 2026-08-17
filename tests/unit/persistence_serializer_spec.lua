@@ -51,6 +51,28 @@ TEST('persistence serializers round-trip valid failure and audit records', funct
     ASSERT_EQ(restoredAudit.details.failureId, failure.id)
 end)
 
+TEST('persistence serializers round-trip subscriber records', function()
+    local subscriber = {
+        playerId = 'license:serializer',
+        simId = 'sim-serializer',
+        carrierId = 'carrier_a',
+        roamingAllowed = false,
+        serviceClass = 'priority',
+    }
+    local row, serializeError = PersistenceSerializers.SerializeSubscriber(subscriber)
+    ASSERT_TRUE(row ~= nil, serializeError)
+    ASSERT_EQ(row.player_id, subscriber.playerId)
+    ASSERT_EQ(row.roaming_allowed, 0)
+
+    local restored, restoreError = PersistenceSerializers.DeserializeSubscriber(row)
+    ASSERT_TRUE(restored ~= nil, restoreError)
+    ASSERT_EQ(restored.playerId, subscriber.playerId)
+    ASSERT_EQ(restored.simId, subscriber.simId)
+    ASSERT_EQ(restored.carrierId, subscriber.carrierId)
+    ASSERT_FALSE(restored.roamingAllowed)
+    ASSERT_EQ(restored.serviceClass, subscriber.serviceClass)
+end)
+
 TEST('persistence serializers reject malformed or runtime-only rows', function()
     ASSERT_TRUE(TowerRegistry.Init({ persistenceFailureTower('PERSIST_TOWER') }))
 

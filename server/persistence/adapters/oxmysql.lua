@@ -191,6 +191,46 @@ function OxmysqlRepository.New(options)
         return ok, errorCode
     end
 
+    function repository:LoadSubscribers()
+        local ok, rows, errorCode = self:_call(
+            'query',
+            [[SELECT player_id, sim_id, carrier_id, roaming_allowed, service_class
+                FROM telecom_subscribers
+               ORDER BY player_id ASC]],
+            {}
+        )
+        if not ok then return false, nil, errorCode end
+        return true, copy(type(rows) == 'table' and rows or {})
+    end
+
+    function repository:SaveSubscriber(row)
+        if type(row) ~= 'table' then return false, 'subscriber_row_invalid' end
+        local ok, _, errorCode = self:_call(
+            'execute',
+            [[INSERT INTO telecom_subscribers
+                (player_id, sim_id, carrier_id, roaming_allowed, service_class)
+              VALUES (?, ?, ?, ?, ?)
+              ON DUPLICATE KEY UPDATE
+                sim_id = VALUES(sim_id),
+                carrier_id = VALUES(carrier_id),
+                roaming_allowed = VALUES(roaming_allowed),
+                service_class = VALUES(service_class)]],
+            {
+                row.player_id, row.sim_id, row.carrier_id,
+                row.roaming_allowed, row.service_class,
+            }
+        )
+        return ok, errorCode
+    end
+
+    function repository:DeleteSubscriber(playerId)
+        local ok, _, errorCode = self:_call(
+            'execute', 'DELETE FROM telecom_subscribers WHERE player_id = ?',
+            { playerId }
+        )
+        return ok, errorCode
+    end
+
     function repository:LoadAudit(limit)
         local boundedLimit = tonumber(limit) or 200
         boundedLimit = math.max(1, math.min(1000, math.floor(boundedLimit)))

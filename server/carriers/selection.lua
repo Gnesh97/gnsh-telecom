@@ -136,6 +136,151 @@ local function sortCarriers(left, right)
     return left.id < right.id
 end
 
+local function candidateCarrierSet(candidate)
+    if type(candidate) ~= 'table' then return nil end
+    if not CarrierSelection.GetEffectiveCarrierIds then return nil end
+    local ids = CarrierSelection.GetEffectiveCarrierIds(candidate)
+    local result = {}
+    for _, id in ipairs(ids or {}) do result[id] = true end
+    return result
+end
+
+local function eligibleForSubscriber(carrier, options, candidateIds)
+    if not carrier then return false end
+    if candidateIds and not candidateIds[carrier.id] then return false end
+    if not CarrierRegistry or type(CarrierRegistry.IsAvailable) ~= 'function'
+        or not CarrierRegistry.IsAvailable(carrier.id)
+        or mapBlocks(options.failedCarriers, carrier.id)
+        or mapBlocks(options.carrierFailures, carrier.id)
+        or not allowedByMap(options.availableCarriers, carrier.id)
+        or not supportsTechnology(carrier, options.technology) then
+        return false
+    end
+    return true
+end
+
+local function subscriberResult(subscriber, values)
+    values = values or {}
+    values.available = values.available ~= false
+    values.subscriber = true
+    values.subscriberDetails = copy(subscriber)
+    values.homeCarrierId = subscriber.carrierId
+    values.roaming = values.roaming == true
+    values.priority = values.priority or 0
+    return values
+end
+
+function CarrierSelection.ResolveSubscriberNetwork(source, options)
+    options = type(options) == 'table' and options or {}
+    if not enabled() then
+        return {
+            available = true,
+            subscriber = false,
+            carrierId = nil,
+            carrier = nil,
+            priority = 0,
+            roaming = false,
+            reason = 'disabled',
+        }
+    end
+    if not SubscriberRegistry or type(SubscriberRegistry.Get) ~= 'function' then
+        return {
+            available = true,
+            subscriber = false,
+            carrierId = nil,
+            carrier = nil,
+            priority = 0,
+            roaming = false,
+            reason = 'subscriber_missing',
+        }
+    end
+
+    local subscriber = SubscriberRegistry.Get(source)
+    if not subscriber then
+        return {
+            available = true,
+            subscriber = false,
+            carrierId = nil,
+            carrier = nil,
+            priority = 0,
+            roaming = false,
+            reason = 'subscriber_missing',
+        }
+    end
+    if not CarrierRegistry or not CarrierRegistry.Get then
+        return subscriberResult(subscriber, {
+            available = false,
+            carrierId = nil,
+            carrier = nil,
+            roaming = false,
+            reason = 'no_carrier',
+        })
+    end
+
+    local candidateIds = candidateCarrierSet(options.candidate)
+    local home = CarrierRegistry.Get(subscriber.carrierId)
+    if home and eligibleForSubscriber(home, options, candidateIds) then
+        return subscriberResult(subscriber, {
+            carrierId = home.id,
+            carrier = copy(home),
+            priority = tonumber(home.priority) or 0,
+            roaming = false,
+            reason = 'home',
+        })
+    end
+
+    if subscriber.roamingAllowed ~= true then
+        return subscriberResult(subscriber, {
+            available = false,
+            carrierId = nil,
+            carrier = nil,
+            roaming = false,
+            reason = 'roaming_disabled',
+        })
+    end
+    if not home or type(home.roamingPartners) ~= 'table'
+        or #home.roamingPartners == 0 then
+        return subscriberResult(subscriber, {
+            available = false,
+            carrierId = nil,
+            carrier = nil,
+            roaming = false,
+            reason = 'no_partner',
+        })
+    end
+
+    local partners = {}
+    local seen = {}
+    for _, partnerId in ipairs(home.roamingPartners) do
+        if not seen[partnerId] then
+            seen[partnerId] = true
+            local partner = CarrierRegistry.Get(partnerId)
+            if partner and eligibleForSubscriber(partner, options, candidateIds) then
+                partners[#partners + 1] = partner
+            end
+        end
+    end
+    table.sort(partners, sortCarriers)
+    local selected = partners[1]
+    if not selected then
+        return subscriberResult(subscriber, {
+            available = false,
+            carrierId = nil,
+            carrier = nil,
+            roaming = false,
+            reason = 'no_available_partner',
+        })
+    end
+
+    return subscriberResult(subscriber, {
+        carrierId = selected.id,
+        carrier = copy(selected),
+        priority = tonumber(selected.priority) or 0,
+        roaming = true,
+        reason = 'roaming',
+    })
+end
+
 function CarrierSelection.Resolve(candidate, options)
     options = type(options) == 'table' and options or {}
     if not enabled() then

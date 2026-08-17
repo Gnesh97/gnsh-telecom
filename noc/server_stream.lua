@@ -327,6 +327,40 @@ local function addRegionEntities(entityMap, regions)
     end
 end
 
+local function addSubscriberEntities(entityMap, subscribers)
+    if type(subscribers) ~= 'table' then return end
+    for _, subscriber in ipairs(subscribers) do
+        if type(subscriber) == 'table'
+            and safeString(subscriber.playerId, 128)
+            and safeString(subscriber.simId, 64)
+            and safeString(subscriber.carrierId, 64) then
+            local source = SubscriberRegistry and SubscriberRegistry.GetSource
+                and SubscriberRegistry.GetSource(subscriber.playerId)
+            local network = source and CarrierSelection
+                and CarrierSelection.ResolveSubscriberNetwork
+                and CarrierSelection.ResolveSubscriberNetwork(source) or nil
+            local currentCarrierId = network and network.carrierId or nil
+            addEntity(entityMap, {
+                entityType = 'subscriber',
+                entityId = 'sim:' .. subscriber.simId,
+                state = {
+                    carrierId = subscriber.carrierId,
+                    currentCarrierId = currentCarrierId,
+                    roaming = network and network.roaming == true or false,
+                    serviceClass = subscriber.serviceClass,
+                },
+                metadata = {
+                    playerId = subscriber.playerId,
+                    simId = subscriber.simId,
+                    homeCarrierId = subscriber.carrierId,
+                    roamingAllowed = subscriber.roamingAllowed,
+                    networkReason = network and network.reason or 'unresolved',
+                },
+            })
+        end
+    end
+end
+
 function NocServer.BuildEntities(snapshot)
     if type(snapshot) ~= 'table' then return {} end
     local nextEntities = {}
@@ -344,6 +378,7 @@ function NocServer.BuildEntities(snapshot)
     addBackhaulNodeEntities(nextEntities, snapshot.backhaulNodes)
     addRegionEntities(nextEntities, snapshot.regions)
     addJammerEntities(nextEntities, snapshot.jammers)
+    addSubscriberEntities(nextEntities, snapshot.subscribers)
 
     for key, entity in pairs(registeredEntitiesByKey) do
         nextEntities[key] = copy(entity)

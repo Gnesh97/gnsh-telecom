@@ -462,7 +462,7 @@ function Connections.Reevaluate(source, coords, reportedEnvironment)
 
     local environment = Signal.ResolveEnvironment(coords, reportedEnvironment)
     local candidates = Coverage.GetCandidates(coords, environment)
-    local ranked = Selection.Rank(candidates)
+    local ranked = Selection.Rank(candidates, { source = number })
     local best = chooseServingCandidate(number, previous, ranked)
     local state = emptyState(number)
     if best then

@@ -69,6 +69,7 @@ server_scripts {
     'bridges/frameworks/qbox.lua',
     'bridges/frameworks/esx.lua',
     'bridges/frameworks/custom.lua',
+    'server/carriers/subscribers.lua',
     'bridges/inventory/generic.lua',
     'bridges/inventory/ox.lua',
     'bridges/inventory/qb.lua',

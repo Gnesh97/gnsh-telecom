@@ -29,6 +29,21 @@ TEST('oxmysql adapter is optional and binds all values as parameters', function(
     ASSERT_EQ(call.params[1], 'FAIL-000301')
     ASSERT_TRUE(call.query:find('value-with', 1, true) == nil)
 
+    ASSERT_TRUE(repository:SaveSubscriber({
+        player_id = 'license:oxmysql',
+        sim_id = 'sim-oxmysql',
+        carrier_id = 'carrier_a',
+        roaming_allowed = 1,
+        service_class = 'standard',
+    }))
+    local subscriberCall = calls[#calls]
+    ASSERT_TRUE(subscriberCall.query:find('telecom_subscribers', 1, true) ~= nil)
+    ASSERT_EQ(subscriberCall.params[1], 'license:oxmysql')
+    local loadedSubscribersOk, loadedSubscribers = repository:LoadSubscribers()
+    ASSERT_TRUE(loadedSubscribersOk)
+    ASSERT_EQ(#loadedSubscribers, 0)
+    ASSERT_TRUE(repository:DeleteSubscriber('license:oxmysql'))
+
     local _, autoRepository = PersistenceRepository.Create({ adapter = 'auto' })
     ASSERT_TRUE(autoRepository == nil)
 

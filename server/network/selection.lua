@@ -283,9 +283,26 @@ function Selection.Score(candidate, options)
         return nil, nil
     end
 
+    local subscriberResult
+    if options and options.source
+        and CarrierSelection and CarrierSelection.ResolveSubscriberNetwork then
+        subscriberResult = CarrierSelection.ResolveSubscriberNetwork(options.source, {
+            candidate = candidate,
+            technology = technologyResult.technology,
+            availableCarriers = options.availableCarriers,
+            failedCarriers = options.failedCarriers,
+            carrierFailures = options.carrierFailures,
+        })
+        if subscriberResult and subscriberResult.subscriber then
+            if subscriberResult.available == false then return nil, nil end
+            carrierResult = subscriberResult
+        end
+    end
+
     local details = buildScoreDetails(candidate, runtime, options, technologyResult)
     details.technologyResult = Utils.DeepCopy(technologyResult)
     details.carrierResult = Utils.DeepCopy(carrierResult)
+    details.subscriberResult = subscriberResult and Utils.DeepCopy(subscriberResult) or nil
     details.carrierId = carrierResult.carrierId
     details.carrierPriority = carrierResult.priority or 0
     return details.score, details

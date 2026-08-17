@@ -2,6 +2,9 @@ PersistenceSerializers = PersistenceSerializers or {}
 
 local defaultPayloadLimit = 4096
 local maxIdentifierLength = 64
+local maxSubscriberPlayerIdLength = 128
+local maxSubscriberSimIdLength = 64
+local maxSubscriberServiceClassLength = 32
 local maxReasonLength = 512
 local maxActionLength = 128
 local maxSource = 2147483647
@@ -251,6 +254,12 @@ local function validId(value)
         and value:match('^[%w_.:%-]+$') ~= nil
 end
 
+local function validBoundedId(value, maximumLength)
+    return type(value) == 'string'
+        and #value > 0 and #value <= maximumLength
+        and value:match('^[%w_.:%-]+$') ~= nil
+end
+
 local function normalizeTimestamp(value)
     local number = tonumber(value)
     if not number or number ~= number or number == math.huge or number == -math.huge
@@ -414,9 +423,71 @@ function PersistenceSerializers.DeserializeAudit(row)
     }
 end
 
+function PersistenceSerializers.SerializeSubscriber(record)
+    if type(record) ~= 'table' then return nil, 'subscriber_record_required' end
+    if not validBoundedId(record.playerId, maxSubscriberPlayerIdLength) then
+        return nil, 'subscriber_player_id_invalid'
+    end
+    if not validBoundedId(record.simId, maxSubscriberSimIdLength) then
+        return nil, 'subscriber_sim_id_invalid'
+    end
+    if not validBoundedId(record.carrierId, maxIdentifierLength) then
+        return nil, 'subscriber_carrier_id_invalid'
+    end
+    if type(record.roamingAllowed) ~= 'boolean' then
+        return nil, 'subscriber_roaming_allowed_invalid'
+    end
+    if type(record.serviceClass) ~= 'string' or record.serviceClass == ''
+        or #record.serviceClass > maxSubscriberServiceClassLength then
+        return nil, 'subscriber_service_class_invalid'
+    end
+    return {
+        player_id = record.playerId,
+        sim_id = record.simId,
+        carrier_id = record.carrierId,
+        roaming_allowed = record.roamingAllowed and 1 or 0,
+        service_class = record.serviceClass,
+    }
+end
+
+function PersistenceSerializers.DeserializeSubscriber(row)
+    if type(row) ~= 'table' then return nil, 'subscriber_row_required' end
+    local playerId = row.player_id or row.playerId
+    local simId = row.sim_id or row.simId
+    local carrierId = row.carrier_id or row.carrierId
+    if not validBoundedId(playerId, maxSubscriberPlayerIdLength) then
+        return nil, 'subscriber_player_id_invalid'
+    end
+    if not validBoundedId(simId, maxSubscriberSimIdLength) then
+        return nil, 'subscriber_sim_id_invalid'
+    end
+    if not validBoundedId(carrierId, maxIdentifierLength) then
+        return nil, 'subscriber_carrier_id_invalid'
+    end
+    local rawRoamingAllowed = row.roaming_allowed
+    if rawRoamingAllowed == nil then rawRoamingAllowed = row.roamingAllowed end
+    local roamingAllowed = normalizeActive(rawRoamingAllowed)
+    if roamingAllowed == nil then return nil, 'subscriber_roaming_allowed_invalid' end
+    local serviceClass = row.service_class or row.serviceClass
+    if type(serviceClass) ~= 'string' or serviceClass == ''
+        or #serviceClass > maxSubscriberServiceClassLength then
+        return nil, 'subscriber_service_class_invalid'
+    end
+    return {
+        playerId = playerId,
+        simId = simId,
+        carrierId = carrierId,
+        roamingAllowed = roamingAllowed,
+        serviceClass = serviceClass,
+    }
+end
+
 function PersistenceSerializers.GetLimits()
     return {
         maxIdentifierLength = maxIdentifierLength,
+        maxSubscriberPlayerIdLength = maxSubscriberPlayerIdLength,
+        maxSubscriberSimIdLength = maxSubscriberSimIdLength,
+        maxSubscriberServiceClassLength = maxSubscriberServiceClassLength,
         maxReasonLength = maxReasonLength,
         maxActionLength = maxActionLength,
         maxPayloadBytes = payloadLimit(),
