@@ -1,6 +1,6 @@
 # Bridge integrations
 
-Phone bridges are optional adapters around the public `gnsh-telecom` API. Telecom core never imports phone resources and does not require a phone resource to start.
+Phone bridges are optional adapters around the public `gnsh-telecom` API. Telecom core never imports phone resources and does not require a phone resource to start. The adapter contracts and pure-Lua tests document integration behavior; they are not live provider compatibility certification. See [COMPATIBILITY.md](COMPATIBILITY.md) for the dated evidence matrix.
 
 ## Central bridge platform
 
@@ -88,7 +88,7 @@ When the central table selects this adapter explicitly, set
 
 ## Framework bridges
 
-Framework selection is automatic by default and supports standalone, QBCore, Qbox, ESX and custom providers:
+Framework selection is automatic by default and declares adapters for standalone, QBCore, Qbox, ESX and custom providers:
 
 ```lua
 Config.Framework = 'auto'
@@ -223,7 +223,7 @@ Automatic detection checks started resources in this order: LB Phone, NPWD, QS S
 
 Detection is re-evaluated when a supported phone resource starts or stops, so the telecom resource may be started before the phone resource. Stopping an active phone dependency safely returns the active adapter to generic.
 
-## Phone enforcement support levels
+## Phone enforcement capability levels
 
 Phone providers report an honest support level and capability map through `PhoneBridges.GetStatus()` and `GetPhoneBridgeStatus()`:
 
@@ -233,7 +233,10 @@ Phone providers report an honest support level and capability map through `Phone
 | `FUNCTIONAL` | signal UI and call/SMS/data gates are integrated; provider lifecycle remains outside this resource |
 | `DISPLAY` | signal UI/network state can be displayed, but unsupported provider operations fail closed |
 
-The current providers are intentionally conservative:
+These capability levels describe the adapter contract and are separate from the
+universal compatibility labels in `COMPATIBILITY.md`. They do not promote a
+provider to live `SUPPORTED` or `FULLY SUPPORTED` status. The current provider
+contracts are intentionally conservative:
 
 - `generic`: `FUNCTIONAL`; uses the server-authoritative telecom service policy.
 - `lbphone`: `FUNCTIONAL`; adds documented phone-item and busy-call checks, and maps connection changes to LB service bars on the client.
