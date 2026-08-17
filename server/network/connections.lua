@@ -8,6 +8,7 @@ local handoverBySource = {}
 
 local meaningfulFields = {
     'towerId',
+    'sectorId',
     'signal',
     'signalLevel',
     'technology',
@@ -81,11 +82,25 @@ local function handoverSettings()
     }
 end
 
-local function findRankedTower(ranked, towerId)
+local function findRankedTower(ranked, towerId, sectorId)
     for _, candidate in ipairs(ranked or {}) do
-        if candidate.towerId == towerId then return candidate end
+        if candidate.towerId == towerId
+            and (candidate.sectorId or nil) == (sectorId or nil) then
+            return candidate
+        end
     end
     return nil
+end
+
+local function sameServingCandidate(left, right)
+    return left and right
+        and left.towerId == right.towerId
+        and (left.sectorId or nil) == (right.sectorId or nil)
+end
+
+local function servingKey(candidate)
+    if not candidate or not candidate.towerId then return nil end
+    return candidate.towerId .. ':' .. (candidate.sectorId or '*')
 end
 
 local function chooseServingCandidate(source, previous, ranked)
@@ -101,12 +116,12 @@ local function chooseServingCandidate(source, previous, ranked)
         return best
     end
 
-    local current = findRankedTower(ranked, previous.towerId)
+    local current = findRankedTower(ranked, previous.towerId, previous.sectorId)
     if not current then
         handover.target = nil
         return best
     end
-    if best.towerId == current.towerId then
+    if sameServingCandidate(best, current) then
         handover.target = nil
         return current
     end
@@ -121,8 +136,9 @@ local function chooseServingCandidate(source, previous, ranked)
         return current
     end
 
-    if handover.target ~= best.towerId then
-        handover.target = best.towerId
+    local bestKey = servingKey(best)
+    if handover.target ~= bestKey then
+        handover.target = bestKey
         handover.targetSince = timestamp
         return current
     end
@@ -166,6 +182,7 @@ local function emptyState(source)
     return {
         source = source,
         towerId = nil,
+        sectorId = nil,
         signal = 0,
         rawSignal = 0,
         signalLevel = Signal.GetLevel(0),
@@ -202,6 +219,12 @@ local function normalizeState(source, state)
     end
     if normalized.towerId ~= nil and type(normalized.towerId) ~= 'string' then
         return nil, 'towerId must be a string or nil'
+    end
+    if normalized.sectorId ~= nil and type(normalized.sectorId) ~= 'string' then
+        return nil, 'sectorId must be a string or nil'
+    end
+    if normalized.sectorId ~= nil and normalized.towerId == nil then
+        return nil, 'sectorId requires towerId'
     end
     if type(normalized.signal) ~= 'number' or normalized.signal ~= normalized.signal
         or normalized.signal < 0 or normalized.signal > 100 then
@@ -413,23 +436,32 @@ function Connections.Reevaluate(source, coords, reportedEnvironment)
     local state = emptyState(number)
     if best then
         state.towerId = best.towerId
+        state.sectorId = best.sectorId
         state.signal = best.signal
         state.rawSignal = best.signal
         state.signalLevel = Signal.GetLevel(best.signal)
-        state.technology = best.tower.technologies[1]
-        local runtime = TowerRegistry.GetRuntimeState(best.towerId)
-        state.failureEffects = runtime and runtime.failureEffects or state.failureEffects
+        local sector = best.sector
+        local technologies = sector and sector.technologies or best.tower.technologies
+        state.technology = technologies and technologies[1]
+        local towerRuntime = TowerRegistry.GetRuntimeState(best.towerId)
+        local runtime = best.sectorId and TowerSectors and TowerSectors.GetRuntime
+            and TowerSectors.GetRuntime(best.towerId, best.sectorId)
+            or towerRuntime
+        state.failureEffects = runtime and runtime.failureEffects
+            or towerRuntime and towerRuntime.failureEffects
+            or state.failureEffects
         state.serviceFailures = state.failureEffects.serviceFailures or {}
         state.towerState = runtime and runtime.state or best.tower.state
         state.backhaulStatus = BackhaulRouting and BackhaulRouting.GetTowerStatus
             and BackhaulRouting.GetTowerStatus(best.towerId)
-            or runtime and runtime.backhaulStatus
+            or towerRuntime and towerRuntime.backhaulStatus
             or Enums.BackhaulState.ONLINE
         state.interference = Jammers and Jammers.GetEffect
-            and Jammers.GetEffect(coords, best.tower.technologies)
+            and Jammers.GetEffect(coords, technologies)
             or state.interference
         state.debug = {
             distance = best.distance,
+            sectorId = best.sectorId,
             health = best.scoreDetails and best.scoreDetails.health,
             backhaulStatus = state.backhaulStatus,
             alternatives = {},

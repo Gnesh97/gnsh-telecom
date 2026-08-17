@@ -83,6 +83,19 @@ function TowerValidation.Validate(tower, path)
         addError(errors, path, 'capacity.maximum must be greater than zero')
     end
 
+    if normalized.sectors ~= nil and TowerSectors and TowerSectors.ValidateAll then
+        local sectorsOk, sectorErrors, normalizedSectors = TowerSectors.ValidateAll(
+            normalized.sectors,
+            normalized,
+            path .. '.sectors'
+        )
+        if not sectorsOk then
+            for _, message in ipairs(sectorErrors or {}) do errors[#errors + 1] = message end
+        else
+            normalized.sectors = normalizedSectors
+        end
+    end
+
     validateHardware(normalized, errors, path)
     if not validState(normalized.state) then
         addError(errors, path, 'state is not a valid TowerState')

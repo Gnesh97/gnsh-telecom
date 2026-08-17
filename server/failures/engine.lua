@@ -47,6 +47,20 @@ local function addError(message)
     return false, message
 end
 
+local function recordSectorId(record)
+    if type(record) ~= 'table' then return nil end
+    if type(record.sectorId) == 'string' and record.sectorId ~= '' then
+        return record.sectorId
+    end
+    local metadata = record.metadata
+    if type(metadata) == 'table'
+        and type(metadata.sectorId) == 'string'
+        and metadata.sectorId ~= '' then
+        return metadata.sectorId
+    end
+    return nil
+end
+
 local function isValidId(id)
     return type(id) == 'string' and id ~= '' and #id <= 64
 end
@@ -61,14 +75,18 @@ local function removeOrderedId(id)
     return nil
 end
 
-local function aggregate(towerId, excludedId)
+local function aggregate(towerId, excludedId, sectorId)
     local effects = neutralEffects()
     if not enabled() or type(towerId) ~= 'string' then return effects end
 
     for _, id in ipairs(orderedIds) do
         local record = recordsById[id]
+        local recordSector = record and recordSectorId(record)
+        local appliesToSector = recordSector == nil
+            or (sectorId ~= nil and recordSector == sectorId)
         if record and record.id ~= excludedId
-            and record.towerId == towerId and record.active ~= false then
+            and record.towerId == towerId and record.active ~= false
+            and appliesToSector then
             local definition = FailureTypes.Get(record.type)
             if definition then
                 effects.signalMultiplier = effects.signalMultiplier
@@ -121,6 +139,44 @@ local function applyTower(towerId)
     if Connections and Connections.RefreshTower then
         Connections.RefreshTower(towerId)
     end
+
+    if TowerSectors and TowerSectors.GetForTower and TowerSectors.UpdateRuntime then
+        for _, sector in ipairs(TowerSectors.GetForTower(towerId)) do
+            local sectorEffects = aggregate(towerId, nil, sector.id)
+            local runtimeSector = TowerSectors.GetRuntime(towerId, sector.id) or {}
+            local hasLocalizedFailure = false
+            for _, failure in ipairs(sectorEffects.activeFailures or {}) do
+                if recordSectorId(failure) == sector.id then
+                    hasLocalizedFailure = true
+                    break
+                end
+            end
+            local nextState = runtimeSector.state or sector.state
+            if hasLocalizedFailure and nextState == Enums.TowerState.OPERATIONAL then
+                nextState = Enums.TowerState.DEGRADED
+            elseif not hasLocalizedFailure then
+                nextState = sector.state
+            end
+            TowerSectors.UpdateRuntime(towerId, sector.id, {
+                activeFailures = sectorEffects.activeFailures,
+                failureEffects = sectorEffects,
+                capacityMultiplier = sectorEffects.capacityMultiplier,
+                health = Utils.Clamp(
+                    (sector.health or 100) + (sectorEffects.healthDelta or 0),
+                    0,
+                    100
+                ),
+                state = nextState,
+                updatedAt = now(),
+            })
+        end
+        if Connections and Connections.RefreshTower then
+            Connections.RefreshTower(towerId)
+        end
+        if Capacity and Capacity.RecalculateTower and Connections and Connections.GetAll then
+            Capacity.RecalculateTower(towerId, Connections.GetAll())
+        end
+    end
     return true, effects
 end
 
@@ -128,17 +184,22 @@ function FailureEngine.GetEffects(towerId)
     return copy(aggregate(towerId))
 end
 
+function FailureEngine.GetSectorEffects(towerId, sectorId)
+    if type(sectorId) ~= 'string' then return copy(aggregate(towerId)) end
+    return copy(aggregate(towerId, nil, sectorId))
+end
+
 -- Read-only projection used by post-repair verification. The failure remains
 -- active until verification succeeds, so this never mutates engine state.
 function FailureEngine.GetEffectsAfterClear(failureId)
     local record = recordsById[failureId]
     if not record then return false, 'failure_not_found' end
-    return true, copy(aggregate(record.towerId, failureId))
+    return true, copy(aggregate(record.towerId, failureId, recordSectorId(record)))
 end
 
-function FailureEngine.ApplySignal(signal, towerId)
+function FailureEngine.ApplySignal(signal, towerId, sectorId)
     local normalized = Utils.IsFiniteNumber(signal) and Utils.Clamp(signal, 0, 100) or 0
-    local effects = aggregate(towerId)
+    local effects = aggregate(towerId, nil, sectorId)
     return Utils.Clamp(
         normalized * effects.signalMultiplier * (effects.coverageMultiplier or 1.0),
         0,
@@ -175,6 +236,17 @@ function FailureEngine.Create(towerId, failureType, options)
         source = options.source,
         metadata = type(options.metadata) == 'table' and copy(options.metadata) or {},
     }
+    local sectorId = type(options.sectorId) == 'string' and options.sectorId
+        or type(record.metadata.sectorId) == 'string' and record.metadata.sectorId
+        or nil
+    if sectorId then
+        if not TowerSectors or not TowerSectors.Get
+            or not TowerSectors.Get(towerId, sectorId) then
+            return addError('unknown_sector')
+        end
+        record.sectorId = sectorId
+        record.metadata.sectorId = sectorId
+    end
     local definition = FailureTypes.Get(failureType)
     record.component = type(options.component) == 'string'
         and options.component
@@ -237,6 +309,15 @@ function FailureEngine.Restore(record)
         updatedAt = record.updatedAt,
         component = record.component,
     }
+    local sectorId = recordSectorId(record)
+    if sectorId then
+        if not TowerSectors or not TowerSectors.Get
+            or not TowerSectors.Get(restored.towerId, sectorId) then
+            return false, 'unknown_sector'
+        end
+        restored.sectorId = sectorId
+        restored.metadata.sectorId = sectorId
+    end
     recordsById[restored.id] = restored
     orderedIds[#orderedIds + 1] = restored.id
     updateSequenceFromId(restored.id)

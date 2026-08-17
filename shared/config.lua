@@ -739,6 +739,23 @@ function Config.Validate(config)
         or config.Spatial.cellSize <= 0 then
         addError(errors, 'Spatial.cellSize must be greater than zero')
     end
+    if config.Sectors ~= nil then
+        if type(config.Sectors) ~= 'table' then
+            addError(errors, 'Sectors must be a table')
+        else
+            for _, field in ipairs({ 'maxPerTower', 'maxCandidates' }) do
+                local value = config.Sectors[field]
+                if not isNumber(value) or value ~= math.floor(value) or value < 1 then
+                    addError(errors, ('Sectors.%s must be a positive integer'):format(field))
+                end
+            end
+            if isNumber(config.Sectors.maxPerTower)
+                and isNumber(config.Sectors.maxCandidates)
+                and config.Sectors.maxCandidates < config.Sectors.maxPerTower then
+                addError(errors, 'Sectors.maxCandidates must be at least maxPerTower')
+            end
+        end
+    end
     if type(config.Signal) ~= 'table' or not isNumber(config.Signal.Base)
         or config.Signal.Base <= 0 then
         addError(errors, 'Signal.Base must be greater than zero')

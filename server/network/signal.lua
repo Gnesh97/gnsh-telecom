@@ -7,6 +7,19 @@ local function isUnavailable(tower)
         or state == Enums.TowerState.DESTROYED
 end
 
+local function isSectorUnavailable(tower, sector)
+    if isUnavailable(tower) then return true end
+    if type(sector) ~= 'table' then return false end
+    if TowerSectors and TowerSectors.IsAvailable
+        and not TowerSectors.IsAvailable(tower.id, sector.id, sector) then
+        return true
+    end
+    local state = sector.state
+    return state == Enums.TowerState.MAINTENANCE
+        or state == Enums.TowerState.OFFLINE
+        or state == Enums.TowerState.DESTROYED
+end
+
 local function getBaseSignal()
     local base = Config and Config.Signal and Config.Signal.Base
     if type(base) ~= 'number' or base ~= base or base == math.huge
@@ -90,33 +103,46 @@ function Signal.ResolveEnvironment(coords, reported)
     }
 end
 
-function Signal.CalculateRaw(tower, coords, environmentContext)
+function Signal.CalculateRaw(tower, coords, environmentContext, sector)
     if type(tower) ~= 'table' or not Utils.IsPoint(tower.coords)
-        or not Utils.IsPoint(coords) or isUnavailable(tower) then
+        or not Utils.IsPoint(coords) or isSectorUnavailable(tower, sector) then
         return 0
     end
 
     local coverage = tower.coverage
-    if type(coverage) ~= 'table' or type(coverage.radius) ~= 'number'
-        or coverage.radius ~= coverage.radius or coverage.radius <= 0 then
+    local radius = coverage and coverage.radius
+    local technologies = tower.technologies
+    if type(sector) == 'table' then
+        radius = sector.coverageRadius
+        technologies = sector.technologies
+        if TowerSectors and TowerSectors.IsWithinBeam
+            and not TowerSectors.IsWithinBeam(sector, tower.coords, coords) then
+            return 0
+        end
+    end
+    if type(radius) ~= 'number' or radius ~= radius or radius <= 0 then
         return 0
     end
 
     local distance = Signal.CalculateDistance(tower.coords, coords)
-    if not distance or distance >= coverage.radius then return 0 end
+    if not distance or distance >= radius then return 0 end
 
-    local distanceFactor = 1 - (distance / coverage.radius)
+    local distanceFactor = 1 - (distance / radius)
     local signal = getBaseSignal() * distanceFactor
     local environment = Signal.ResolveEnvironment(coords, environmentContext)
     signal = signal * environment.multiplier
     if FailureEngine and FailureEngine.ApplySignal then
-        signal = FailureEngine.ApplySignal(signal, tower.id)
+        signal = FailureEngine.ApplySignal(signal, tower.id, sector and sector.id)
     end
     if Jammers and Jammers.GetEffect then
-        local interference = Jammers.GetEffect(coords, tower.technologies)
+        local interference = Jammers.GetEffect(coords, technologies)
         signal = signal * (interference.multiplier or 1.0)
     end
     return Utils.Clamp(signal, 0, 100)
+end
+
+function Signal.CalculateSector(tower, coords, environmentContext, sector)
+    return Signal.CalculateRaw(tower, coords, environmentContext, sector)
 end
 
 function Signal.GetLevel(signal)

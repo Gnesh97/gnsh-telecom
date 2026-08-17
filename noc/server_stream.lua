@@ -156,6 +156,41 @@ local function addTowerEntity(entityMap, tower)
     })
 end
 
+local function addSectorEntities(entityMap, tower)
+    if type(tower) ~= 'table' or not safeString(tower.id, 96)
+        or not TowerSectors or not TowerSectors.GetForTower then return end
+
+    for _, sector in ipairs(TowerSectors.GetForTower(tower)) do
+        local runtime = TowerSectors.GetRuntime and TowerSectors.GetRuntime(
+            tower.id, sector.id
+        ) or {}
+        local entityId = tower.id .. ':' .. sector.id
+        if safeString(entityId, 96) then
+            addEntity(entityMap, {
+                entityType = 'sector',
+                entityId = entityId,
+                state = {
+                    state = runtime.state or sector.state,
+                    health = runtime.health or sector.health,
+                    connectedClients = runtime.connectedClients or 0,
+                    loadPercent = runtime.loadPercent or 0,
+                    effectiveCapacity = runtime.effectiveCapacity or sector.capacity,
+                    congestion = runtime.congestion or Enums.CongestionState.NORMAL,
+                },
+                metadata = {
+                    towerId = tower.id,
+                    sectorId = sector.id,
+                    azimuth = sector.azimuth,
+                    beamWidth = sector.beamWidth,
+                    coverageRadius = sector.coverageRadius,
+                    technologies = copy(sector.technologies),
+                    capacity = sector.capacity,
+                },
+            })
+        end
+    end
+end
+
 local function addIncidentEntity(entityMap, incident)
     if type(incident) ~= 'table' or not safeString(incident.id, 96) then return end
     addEntity(entityMap, {
@@ -254,7 +289,10 @@ function NocServer.BuildEntities(snapshot)
     if type(snapshot) ~= 'table' then return {} end
     local nextEntities = {}
 
-    for _, tower in ipairs(snapshot.towers or {}) do addTowerEntity(nextEntities, tower) end
+    for _, tower in ipairs(snapshot.towers or {}) do
+        addTowerEntity(nextEntities, tower)
+        addSectorEntities(nextEntities, tower)
+    end
     local incidentSnapshot = snapshot.incidents or {}
     for _, incident in ipairs(incidentSnapshot.incidents or {}) do
         addIncidentEntity(nextEntities, incident)

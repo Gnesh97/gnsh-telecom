@@ -23,6 +23,7 @@ shared_scripts {
 }
 
 server_scripts {
+    'server/towers/sectors.lua',
     'server/towers/validation.lua',
     'server/towers/state.lua',
     'server/towers/registry.lua',

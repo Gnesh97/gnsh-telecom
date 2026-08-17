@@ -61,9 +61,32 @@ local function getCandidateId(candidate)
     return nil
 end
 
+local function getSector(candidate)
+    if type(candidate) ~= 'table' or type(candidate.sectorId) ~= 'string' then
+        return nil
+    end
+    if type(candidate.sector) == 'table' then return candidate.sector end
+    if TowerSectors and TowerSectors.Get then
+        return TowerSectors.Get(getCandidateId(candidate), candidate.sectorId)
+    end
+    return nil
+end
+
 local function getRuntimeState(candidate, options)
     local towerId = getCandidateId(candidate)
     if not towerId then return nil end
+
+    local sectorId = candidate.sectorId
+    if type(sectorId) == 'string' and options and options.runtimeBySectorId then
+        local composite = towerId .. ':' .. sectorId
+        return options.runtimeBySectorId[composite]
+            or options.runtimeBySectorId[sectorId]
+    end
+
+    if type(sectorId) == 'string' and TowerSectors and TowerSectors.GetRuntime then
+        local sectorRuntime = TowerSectors.GetRuntime(towerId, sectorId)
+        if sectorRuntime then return sectorRuntime end
+    end
 
     if options and options.runtimeByTowerId ~= nil then
         return options.runtimeByTowerId[towerId]
@@ -85,10 +108,12 @@ local function getLoadPercent(candidate, runtime)
     local load = runtime and runtime.loadPercent
     if not isFiniteNumber(load) then
         local connectedClients = runtime and runtime.connectedClients
+        local sector = getSector(candidate)
         local capacity = runtime and runtime.effectiveCapacity
             or candidate.tower
                 and candidate.tower.capacity
                 and candidate.tower.capacity.maximum
+            or sector and sector.capacity
         if isFiniteNumber(connectedClients) and isFiniteNumber(capacity) and capacity > 0 then
             load = (connectedClients / capacity) * 100
         end
@@ -99,6 +124,10 @@ end
 local function getHealth(candidate, runtime)
     local health = runtime and runtime.health
     if not isFiniteNumber(health) then
+        local sector = getSector(candidate)
+        health = sector and sector.health
+    end
+    if not isFiniteNumber(health) then
         local hardware = candidate.tower and candidate.tower.hardware
         health = hardware and hardware.health
     end
@@ -107,8 +136,10 @@ end
 
 local function supportsTechnology(candidate, preferredTechnology)
     if preferredTechnology == nil then return true end
-    if type(candidate.tower.technologies) ~= 'table' then return false end
-    for _, technology in ipairs(candidate.tower.technologies) do
+    local sector = getSector(candidate)
+    local technologies = sector and sector.technologies or candidate.tower.technologies
+    if type(technologies) ~= 'table' then return false end
+    for _, technology in ipairs(technologies) do
         if technology == preferredTechnology then return true end
     end
     return false
@@ -169,6 +200,11 @@ local function compareRanked(left, right)
     local leftLoad = left.scoreDetails.loadPercent
     local rightLoad = right.scoreDetails.loadPercent
     if leftLoad ~= rightLoad then return leftLoad < rightLoad end
+
+    if left.towerId == right.towerId
+        and tostring(left.sectorId or '') ~= tostring(right.sectorId or '') then
+        return tostring(left.sectorId or '') < tostring(right.sectorId or '')
+    end
 
     return left.towerId < right.towerId
 end

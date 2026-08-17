@@ -157,6 +157,66 @@ function Capacity.GetEffectiveCapacity(tower, runtime)
     return configured * multiplier
 end
 
+function Capacity.GetEffectiveSectorCapacity(towerId, sectorId, runtime)
+    if not TowerSectors or not TowerSectors.GetEffectiveCapacity then return nil end
+    local capacity = TowerSectors.GetEffectiveCapacity(towerId, sectorId, runtime)
+    local towerRuntime = TowerRegistry and TowerRegistry.GetRuntimeState
+        and TowerRegistry.GetRuntimeState(towerId)
+    local towerMultiplier = towerRuntime and towerRuntime.capacityMultiplier
+    if not isFiniteNumber(towerMultiplier) or towerMultiplier <= 0 then
+        towerMultiplier = 1
+    end
+    return capacity and capacity * towerMultiplier or nil
+end
+
+local function sectorDefinitions(towerId)
+    if not TowerSectors or not TowerSectors.GetForTower then return {} end
+    return TowerSectors.GetForTower(towerId)
+end
+
+function Capacity.RecalculateSector(towerId, sectorId, connectionStates)
+    if type(towerId) ~= 'string' or type(sectorId) ~= 'string'
+        or not TowerRegistry or not TowerState or not TowerSectors then
+        return nil
+    end
+
+    local tower = TowerRegistry.Get(towerId)
+    local sector = TowerSectors.Get and TowerSectors.Get(towerId, sectorId)
+    local runtime = TowerSectors.GetRuntime and TowerSectors.GetRuntime(towerId, sectorId)
+    if not tower or not sector or not runtime then return nil end
+
+    local connectedClients = 0
+    for _, connection in ipairs(connectionStates or {}) do
+        if type(connection) == 'table'
+            and connection.towerId == towerId
+            and connection.sectorId == sectorId then
+            connectedClients = connectedClients + 1
+        end
+    end
+
+    local result = Capacity.Calculate(
+        connectedClients,
+        Capacity.GetEffectiveSectorCapacity(towerId, sectorId, runtime)
+    )
+    if isFiniteNumber(runtime.debugLoadPercent) then
+        result.loadPercent = math.max(0, runtime.debugLoadPercent)
+        result.congestion = Capacity.GetCongestionState(result.loadPercent)
+        result.effects = Capacity.GetEffects(result.congestion)
+    end
+    result.towerId = towerId
+    result.sectorId = sectorId
+
+    TowerSectors.UpdateRuntime(towerId, sectorId, {
+        connectedClients = result.connectedClients,
+        effectiveCapacity = result.effectiveCapacity,
+        loadPercent = result.loadPercent,
+        congestion = result.congestion,
+        capacityEffects = result.effects,
+        updatedAt = now(),
+    })
+    return result
+end
+
 function Capacity.RecalculateTower(towerId, connectionStates)
     if type(towerId) ~= 'string' or not TowerRegistry or not TowerState then return nil end
 
@@ -171,9 +231,24 @@ function Capacity.RecalculateTower(towerId, connectionStates)
         end
     end
 
+    local sectors = sectorDefinitions(towerId)
+    local sectorResults = {}
+    local effectiveCapacity
+    if #sectors > 0 then
+        effectiveCapacity = 0
+        for _, sector in ipairs(sectors) do
+            local sectorResult = Capacity.RecalculateSector(towerId, sector.id, connectionStates)
+            sectorResults[sector.id] = sectorResult
+            if sectorResult and isFiniteNumber(sectorResult.effectiveCapacity) then
+                effectiveCapacity = effectiveCapacity + sectorResult.effectiveCapacity
+            end
+        end
+        if effectiveCapacity <= 0 then effectiveCapacity = nil end
+    end
+
     local result = Capacity.Calculate(
         connectedClients,
-        Capacity.GetEffectiveCapacity(tower, runtime)
+        effectiveCapacity or Capacity.GetEffectiveCapacity(tower, runtime)
     )
     if isFiniteNumber(runtime.debugLoadPercent) then
         result.loadPercent = math.max(0, runtime.debugLoadPercent)
@@ -181,6 +256,7 @@ function Capacity.RecalculateTower(towerId, connectionStates)
         result.effects = Capacity.GetEffects(result.congestion)
     end
     result.towerId = towerId
+    result.sectors = sectorResults
 
     TowerState.Update(towerId, {
         connectedClients = result.connectedClients,
@@ -273,6 +349,10 @@ function Capacity.ApplyToConnection(connectionState, runtimeState)
     if not isFiniteNumber(rawSignal) then rawSignal = nextState.signal end
     rawSignal = isFiniteNumber(rawSignal) and clamp(rawSignal, 0, 100) or 0
 
+    if not runtimeState and nextState.towerId and nextState.sectorId
+        and TowerSectors and TowerSectors.GetRuntime then
+        runtimeState = TowerSectors.GetRuntime(nextState.towerId, nextState.sectorId)
+    end
     if not runtimeState and nextState.towerId and TowerRegistry then
         runtimeState = TowerRegistry.GetRuntimeState(nextState.towerId)
     end

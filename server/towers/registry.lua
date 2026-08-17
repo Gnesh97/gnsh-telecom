@@ -21,6 +21,9 @@ function TowerRegistry.Init(definitions)
     staticById = nextStatic
     orderedIds = nextIds
     TowerState.Initialize(normalized)
+    if TowerSectors and TowerSectors.Initialize then
+        TowerSectors.Initialize(normalized)
+    end
     initialized = true
     return true, {}, warnings
 end
@@ -48,6 +51,22 @@ end
 
 function TowerRegistry.GetRuntimeState(id)
     return TowerState.Get(id)
+end
+
+function TowerRegistry.GetSectors(id)
+    if TowerSectors and TowerSectors.GetForTower then
+        return TowerSectors.GetForTower(id)
+    end
+    local tower = TowerRegistry.Get(id)
+    return tower and Utils.DeepCopy(tower.sectors or {}) or {}
+end
+
+function TowerRegistry.GetSector(id, sectorId)
+    if TowerSectors and TowerSectors.Get then return TowerSectors.Get(id, sectorId) end
+    for _, sector in ipairs(TowerRegistry.GetSectors(id)) do
+        if sector.id == sectorId then return sector end
+    end
+    return nil
 end
 
 function TowerRegistry.IsInitialized()

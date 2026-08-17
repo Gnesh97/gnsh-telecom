@@ -99,6 +99,11 @@ Config = {
         cellSize = 1000.0,
     },
 
+    Sectors = {
+        maxPerTower = 16,
+        maxCandidates = 64,
+    },
+
     Selection = {
         signalWeight = 1.0,
         loadPenaltyWeight = 0.25,
