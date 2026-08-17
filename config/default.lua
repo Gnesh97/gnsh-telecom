@@ -224,6 +224,8 @@ Config = {
         retention = 1000,
     },
 
+    Framework = 'auto',
+    CustomFramework = nil,
     PhoneBridge = 'auto',
     Towers = {},
 }

@@ -117,6 +117,13 @@ function BridgeManager.GetActive(category)
     return stateFor(category).active
 end
 
+function BridgeManager.HasCapability(category, capability)
+    if type(capability) ~= 'string' or capability == '' then return false end
+    local active = BridgeManager.GetActive(category)
+    return active ~= nil and active.capabilities
+        and active.capabilities[capability] == true
+end
+
 function BridgeManager.InitializeCategory(category, preferred, force)
     if not BridgeContracts.IsCategory(category) then
         return false, nil, 'unknown_category'
@@ -132,7 +139,7 @@ function BridgeManager.InitializeCategory(category, preferred, force)
     shutdownActive(category)
     state.initializing = true
 
-    local providers = BridgeRegistry.List(category)
+    local providers = orderProviders(BridgeRegistry.List(category), preferred)
     if #providers == 0 then
         state.state = BridgeHealth.States.OPTIONAL
         state.initialized = false
@@ -286,6 +293,10 @@ function BridgeManager.Call(category, method, ...)
         local initialized
         initialized, active = BridgeManager.InitializeCategory(category)
         if not initialized then return false, nil, 'bridge_unavailable' end
+    end
+
+    if type(active[method]) ~= 'function' then
+        return false, nil, 'capability_unavailable'
     end
 
     local ok, first, second, third = BridgeLifecycle.Call(active, method, ...)

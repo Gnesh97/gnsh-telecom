@@ -456,6 +456,19 @@ function Config.Validate(config)
     if type(config.Features) ~= 'table' then addError(errors, 'Features must be a table') end
     validateDebug(config, errors)
     validateFeatures(config, errors)
+    local validFrameworks = {
+        auto = true,
+        standalone = true,
+        qbcore = true,
+        qbox = true,
+        esx = true,
+        custom = true,
+    }
+    if not validFrameworks[config.Framework] then
+        addError(errors, 'Framework must be auto, standalone, qbcore, qbox, esx or custom')
+    elseif config.Framework == 'custom' and type(config.CustomFramework) ~= 'table' then
+        addError(errors, 'CustomFramework must be a table when Framework is custom')
+    end
     local validPhoneBridges = { auto = true, generic = true, lbphone = true, npwd = true, qs = true, custom = true }
     if not validPhoneBridges[config.PhoneBridge] then
         addError(errors, 'PhoneBridge must be auto, generic, lbphone, npwd, qs or custom')

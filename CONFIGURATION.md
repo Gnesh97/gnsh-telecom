@@ -27,5 +27,7 @@ Important settings:
 - `Config.Sabotage` defines action-to-failure mappings; clients cannot override them.
 - `Config.Jammers` defines limits, radius, strength, duration and supported technologies.
 - `Config.Statistics` defines aggregate flush cadence and retention limits.
+- `Config.Framework` selects `auto`, `standalone`, `qbcore`, `qbox`, `esx` or `custom`; custom callbacks live under `Config.CustomFramework`.
+- Framework money methods are optional; missing framework capabilities fail closed and are never required by Telecom Core.
 
 Production defaults have `Debug.enabled = false` and `Debug.logLevel = 'info'`. Keep debug logging off in production. The development fixture overlay is opt-in through `config/examples/towers.lua` followed by `config/development.lua`; neither file is loaded by the production manifest.

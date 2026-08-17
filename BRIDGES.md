@@ -16,6 +16,47 @@ local capabilities = exports['gnsh-telecom']:GetBridgeCapabilities('phone')
 
 Provider start/stop events trigger lifecycle reconciliation. Missing optional providers report `OPTIONAL`; a provider exception is isolated and reported as `FAILED` without stopping the telecom core.
 
+## Framework bridges
+
+Framework selection is automatic by default and supports standalone, QBCore, Qbox, ESX and custom providers:
+
+```lua
+Config.Framework = 'auto'
+-- explicit values: standalone, qbcore, qbox, esx or custom
+```
+
+Every framework bridge exposes the same server-side contract:
+
+```lua
+FrameworkBridge.GetPlayer(source)
+FrameworkBridge.GetStablePlayerId(source)
+FrameworkBridge.GetJob(source)
+FrameworkBridge.HasJob(source, jobs)
+FrameworkBridge.IsAdmin(source)
+FrameworkBridge.GetCharacterName(source)
+FrameworkBridge.AddMoney(source, account, amount)       -- optional
+FrameworkBridge.RemoveMoney(source, account, amount)    -- optional
+```
+
+Telecom Core does not require money capabilities. Missing players, exports or optional methods fail closed and do not stop the resource. Framework resource start/stop events trigger provider reconciliation.
+
+Custom frameworks can provide functions through configuration before the resource starts:
+
+```lua
+Config.Framework = 'custom'
+Config.CustomFramework = {
+    GetPlayer = function(source) return MyFramework.GetPlayer(source) end,
+    GetStablePlayerId = function(source) return MyFramework.GetIdentifier(source) end,
+    GetJob = function(source) return MyFramework.GetJob(source) end,
+    HasJob = function(source, jobs) return MyFramework.HasJob(source, jobs) end,
+    IsAdmin = function(source) return MyFramework.IsAdmin(source) end,
+    GetCharacterName = function(source) return MyFramework.GetName(source) end,
+    -- AddMoney / RemoveMoney are optional.
+}
+```
+
+Custom callbacks are isolated with protected calls. They must return validated server-side values; client input must never decide permission, identity or money outcomes.
+
 ## Configuration
 
 Use automatic detection by default:
