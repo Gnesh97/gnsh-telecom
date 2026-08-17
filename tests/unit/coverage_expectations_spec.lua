@@ -25,10 +25,11 @@ TEST('coverage expectation catalog contains required and pending anchors', funct
     ASSERT_TRUE(TelecomCoverageExpectations.Find('LSIA_CORE'))
     ASSERT_TRUE(TelecomCoverageExpectations.Find('SENORA_CORRIDOR'))
 
-    local remote = TelecomCoverageExpectations.Find('RATON_REMOTE')
+    local remote = TelecomCoverageExpectations.Find('MOUNT_CHILIAD_WILDERNESS')
     ASSERT_TRUE(remote)
     ASSERT_TRUE(remote.captureRequired)
     ASSERT_EQ(remote.position, nil)
+    ASSERT_TRUE(TelecomCoverageExpectations.Find('RATON_REMOTE').position)
 end)
 
 TEST('configured production topology satisfies captured anchors and preserves pending weak zones', function()
@@ -45,9 +46,9 @@ TEST('configured production topology satisfies captured anchors and preserves pe
     end
 
     ASSERT_EQ(#results, 20)
-    ASSERT_EQ(pass, 13)
+    ASSERT_EQ(pass, 18)
     ASSERT_EQ(fail, 0)
-    ASSERT_EQ(pending, 7)
+    ASSERT_EQ(pending, 2)
 
     resetExpectationState()
 end)
@@ -80,7 +81,7 @@ end)
 
 TEST('pending weak anchor does not fabricate an evaluation', function()
     local result = TelecomCoverageExpectations.Evaluate(
-        TelecomCoverageExpectations.Find('RATON_REMOTE')
+        TelecomCoverageExpectations.Find('MOUNT_CHILIAD_WILDERNESS')
     )
 
     ASSERT_EQ(result.status, 'PENDING_CAPTURE')

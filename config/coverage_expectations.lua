@@ -101,7 +101,7 @@ Config.CoverageExpectations = {
         source = 'HW-PALOMINO-01 verified capture',
     },
 
-    -- Intentional weak anchors. Capture in FiveM before enabling regression.
+    -- Intentional weak anchors. Uncaptured entries remain pending regression.
     {
         id = 'MOUNT_CHILIAD_WILDERNESS',
         category = 'INTENTIONAL_WEAK_ZONE',
@@ -112,37 +112,43 @@ Config.CoverageExpectations = {
     {
         id = 'RATON_REMOTE',
         category = 'INTENTIONAL_WEAK_ZONE',
+        position = vector3(-1359.16, 4201.02, 18.98),
         expectation = 'WEAK_OR_NONE',
-        captureRequired = true,
+        source = 'verified FiveM capture',
     },
     {
         id = 'TONGVA_INTERIOR',
         category = 'INTENTIONAL_WEAK_ZONE',
+        position = vector3(-2365.52, 1893.07, 186.30),
         expectation = 'WEAK_OR_NONE',
-        captureRequired = true,
+        source = 'verified FiveM capture',
     },
     {
         id = 'TATAVIAM_MOUNTAINS',
         category = 'INTENTIONAL_WEAK_ZONE',
+        position = vector3(1920.28, 775.37, 193.55),
         expectation = 'WEAK_OR_NONE',
-        captureRequired = true,
+        source = 'verified FiveM capture',
     },
     {
         id = 'PALOMINO_HIGHLANDS',
         category = 'INTENTIONAL_WEAK_ZONE',
+        position = vector3(2604.71, -966.07, 28.86),
         expectation = 'WEAK_OR_NONE',
-        captureRequired = true,
+        source = 'verified FiveM capture',
     },
     {
         id = 'ALAMO_NORTH_WILDERNESS',
         category = 'INTENTIONAL_WEAK_ZONE',
+        position = vector3(796.95, 4526.07, 48.37),
         expectation = 'WEAK_OR_NONE',
-        captureRequired = true,
+        source = 'verified FiveM capture',
     },
     {
         id = 'BLAINE_REMOTE_DIRT_ROAD',
         category = 'INTENTIONAL_WEAK_ZONE',
         expectation = 'WEAK_OR_NONE',
         captureRequired = true,
+        note = 'Previous capture at signal 50.08 failed; recapture farther from service.',
     },
 }

@@ -25,16 +25,15 @@ coordinate-free until they are visited and verified in FiveM.
 
 ## Intentional pending work
 
-The following anchors need in-game coordinate capture before TP-05 can be
-accepted as a complete regression baseline:
+Five intentional-weak anchors are now backed by in-game captures. The
+following two anchors still need a point whose measured signal is below 30:
 
 - `MOUNT_CHILIAD_WILDERNESS`
-- `RATON_REMOTE`
-- `TONGVA_INTERIOR`
-- `TATAVIAM_MOUNTAINS`
-- `PALOMINO_HIGHLANDS`
-- `ALAMO_NORTH_WILDERNESS`
 - `BLAINE_REMOTE_DIRT_ROAD`
+
+The submitted `BLAINE_REMOTE_DIRT_ROAD` capture measured signal `50.08`
+(`ORANGE`) and was correctly rejected as `FAIL`; it must be recaptured farther
+from service.
 
 This is deliberate. A red/black heatmap sample alone is not a final anchor;
 the exact point must be chosen and visually verified in FiveM.
