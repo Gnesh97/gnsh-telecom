@@ -92,6 +92,7 @@ server_scripts {
     'server/security/validation.lua',
     'server/security/rate_limit.lua',
     'server/network/service_sessions.lua',
+    'server/network/qos.lua',
     'server/maintenance/sessions.lua',
     'server/maintenance/components.lua',
     'server/maintenance/work_orders.lua',

@@ -413,6 +413,82 @@ local function validateDebug(config, errors)
     end
 end
 
+local qosClasses = {
+    'EMERGENCY',
+    'VOICE',
+    'SMS',
+    'DATA_HIGH',
+    'DATA_NORMAL',
+    'BACKGROUND',
+}
+
+local function validateQoS(config, errors)
+    if config.Features and config.Features.QoS == false then return end
+    local qos = config.QoS
+    if type(qos) ~= 'table' then
+        addError(errors, 'QoS must be a table')
+        return
+    end
+    if type(qos.priorities) ~= 'table' then
+        addError(errors, 'QoS.priorities must be a table')
+        return
+    end
+    for _, class in ipairs(qosClasses) do
+        local priority = qos.priorities[class]
+        if not isNumber(priority) or priority < 0 then
+            addError(errors, ('QoS.priorities.%s must be non-negative'):format(class))
+        end
+    end
+end
+
+local serviceSessionClasses = {
+    'VOICE',
+    'SMS',
+    'DATA',
+    'GPS',
+    'EMERGENCY',
+    'BACKGROUND_DATA',
+}
+
+local function validateServiceSessions(config, errors)
+    if config.Features and config.Features.ServiceSessions == false then return end
+    local sessions = config.ServiceSessions
+    if type(sessions) ~= 'table' then
+        addError(errors, 'ServiceSessions must be a table')
+        return
+    end
+
+    local integerFields = {
+        maxActive = 1,
+        maxActivePerSource = 1,
+        maxMetadataFields = 1,
+        maxMetadataDepth = 1,
+        maxDurationMs = 1000,
+        maxBeginsPerSecond = 1,
+        maxUpdatesPerSecond = 1,
+        maxEndsPerSecond = 1,
+    }
+    for field, minimum in pairs(integerFields) do
+        local value = sessions[field]
+        if not isNumber(value) or value ~= math.floor(value) or value < minimum then
+            addError(errors, ('ServiceSessions.%s must be an integer at least %d')
+                :format(field, minimum))
+        end
+    end
+
+    if type(sessions.demands) ~= 'table' then
+        addError(errors, 'ServiceSessions.demands must be a table')
+        return
+    end
+    for _, service in ipairs(serviceSessionClasses) do
+        local demand = sessions.demands[service]
+        if not isNumber(demand) or demand < 0 then
+            addError(errors, ('ServiceSessions.demands.%s must be non-negative')
+                :format(service))
+        end
+    end
+end
+
 local function validateCarriers(config, errors)
     if not (config.Features and config.Features.Carriers == true) then return end
     if config.Carriers == nil then return end
@@ -783,6 +859,8 @@ function Config.Validate(config)
 
     validateServices(config, errors)
     validateCapacity(config, errors)
+    validateServiceSessions(config, errors)
+    validateQoS(config, errors)
     validateEnvironment(config, errors)
     validateFailureScheduler(config, errors)
     validatePersistence(config, errors)

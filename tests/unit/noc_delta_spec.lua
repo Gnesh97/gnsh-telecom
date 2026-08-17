@@ -1,20 +1,21 @@
-local function makeNocTower(id)
+local function makeNocTower(id, maximum)
     return {
         id = id,
         coords = vector3(0, 0, 0),
         coverage = { radius = 100, minimum = 10 },
         technologies = { '4G' },
-        capacity = { maximum = 100 },
+        capacity = { maximum = maximum or 100 },
     }
 end
 
-local function withNocState(fn)
+local function withNocState(fn, maximum)
     local previous = {
         noc = Config.Features.NOC,
         backhaul = Config.Features.Backhaul,
         jammers = Config.Features.Jammers,
         statistics = Config.Features.Statistics,
         serviceSessions = Config.Features.ServiceSessions,
+        qos = Config.Features.QoS,
         ace = rawget(_G, 'IsPlayerAceAllowed'),
         triggerClient = rawget(_G, 'TriggerClientEvent'),
         maxDeltaEntities = Config.NOC.maxDeltaEntities,
@@ -27,6 +28,7 @@ local function withNocState(fn)
     Config.Features.Jammers = true
     Config.Features.Statistics = false
     Config.Features.ServiceSessions = true
+    Config.Features.QoS = true
     IsPlayerAceAllowed = function(source, ace)
         return (source == 7 or source == 8) and ace == Config.NOC.ace
     end
@@ -35,7 +37,7 @@ local function withNocState(fn)
     end
     Connections.Clear()
     ServiceSessions.Reset()
-    TowerRegistry.Init({ makeNocTower('NOC_TEST_TOWER') })
+    TowerRegistry.Init({ makeNocTower('NOC_TEST_TOWER', maximum) })
     ASSERT_TRUE(SpatialIndex.Rebuild(TowerRegistry.GetAll()))
     NocServer.ResetStream()
     ServiceSessions.Reset()
@@ -48,6 +50,7 @@ local function withNocState(fn)
     Config.Features.Jammers = previous.jammers
     Config.Features.Statistics = previous.statistics
     Config.Features.ServiceSessions = previous.serviceSessions
+    Config.Features.QoS = previous.qos
     Config.NOC.maxDeltaEntities = previous.maxDeltaEntities
     Config.NOC.maxSubscriptions = previous.maxSubscriptions
     rawset(_G, 'IsPlayerAceAllowed', previous.ace)
@@ -67,8 +70,9 @@ TEST('NOC stream sends an initial full snapshot with extensible entities', funct
             services = {},
         }, { skipCapacity = true }))
         TelecomRateLimit.Clear(601)
-        local sessionOk, session = ServiceSessions.Begin(601, 'DATA', {
+        local sessionOk, session = ServiceSessions.Begin(601, 'BACKGROUND_DATA', {
             dashboard = 'noc',
+            intensity = 4,
         })
         ASSERT_TRUE(sessionOk)
         while #events > 0 do table.remove(events) end
@@ -91,12 +95,13 @@ TEST('NOC stream sends an initial full snapshot with extensible entities', funct
             if entity.entityType == 'service_session'
                 and entity.entityId == session.id then
                 sessionFound = true
-                ASSERT_EQ(entity.state.service, 'DATA')
+                ASSERT_EQ(entity.state.service, 'BACKGROUND_DATA')
+                ASSERT_EQ(entity.state.qos.degraded, true)
             end
         end
         ASSERT_TRUE(sessionFound)
         ASSERT_TRUE(ServiceSessions.End(session.id, 601))
-    end)
+    end, 4)
 end)
 
 TEST('NOC stream publishes bounded delta events and updates the entity cache', function()

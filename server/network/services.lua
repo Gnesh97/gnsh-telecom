@@ -59,6 +59,40 @@ local function worstPerformance(left, right)
     return left
 end
 
+local function applyQos(serviceState, qosState)
+    if type(serviceState) ~= 'table' or type(qosState) ~= 'table' then
+        return serviceState
+    end
+
+    serviceState.qos = qosState
+    if qosState.blocked then
+        serviceState.available = false
+        serviceState.reason = 'qos'
+        serviceState.blockedBy = 'qos'
+        return serviceState
+    end
+
+    if qosState.degraded and serviceState.available then
+        serviceState.reason = 'qos_degraded'
+        serviceState.blockedBy = 'qos'
+        local ratio = tonumber(qosState.ratio) or 0
+        if serviceState.dataPerformance then
+            serviceState.dataPerformance = ratio < 0.5
+                and worstPerformance(serviceState.dataPerformance, 'VERY_SLOW')
+                or worstPerformance(serviceState.dataPerformance, 'SLOW')
+        end
+        if serviceState.callSetupReliability then
+            serviceState.callSetupReliability = serviceState.callSetupReliability
+                * math.max(0, math.min(1, ratio))
+        end
+        if serviceState.smsDelayMs then
+            serviceState.smsDelayMs = serviceState.smsDelayMs
+                + math.floor((1 - math.max(0, math.min(1, ratio))) * 1000)
+        end
+    end
+    return serviceState
+end
+
 local function evaluateService(service, signal, connected, context)
     local minimumSignal = ServicePolicy.GetMinimumSignal(service)
     local congestionEffects = getCongestionEffects(
@@ -157,6 +191,8 @@ function Services.Evaluate(connectionState, context)
 
     local signal = normalizeSignal(connectionState.signal)
     local connected = type(connectionState.towerId) == 'string' and signal > 0
+    local qosEnabled = not (Config and Config.Features)
+        or Config.Features.QoS ~= false
     local evaluationContext = {
         towerState = context.towerState or connectionState.towerState,
         backhaulStatus = context.backhaulStatus or connectionState.backhaulStatus,
@@ -165,15 +201,25 @@ function Services.Evaluate(connectionState, context)
         congestionBlocks = context.congestionBlocks or connectionState.congestionBlocks,
         serviceFailures = context.serviceFailures or connectionState.serviceFailures,
         technology = context.technology or connectionState.technology,
+        qos = qosEnabled and (context.qos or connectionState.qos) or nil,
     }
+    if qosEnabled and not evaluationContext.qos and QosEngine
+        and QosEngine.GetSourceServiceStates and connectionState.source ~= nil then
+        local ok, qos = pcall(QosEngine.GetSourceServiceStates, connectionState.source)
+        if ok then evaluationContext.qos = qos end
+    end
     local serviceStates = {}
 
     for _, service in ipairs(ServicePolicy.Names or {}) do
-        serviceStates[service] = evaluateService(
+        local serviceState = evaluateService(
             service,
             signal,
             connected,
             evaluationContext
+        )
+        serviceStates[service] = applyQos(
+            serviceState,
+            evaluationContext.qos and evaluationContext.qos[service]
         )
     end
 
@@ -182,6 +228,7 @@ function Services.Evaluate(connectionState, context)
         towerId = connectionState.towerId,
         signal = signal,
         technology = evaluationContext.technology,
+        qos = evaluationContext.qos,
         services = serviceStates,
     }
 end

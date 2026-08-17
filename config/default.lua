@@ -22,6 +22,7 @@ Config = {
         Jammers = true,
         Statistics = false,
         ServiceSessions = true,
+        QoS = true,
     },
 
     Signal = {
@@ -308,6 +309,17 @@ Config = {
             GPS = 0.75,
             EMERGENCY = 3.0,
             BACKGROUND_DATA = 1.0,
+        },
+    },
+
+    QoS = {
+        priorities = {
+            EMERGENCY = 100,
+            VOICE = 90,
+            SMS = 70,
+            DATA_HIGH = 50,
+            DATA_NORMAL = 30,
+            BACKGROUND = 10,
         },
     },
     Towers = {},

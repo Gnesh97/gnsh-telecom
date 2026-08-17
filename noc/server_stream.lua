@@ -369,6 +369,8 @@ local function addServiceSessionEntities(entityMap, sessions)
             and safeString(session.service, 32)
             and safeString(session.towerId, 96) then
             local sessionId = session.id or session.sessionId
+            local qos = QosEngine and QosEngine.GetServiceResult
+                and QosEngine.GetServiceResult(sessionId) or nil
             addEntity(entityMap, {
                 entityType = 'service_session',
                 entityId = sessionId,
@@ -380,11 +382,22 @@ local function addServiceSessionEntities(entityMap, sessions)
                     demand = session.demand,
                     createdAt = session.createdAt,
                     updatedAt = session.updatedAt,
+                    qos = qos and {
+                        class = qos.class,
+                        priority = qos.priority,
+                        requested = qos.requested,
+                        allocated = qos.allocated,
+                        ratio = qos.ratio,
+                        degraded = qos.degraded,
+                        blocked = qos.blocked,
+                    } or nil,
                 },
                 metadata = {
                     ownerSource = session.ownerSource or session.source,
                     carrierId = session.carrierId,
                     technology = session.technology,
+                    qosClass = session.qosClass,
+                    qosPriority = session.qosPriority,
                     expiresAt = session.expiresAt,
                     details = copy(session.metadata or {}),
                 },

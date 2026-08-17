@@ -196,6 +196,35 @@ local function getServiceDemand(towerId, sectorId)
     return demand, count
 end
 
+local function getQosAllocation(towerId, connectedClients, effectiveCapacity)
+    if Config and Config.Features and Config.Features.QoS == false then
+        if QosEngine and QosEngine.ClearTower then QosEngine.ClearTower(towerId) end
+        return nil
+    end
+    if not QosEngine or not QosEngine.Allocate
+        or not ServiceSessions or not ServiceSessions.GetForTower then
+        return nil
+    end
+    local sessions = ServiceSessions.GetForTower(towerId)
+    local capacity = isFiniteNumber(effectiveCapacity) and effectiveCapacity or 0
+    capacity = math.max(0, capacity - connectedClients)
+    local ok, result = pcall(QosEngine.Allocate, towerId, sessions, capacity)
+    return ok and result or nil
+end
+
+local function qosSummary(allocation)
+    if type(allocation) ~= 'table' then return nil end
+    return {
+        capacity = allocation.capacity,
+        requested = allocation.requested,
+        used = allocation.used,
+        remaining = allocation.remaining,
+        degradedCount = allocation.degradedCount,
+        blockedCount = allocation.blockedCount,
+        overloaded = allocation.overloaded,
+    }
+end
+
 function Capacity.RecalculateSector(towerId, sectorId, connectionStates)
     if type(towerId) ~= 'string' or type(sectorId) ~= 'string'
         or not TowerRegistry or not TowerState or not TowerSectors then
@@ -277,9 +306,11 @@ function Capacity.RecalculateTower(towerId, connectionStates)
     end
 
     local serviceDemand, serviceSessionCount = getServiceDemand(towerId)
+    local resolvedCapacity = effectiveCapacity or Capacity.GetEffectiveCapacity(tower, runtime)
+    local qos = getQosAllocation(towerId, connectedClients, resolvedCapacity)
     local result = Capacity.Calculate(
         connectedClients,
-        effectiveCapacity or Capacity.GetEffectiveCapacity(tower, runtime),
+        resolvedCapacity,
         {
             serviceDemand = serviceDemand,
             serviceSessionCount = serviceSessionCount,
@@ -292,12 +323,15 @@ function Capacity.RecalculateTower(towerId, connectionStates)
     end
     result.towerId = towerId
     result.sectors = sectorResults
+    result.qos = qos
+    result.qosSummary = qosSummary(qos)
 
     TowerState.Update(towerId, {
         connectedClients = result.connectedClients,
         serviceDemand = result.serviceDemand,
         serviceSessionCount = result.serviceSessionCount,
         loadUnits = result.loadUnits,
+        qosSummary = result.qosSummary,
         effectiveCapacity = result.effectiveCapacity,
         loadPercent = result.loadPercent,
         congestion = result.congestion,
@@ -433,6 +467,7 @@ function Capacity.ApplyToConnection(connectionState, runtimeState)
     nextState.serviceDemand = runtimeState.serviceDemand or 0
     nextState.serviceSessionCount = runtimeState.serviceSessionCount or 0
     nextState.loadUnits = runtimeState.loadUnits or nextState.connectedClients
+    nextState.qosSummary = copy(runtimeState.qosSummary)
     nextState.effectiveCapacity = runtimeState.effectiveCapacity
     nextState.capacityEffects = copy(effects)
     nextState.technologyCapacityMultiplier = Technologies

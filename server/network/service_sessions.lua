@@ -156,6 +156,14 @@ local function sessionDemand(service, metadata)
     return baseDemand(service) * multiplier
 end
 
+local function qosDetails(service, metadata)
+    if QosEngine and QosEngine.GetPriority then
+        local priority, details = QosEngine.GetPriority(service, metadata)
+        if type(details) == 'table' then return details.class, priority end
+    end
+    return nil, nil
+end
+
 local function allow(source, operation, maximum)
     if not TelecomRateLimit or not TelecomRateLimit.Allow then return true end
     return TelecomRateLimit.Allow(
@@ -204,6 +212,7 @@ local function removeInternal(sessionId, reason)
 
     if reason then session.endReason = reason end
     session.endedAt = now()
+    if QosEngine and QosEngine.Clear then QosEngine.Clear(sessionId) end
     rememberEnded(sessionId)
     return session, { [session.towerId] = true }
 end
@@ -295,6 +304,7 @@ function ServiceSessions.Begin(source, service, metadata)
     sequence = sequence + 1
     local sessionId = ('service:%s:%08d'):format(instanceId, sequence)
     ServiceSessions._nextSequence = sequence
+    local qosClass, qosPriority = qosDetails(normalizedService, normalizedMetadata)
     local timestamp = now()
     local duration = configNumber('maxDurationMs', 1800000, 1000)
     local session = {
@@ -309,6 +319,8 @@ function ServiceSessions.Begin(source, service, metadata)
         carrierId = connection.carrierId,
         technology = connection.technology,
         demand = demand,
+        qosClass = qosClass,
+        qosPriority = qosPriority,
         metadata = normalizedMetadata,
         createdAt = timestamp,
         updatedAt = timestamp,
@@ -349,6 +361,20 @@ function ServiceSessions.GetForSource(source)
     for sessionId in pairs(idsBySource[normalizedSource] or {}) do
         local session = sessionsById[sessionId]
         if session then result[#result + 1] = copy(session) end
+    end
+    table.sort(result, function(left, right) return left.id < right.id end)
+    return result
+end
+
+function ServiceSessions.GetForTower(towerId, sectorId)
+    purgeExpired()
+    if type(towerId) ~= 'string' then return {} end
+    local result = {}
+    for _, session in pairs(sessionsById) do
+        if session.towerId == towerId
+            and (sectorId == nil or session.sectorId == sectorId) then
+            result[#result + 1] = copy(session)
+        end
     end
     table.sort(result, function(left, right) return left.id < right.id end)
     return result
@@ -395,12 +421,16 @@ function ServiceSessions.Update(sessionId, metadata, ownerSource)
     local merged = mergeMetadata(session.metadata, normalizedMetadata)
     local demand = sessionDemand(session.service, merged)
     if not demand then return false, 'metadata_invalid' end
+    local qosClass, qosPriority = qosDetails(session.service, merged)
 
     local demandChanged = demand ~= session.demand
+    local qosChanged = qosClass ~= session.qosClass or qosPriority ~= session.qosPriority
     session.metadata = merged
     session.demand = demand
+    session.qosClass = qosClass
+    session.qosPriority = qosPriority
     session.updatedAt = now()
-    if demandChanged then refreshTowers({ [session.towerId] = true }) end
+    if demandChanged or qosChanged then refreshTowers({ [session.towerId] = true }) end
     return true, copy(session)
 end
 
@@ -456,6 +486,7 @@ function ServiceSessions.Reset()
     endedById = {}
     endedOrder = {}
     purging = false
+    if QosEngine and QosEngine.Reset then QosEngine.Reset() end
 end
 
 ServiceSessions.BeginServiceSession = ServiceSessions.Begin
