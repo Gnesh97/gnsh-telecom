@@ -95,10 +95,9 @@ local function createBlips(coords, radius, label, colour)
     if type(AddBlipForRadius) == 'function' and isFiniteNumber(radius) and radius > 0 then
         radiusBlip = AddBlipForRadius(coords.x, coords.y, coords.z, radius)
         if type(SetBlipColour) == 'function' then SetBlipColour(radiusBlip, colour or 3) end
-        if type(SetBlipAlpha) == 'function' then SetBlipAlpha(radiusBlip, 110) end
-        -- Radius blips use display 3 for the pause-menu map. Display 4 is
-        -- intended for regular map blips and can hide a radius blip.
-        if type(SetBlipDisplay) == 'function' then SetBlipDisplay(radiusBlip, 3) end
+        if type(SetBlipAlpha) == 'function' then SetBlipAlpha(radiusBlip, 180) end
+        -- Keep the native radius blip's default display mode. Applying
+        -- SetBlipDisplay to a radius blip can suppress its pause-map area.
         if type(SetBlipHighDetail) == 'function' then SetBlipHighDetail(radiusBlip, true) end
         if type(SetBlipAsShortRange) == 'function' then SetBlipAsShortRange(radiusBlip, false) end
         setBlipName(radiusBlip, ('%s | coverage %s'):format(label, formatRadius(radius)))
