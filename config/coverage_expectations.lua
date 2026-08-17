@@ -1,8 +1,7 @@
 -- Golden coverage anchors.
 --
--- Required-service positions below are copied from verified production tower
--- captures. Intentional weak positions remain captureRequired until they are
--- visited and captured in FiveM; do not invent coordinates from memory.
+-- Required-service and intentional-weak positions below are copied from
+-- verified FiveM captures; do not invent coordinates from memory.
 Config.CoverageExpectations = {
     -- Required urban service anchors.
     {
@@ -105,9 +104,9 @@ Config.CoverageExpectations = {
     {
         id = 'MOUNT_CHILIAD_WILDERNESS',
         category = 'INTENTIONAL_WEAK_ZONE',
+        position = vector3(421.27, 5007.20, 401.93),
         expectation = 'WEAK_OR_NONE',
-        captureRequired = true,
-        note = 'Capture away from RM-CHILIAD-CABLE-01 service area.',
+        source = 'verified FiveM capture',
     },
     {
         id = 'RATON_REMOTE',
@@ -147,8 +146,9 @@ Config.CoverageExpectations = {
     {
         id = 'BLAINE_REMOTE_DIRT_ROAD',
         category = 'INTENTIONAL_WEAK_ZONE',
+        position = vector3(658.42, 4613.10, 163.61),
         expectation = 'WEAK_OR_NONE',
-        captureRequired = true,
-        note = 'Previous capture at signal 50.08 failed; recapture farther from service.',
+        source = 'verified FiveM capture',
+        note = 'Previous capture at signal 50.08 failed; final point was recaptured farther from service.',
     },
 }

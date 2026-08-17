@@ -40,11 +40,12 @@ rejected; the final point was recaptured farther from service.
 setr gnsh_telecom_coverage_tools 1
 restart gnsh-telecom
 /telecom_coverage_expectations
-/telecom_coverage_capture RATON_REMOTE WEAK_OR_NONE
 ```
 
-Copy each F8 `coverage config` line into
-`config/coverage_expectations.lua`, restart, and rerun the expectation summary.
+The seven intentional-weak capture lines, including the final Mount Chiliad
+and Blaine points above, are now recorded in
+`config/coverage_expectations.lua`. After a resource restart, rerun the
+expectation summary to confirm the regression baseline.
 
 ## Verification status
 
