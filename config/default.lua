@@ -17,6 +17,7 @@ Config = {
         NOC = true,
         Handover = true,
         Backhaul = true,
+        Carriers = false,
         Sabotage = false,
         Jammers = true,
         Statistics = false,
@@ -110,6 +111,8 @@ Config = {
         healthPenaltyWeight = 0.20,
         technologyPenaltyWeight = 0.10,
     },
+
+    Carriers = {},
 
     Handover = {
         enabled = true,

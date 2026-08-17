@@ -12,6 +12,7 @@ local meaningfulFields = {
     'signal',
     'signalLevel',
     'technology',
+    'carrierId',
     'congestion',
     'backhaulStatus',
 }
@@ -193,6 +194,7 @@ local function emptyState(source)
         rawSignal = 0,
         signalLevel = Signal.GetLevel(0),
         technology = nil,
+        carrierId = nil,
         congestion = Enums.CongestionState.NORMAL,
         loadPercent = 0,
         effectiveCapacity = nil,
@@ -231,6 +233,9 @@ local function normalizeState(source, state)
     end
     if normalized.sectorId ~= nil and normalized.towerId == nil then
         return nil, 'sectorId requires towerId'
+    end
+    if normalized.carrierId ~= nil and type(normalized.carrierId) ~= 'string' then
+        return nil, 'carrierId must be a string or nil'
     end
     if type(normalized.signal) ~= 'number' or normalized.signal ~= normalized.signal
         or normalized.signal < 0 or normalized.signal > 100 then
@@ -471,6 +476,7 @@ function Connections.Reevaluate(source, coords, reportedEnvironment)
         state.technology = best.technology
             or technologies and technologies[1]
         state.technologyFallbackFrom = best.technologyFallbackFrom
+        state.carrierId = best.carrierId
         local towerRuntime = TowerRegistry.GetRuntimeState(best.towerId)
         local runtime = best.sectorId and TowerSectors and TowerSectors.GetRuntime
             and TowerSectors.GetRuntime(best.towerId, best.sectorId)

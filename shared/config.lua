@@ -413,6 +413,22 @@ local function validateDebug(config, errors)
     end
 end
 
+local function validateCarriers(config, errors)
+    if config.Carriers == nil then return end
+    if type(config.Carriers) ~= 'table' then
+        addError(errors, 'Carriers must be a table')
+        return
+    end
+    if Carriers and Carriers.NormalizeAll then
+        local ok, carrierErrors = Carriers.NormalizeAll(config.Carriers)
+        if not ok then
+            for _, message in ipairs(carrierErrors or {}) do
+                addError(errors, message)
+            end
+        end
+    end
+end
+
 local bridgeSections = {
     Framework = true,
     Inventory = true,
@@ -665,6 +681,7 @@ function Config.Validate(config)
     if type(config.Features) ~= 'table' then addError(errors, 'Features must be a table') end
     validateDebug(config, errors)
     validateFeatures(config, errors)
+    validateCarriers(config, errors)
     validateBridges(config, errors)
     local validFrameworks = {
         auto = true,

@@ -105,6 +105,7 @@ function TelecomDebug.InspectTower(towerId)
         coords = copy(tower.coords),
         coverage = copy(tower.coverage),
         technologies = copy(tower.technologies),
+        carriers = copy(tower.carriers),
         capacity = copy(tower.capacity),
         sectors = TowerSectors and TowerSectors.GetForTower
             and TowerSectors.GetForTower(tower.id) or {},

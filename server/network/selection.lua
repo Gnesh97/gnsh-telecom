@@ -268,8 +268,26 @@ function Selection.Score(candidate, options)
         return nil, nil
     end
 
+    local carrierResult = CarrierSelection and CarrierSelection.Resolve
+        and CarrierSelection.Resolve(candidate, {
+            technology = technologyResult.technology,
+            preferredCarrier = options and options.preferredCarrier,
+            requestedCarrier = options and options.requestedCarrier,
+            carrierIds = options and options.carrierIds,
+            availableCarriers = options and options.availableCarriers,
+            failedCarriers = options and options.failedCarriers,
+            carrierFailures = options and options.carrierFailures,
+        })
+        or { available = true, priority = 0, reason = 'disabled' }
+    if not carrierResult or carrierResult.available == false then
+        return nil, nil
+    end
+
     local details = buildScoreDetails(candidate, runtime, options, technologyResult)
     details.technologyResult = Utils.DeepCopy(technologyResult)
+    details.carrierResult = Utils.DeepCopy(carrierResult)
+    details.carrierId = carrierResult.carrierId
+    details.carrierPriority = carrierResult.priority or 0
     return details.score, details
 end
 
@@ -284,6 +302,10 @@ local function compareRanked(left, right)
     local leftTechnology = left.scoreDetails.technologyPriority or 0
     local rightTechnology = right.scoreDetails.technologyPriority or 0
     if leftTechnology ~= rightTechnology then return leftTechnology > rightTechnology end
+
+    local leftCarrier = left.scoreDetails.carrierPriority or 0
+    local rightCarrier = right.scoreDetails.carrierPriority or 0
+    if leftCarrier ~= rightCarrier then return leftCarrier > rightCarrier end
 
     if left.towerId == right.towerId
         and tostring(left.sectorId or '') ~= tostring(right.sectorId or '') then
@@ -304,6 +326,9 @@ function Selection.Rank(candidates, options)
             result.technology = details.technology
             result.technologyFallbackFrom = details.technologyResult
                 and details.technologyResult.fallbackFrom
+            result.carrierId = details.carrierId
+            result.carrier = details.carrierResult
+                and Utils.DeepCopy(details.carrierResult.carrier)
             ranked[#ranked + 1] = result
         end
     end

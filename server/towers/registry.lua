@@ -53,6 +53,21 @@ function TowerRegistry.GetRuntimeState(id)
     return TowerState.Get(id)
 end
 
+function TowerRegistry.GetCarriers(id, sectorId)
+    local tower = staticById[id]
+    if not tower then return {} end
+    if type(sectorId) == 'string' and type(tower.sectors) == 'table' then
+        for _, sector in ipairs(tower.sectors) do
+            if sector.id == sectorId then
+                return Utils.DeepCopy(sector.carriers or tower.carriers or {})
+            end
+        end
+    end
+    return Utils.DeepCopy(tower.carriers or {})
+end
+
+TowerRegistry.GetCarrierIds = TowerRegistry.GetCarriers
+
 function TowerRegistry.GetSectors(id)
     if TowerSectors and TowerSectors.GetForTower then
         return TowerSectors.GetForTower(id)

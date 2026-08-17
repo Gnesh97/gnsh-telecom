@@ -24,6 +24,16 @@ local function boot()
     if started then return true end
     if not validateConfig() then return false end
 
+    if CarrierRegistry and CarrierRegistry.Initialize then
+        local carriersOk, carrierErrors = CarrierRegistry.Initialize(Config.Carriers)
+        if not carriersOk then
+            Log.error('carrier registry validation failed')
+            for _, message in ipairs(carrierErrors or {}) do Log.error(message) end
+            stopAfterInvalidConfig()
+            return false
+        end
+    end
+
     if BridgeManager and type(BridgeManager.InitializeAll) == 'function' then
         local bridgesOk, bridgeStatuses = BridgeManager.InitializeAll()
         if not bridgesOk then

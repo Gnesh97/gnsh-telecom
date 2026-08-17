@@ -142,6 +142,11 @@ end
 
 local function addTowerEntity(entityMap, tower)
     if type(tower) ~= 'table' or not safeString(tower.id, 96) then return end
+    local carriers = tower.carriers
+    if type(carriers) ~= 'table' or next(carriers) == nil then
+        carriers = TowerRegistry and TowerRegistry.GetCarriers
+            and TowerRegistry.GetCarriers(tower.id) or {}
+    end
     addEntity(entityMap, {
         entityType = 'tower',
         entityId = tower.id,
@@ -150,6 +155,7 @@ local function addTowerEntity(entityMap, tower)
             coords = pointCopy(tower.coords),
             coverage = copy(tower.coverage),
             technologies = copy(tower.technologies),
+            carriers = copy(carriers),
             capacity = copy(tower.capacity),
             backhaulStatus = tower.backhaulStatus,
         },
@@ -184,6 +190,7 @@ local function addSectorEntities(entityMap, tower)
                     beamWidth = sector.beamWidth,
                     coverageRadius = sector.coverageRadius,
                     technologies = copy(sector.technologies),
+                    carriers = copy(sector.carriers or tower.carriers),
                     capacity = sector.capacity,
                 },
             })
