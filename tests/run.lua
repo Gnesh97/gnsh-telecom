@@ -40,6 +40,7 @@ end
 
 dofile('config/default.lua')
 dofile('config/deployment_sites.lua')
+dofile('config/deployment_drafts.lua')
 dofile('config/towers.lua')
 dofile('shared/config.lua')
 dofile('shared/constants.lua')

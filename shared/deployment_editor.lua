@@ -126,6 +126,17 @@ function TelecomDeploymentEditor.FindSite(siteId, config)
     return nil
 end
 
+function TelecomDeploymentEditor.FindDraft(siteId, config)
+    if type(siteId) ~= 'string' or siteId == '' then return nil end
+    local current = configTable(config)
+    for _, draft in ipairs(current.DeploymentDrafts or {}) do
+        if type(draft) == 'table' and draft.id == siteId then
+            return copy(draft)
+        end
+    end
+    return nil
+end
+
 function TelecomDeploymentEditor.ValidateCatalog(config)
     local current = configTable(config)
     local errors = {}
@@ -154,6 +165,7 @@ function TelecomDeploymentEditor.ValidateCatalog(config)
         local prefix = ('DeploymentSites[%d]'):format(index)
         if type(site) ~= 'table' then
             addError(errors, prefix .. ' must be a table')
+            if site == nil then addError(errors, 'DeploymentSites must be a contiguous array') end
         else
             if type(site.id) ~= 'string' or site.id == '' then
                 addError(errors, prefix .. '.id must be a non-empty string')
@@ -181,6 +193,58 @@ function TelecomDeploymentEditor.ValidateCatalog(config)
             end
 
             validateTechnologyList(site.technologies, prefix .. '.technologies', errors)
+        end
+    end
+
+    return #errors == 0, errors
+end
+
+function TelecomDeploymentEditor.ValidateDrafts(config)
+    local current = configTable(config)
+    local errors = {}
+    local drafts = current.DeploymentDrafts
+
+    if drafts == nil then return true, errors end
+    if type(drafts) ~= 'table' then
+        return false, { 'DeploymentDrafts must be a table' }
+    end
+    if TelecomDeploymentEditor.IsEnabled(current) and #drafts == 0 then
+        addError(errors, 'DeploymentDrafts must not be empty when deployment tools are enabled')
+    end
+
+    local seen = {}
+    local highestIndex = 0
+    for key in pairs(drafts) do
+        if type(key) ~= 'number' or key ~= math.floor(key) or key < 1 then
+            addError(errors, 'DeploymentDrafts must be a contiguous array')
+        elseif key > highestIndex then
+            highestIndex = key
+        end
+    end
+
+    for index = 1, highestIndex do
+        local draft = drafts[index]
+        local prefix = ('DeploymentDrafts[%d]'):format(index)
+        if type(draft) ~= 'table' then
+            addError(errors, prefix .. ' must be a table')
+            if draft == nil then addError(errors, 'DeploymentDrafts must be a contiguous array') end
+        else
+            if type(draft.id) ~= 'string' or draft.id == '' then
+                addError(errors, prefix .. '.id must be a non-empty string')
+            elseif seen[draft.id] then
+                addError(errors, ('duplicate deployment draft id: %s'):format(draft.id))
+            else
+                seen[draft.id] = true
+                if not TelecomDeploymentEditor.FindSite(draft.id, current) then
+                    addError(errors, prefix .. '.id must reference a deployment site')
+                end
+            end
+            if not isPoint(draft.coords) then
+                addError(errors, prefix .. '.coords must contain finite x, y and z')
+            end
+            if draft.heading ~= nil and not isFiniteNumber(draft.heading) then
+                addError(errors, prefix .. '.heading must be finite when provided')
+            end
         end
     end
 

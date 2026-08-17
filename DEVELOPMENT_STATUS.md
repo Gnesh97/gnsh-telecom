@@ -27,9 +27,9 @@ ise canlı uyumluluk, temiz kurulum ve çoklu oyuncu/runtime kanıtına bağlı.
 ## Tower deployment coverage plan
 
 - **TP-01 tamamlandı:** deployment archetype’leri ve coverage-zone policy’si eklendi; `Config.Towers` hâlâ koordinatsız/boş production default olarak korunuyor.
-- **TP-03 uygulaması başladı:** 32 hedefli koordinatsız site kataloğu, ACE/admin korumalı FiveM preview/capture/export aracı ve append-safe deterministic Lua export eklendi. Araç üretim `TowerRegistry`’sini değiştirmiyor; capture’lar resource restart’ında kayboluyor.
-- **TP-03 doğrulama durumu:** 13 yeni test tanımı eklendi. Bu makinede `lua5.4`/`luac` bulunmadığı için test koşusu henüz yapılamadı; `git diff --check`, katalog statik kontrolleri ve codebase index doğrulaması geçti.
-- **Sonraki kullanıcı adımı:** development server’da `setr gnsh_telecom_deployment_tools 1` ile aracı açıp gerçek FiveM konumlarını yakalamak. Üretim topolojisine yalnızca görsel/zemin/rooftop/terrain doğrulamasından sonra export girdileri taşınacak.
+- **TP-03 uygulaması başladı:** 32 hedefli koordinatsız site kataloğu, ACE/admin korumalı FiveM preview/capture/export aracı, append-safe deterministic Lua export ve development-only sabit taslak harita işaretleri eklendi. Araç üretim `TowerRegistry`’sini değiştirmiyor; capture’lar resource restart’ında kayboluyor.
+- **TP-03 doğrulama durumu:** TP-03/TP-03b için 21 yeni test ile toplam 352 test geçti; recursive Lua syntax kontrolü 189 dosyada geçti. Taslak koordinatlar yalnızca ilk harita waypoint’leridir, production topology değildir.
+- **Sonraki kullanıcı adımı:** development server’da `setr gnsh_telecom_deployment_tools 1` ile aracı açıp `/telecom_tower_drafts` çalıştırmak, taslak blip/radius noktalarını FiveM içinde düzeltmek ve her siteyi gerçek konumda capture etmek. Üretim topolojisine yalnızca görsel/zemin/rooftop/terrain doğrulamasından sonra export girdileri taşınacak.
 
 ## Repository durumu
 

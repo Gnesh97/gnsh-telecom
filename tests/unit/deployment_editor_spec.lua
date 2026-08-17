@@ -78,6 +78,28 @@ TEST('deployment site catalog uses known archetypes, zones and purposes', functi
     end
 end)
 
+TEST('development draft anchors cover the catalog without changing site metadata', function()
+    local ok, errors = TelecomDeploymentEditor.ValidateDrafts()
+    ASSERT_TRUE(ok, table.concat(errors or {}, '; '))
+    ASSERT_EQ(#Config.DeploymentDrafts, #expectedSiteIds)
+
+    for _, siteId in ipairs(expectedSiteIds) do
+        local site = TelecomDeploymentEditor.FindSite(siteId)
+        local draft = TelecomDeploymentEditor.FindDraft(siteId)
+        ASSERT_TRUE(site)
+        ASSERT_TRUE(draft)
+        ASSERT_TRUE(draft.coords)
+        ASSERT_FALSE(site.coords ~= nil)
+    end
+end)
+
+TEST('development draft anchors are immutable copies', function()
+    local draft = TelecomDeploymentEditor.FindDraft('LS-DOWNTOWN-01')
+    ASSERT_TRUE(draft)
+    draft.coords.x = 999999
+    ASSERT_FALSE(TelecomDeploymentEditor.FindDraft('LS-DOWNTOWN-01').coords.x == 999999)
+end)
+
 TEST('deployment editor is disabled by the production default', function()
     ASSERT_FALSE(Config.Features.DeploymentTools)
     ASSERT_FALSE(TelecomDeploymentEditor.IsEnabled())
@@ -161,6 +183,14 @@ TEST('config validation rejects deployment catalog coordinates', function()
     ASSERT_TRUE(found, 'catalog coordinates must be rejected')
 end)
 
+TEST('config validation rejects invalid development draft coordinates', function()
+    local candidate = Utils.DeepCopy(Config)
+    candidate.DeploymentDrafts[1].coords.x = math.huge
+    local ok, errors = Config.Validate(candidate)
+    ASSERT_FALSE(ok)
+    ASSERT_TRUE(table.concat(errors, '; '):find('DeploymentDrafts%[1%]%.coords') ~= nil)
+end)
+
 TEST('config validation rejects catalog holes and duplicate technologies', function()
     local candidate = Utils.DeepCopy(Config)
     candidate.DeploymentSites[2] = nil
@@ -214,6 +244,76 @@ TEST('client editor preview state is isolated and removable', function()
     TelecomClientDeploymentEditor.SetEnabled(false)
 end)
 
+TEST('client preview retains a fixed draft coordinate when supplied', function()
+    ASSERT_TRUE(TelecomClientDeploymentEditor.SetPreview({
+        id = 'LS-DOWNTOWN-01',
+        class = 'METRO_MACRO',
+        coverageRadius = 850,
+        coords = { x = 10, y = 20, z = 30 },
+        heading = 90,
+    }))
+    local status = TelecomClientDeploymentEditor.GetStatus()
+    ASSERT_EQ(status.preview.coords.x, 10)
+    ASSERT_EQ(status.preview.heading, 90)
+    status.preview.coords.x = 99
+    ASSERT_EQ(TelecomClientDeploymentEditor.GetStatus().preview.coords.x, 10)
+    TelecomClientDeploymentEditor.ClearPreview()
+end)
+
+TEST('client draft markers can be shown and cleared without native blips', function()
+    TelecomClientDeploymentEditor.SetEnabled(false)
+    local count = TelecomClientDeploymentEditor.SetDrafts({
+        {
+            id = 'LS-DOWNTOWN-01',
+            coords = { x = 10, y = 20, z = 30 },
+            coverageRadius = 850,
+            draft = true,
+        },
+    })
+    ASSERT_EQ(count, 1)
+    ASSERT_EQ(#TelecomClientDeploymentEditor.GetStatus().drafts, 1)
+    TelecomClientDeploymentEditor.ClearDrafts()
+    ASSERT_EQ(#TelecomClientDeploymentEditor.GetStatus().drafts, 0)
+    ASSERT_FALSE(TelecomClientDeploymentEditor.GetStatus().enabled)
+end)
+
+TEST('clearing one preview preserves visible draft markers', function()
+    TelecomClientDeploymentEditor.SetDrafts({
+        {
+            id = 'LS-DOWNTOWN-01',
+            coords = { x = 10, y = 20, z = 30 },
+            coverageRadius = 850,
+            draft = true,
+        },
+    })
+    TelecomClientDeploymentEditor.SetPreview({
+        id = 'LS-DOWNTOWN-01',
+        class = 'METRO_MACRO',
+        coords = { x = 10, y = 20, z = 30 },
+        coverageRadius = 850,
+    })
+    TelecomClientDeploymentEditor.ClearPreview()
+    ASSERT_EQ(#TelecomClientDeploymentEditor.GetStatus().drafts, 1)
+    ASSERT_TRUE(TelecomClientDeploymentEditor.GetStatus().enabled)
+    TelecomClientDeploymentEditor.SetEnabled(false)
+end)
+
+TEST('client resource stop clears all draft editor state', function()
+    TelecomClientDeploymentEditor.SetDrafts({
+        {
+            id = 'LS-DOWNTOWN-01',
+            coords = { x = 10, y = 20, z = 30 },
+            coverageRadius = 850,
+            draft = true,
+        },
+    })
+    TriggerTestEvent('onClientResourceStop', 'gnsh-telecom')
+    local status = TelecomClientDeploymentEditor.GetStatus()
+    ASSERT_FALSE(status.enabled)
+    ASSERT_EQ(status.preview, nil)
+    ASSERT_EQ(#status.drafts, 0)
+end)
+
 TEST('server editor starts without authoritative captures', function()
     TelecomDeploymentEditorServer.Reset()
     ASSERT_EQ(#TelecomDeploymentEditorServer.GetCaptures(), 0)
@@ -224,4 +324,20 @@ TEST('server editor does not register commands under production defaults', funct
     local ok, errorCode = TelecomDeploymentEditorServer.RegisterCommands()
     ASSERT_FALSE(ok)
     ASSERT_EQ(errorCode, 'deployment_tools_disabled')
+end)
+
+TEST('server editor registers fixed draft commands only when enabled', function()
+    local previousFeature = Config.Features.DeploymentTools
+    local previousRegister = rawget(_G, 'RegisterCommand')
+    local registered = {}
+    Config.Features.DeploymentTools = true
+    RegisterCommand = function(name) registered[name] = true end
+
+    local ok, errorCode = TelecomDeploymentEditorServer.RegisterCommands()
+    ASSERT_TRUE(ok, errorCode)
+    ASSERT_TRUE(registered.telecom_tower_drafts)
+    ASSERT_TRUE(registered.telecom_tower_clear_drafts)
+
+    Config.Features.DeploymentTools = previousFeature
+    rawset(_G, 'RegisterCommand', previousRegister)
 end)

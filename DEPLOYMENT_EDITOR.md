@@ -5,6 +5,14 @@ The deployment editor is a development-only authoring tool. The catalog in
 purpose, but deliberately contains no coordinates. Captures live in server
 memory and do not mutate `Config.Towers` or the authoritative `TowerRegistry`.
 
+`config/deployment_drafts.lua` contains first-pass map anchors for the same
+site IDs. They are explicitly draft-only waypoints. The editor draws a map
+blip and blue radius for each draft; a captured site is shown in green. Draft
+anchors are never loaded into `Config.Towers` and must be replaced by a real
+FiveM capture before export. When the feature flag and development convar are
+off, the runtime leaves `Config.DeploymentDrafts` empty and no draft payload is
+sent to clients.
+
 ## Enable it in a development server
 
 Enable it with the server convar before starting the resource:
@@ -23,17 +31,24 @@ tool is always ACE/admin protected through `Config.Debug.adminAce`, `admin`,
 ## Capture workflow
 
 1. Run `/telecom_tower_help` or `/telecom_tower_list`.
-2. Start a preview, for example `/telecom_tower_preview LS-DOWNTOWN-01`.
-3. Move the player to the real, visually validated FiveM position. The marker
-   follows the player, shows the archetype radius and draws the current heading.
-4. If needed, choose another profile with
+2. Run `/telecom_tower_drafts`. Open the pause map to see the draft blips and
+   blue radius circles for all planned sites.
+3. Drive to the draft marker and inspect the actual ground, rooftop or road
+   location. The draft marker is fixed; it does not follow the player.
+4. Optionally preview one site with `/telecom_tower_preview LS-DOWNTOWN-01`.
+   A draft-backed preview is fixed at its draft coordinate; a site without a
+   draft falls back to following the player.
+5. If needed, choose another profile with
    `/telecom_tower_archetype LS-DOWNTOWN-01 TOWN_MACRO`.
-5. Capture the server-authoritative player position with
+6. Move to the final, visually validated point, face the intended antenna
+   direction, then capture the server-authoritative player position with
    `/telecom_tower_capture LS-DOWNTOWN-01`.
-6. Use `/telecom_tower_nearest` to inspect the nearest captured site while
+7. The captured marker/radius is updated to the new position. Use
+   `/telecom_tower_nearest` to inspect the nearest captured site while
    moving between locations. Use `/telecom_tower_remove_preview` to clear the
-   marker or `/telecom_tower_remove_capture <siteId>` to discard a capture.
-7. Run `/telecom_tower_export` from the server console or as an admin. Copy
+   marker, `/telecom_tower_clear_drafts` to hide all draft markers, or
+   `/telecom_tower_remove_capture <siteId>` to discard a capture.
+8. Run `/telecom_tower_export` from the server console or as an admin. Copy
    the deterministic entries inside the existing `Config.Towers = { ... }`
    table in `config/towers.lua` only after checking every position, altitude,
    ground/rooftop placement and intended coverage. The export is append-safe
@@ -54,6 +69,8 @@ unreviewed development capture from silently becoming production topology.
 | --- | --- |
 | `/telecom_tower_editor` | Toggle the local preview editor |
 | `/telecom_tower_list` | List the coordinate-free site catalog |
+| `/telecom_tower_drafts` | Show all development draft blips and radius circles |
+| `/telecom_tower_clear_drafts` | Hide all development draft blips |
 | `/telecom_tower_preview <siteId>` | Preview a catalog site and its radius |
 | `/telecom_tower_archetype <siteId> <class>` | Select a reusable archetype for the preview |
 | `/telecom_tower_capture <siteId>` | Capture the server-authoritative player position |

@@ -18,8 +18,8 @@ multiplayer/runtime evidence.
 | Version metadata | PASS | `Config.Version` and `fxmanifest.lua` are `0.1.0-rc.1`; API schema remains `1.0` by contract |
 | MIT license | PASS | `LICENSE` present |
 | Documentation packet | PASS | Installation, API, bridges, phone, carrier, NOC, backhaul, security, compatibility and performance docs present |
-| Pure Lua release/unit suite | PASS (baseline) | Previous baseline `lua tests/run.lua`: 331 passed, 0 failed. TP-03 adds 13 tests; current machine has no Lua 5.4/`luac` binary, so the updated suite is pending execution. |
-| Lua syntax | PASS | Recursive `loadfile` check: `Lua syntax OK` |
+| Pure Lua release/unit suite | PASS | Bundled Lua 5.4.8: 352 passed, 0 failed. TP-03/TP-03b adds 21 tests over the 331-test baseline. |
+| Lua syntax | PASS | Bundled Lua 5.4.8 `luac -p`: 189 files passed |
 | Diff hygiene | PASS | `git diff --check` produced no whitespace errors |
 | Synthetic scale | PASS | `lua tests/performance/scale_harness.lua`: exit code 0; results in `PERFORMANCE.md` |
 | Synthetic compatibility matrix | PASS | All matrix rows are `EXPERIMENTAL`; no unsupported live claim is promoted |

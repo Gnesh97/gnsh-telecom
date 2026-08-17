@@ -183,7 +183,7 @@ Config.Backhaul.links = {
 
 Production defaults contain no towers and no test backhaul nodes. Development fixtures live in `config/examples/towers.lua`; `config/development.lua` is an optional development overlay and is not loaded by the production manifest.
 
-The coordinate-free deployment catalog lives in `config/deployment_sites.lua`. It is not tower topology. To author real positions in FiveM, enable the admin-only development editor with `setr gnsh_telecom_deployment_tools 1`, follow [DEPLOYMENT_EDITOR.md](DEPLOYMENT_EDITOR.md), then copy only reviewed export entries inside the existing `Config.Towers` table in `config/towers.lua`.
+The coordinate-free deployment catalog lives in `config/deployment_sites.lua`. Development-only first-pass map anchors live separately in `config/deployment_drafts.lua`; they are visual waypoints, not tower topology. To author real positions in FiveM, enable the admin-only development editor with `setr gnsh_telecom_deployment_tools 1`, run `/telecom_tower_drafts`, follow [DEPLOYMENT_EDITOR.md](DEPLOYMENT_EDITOR.md), then copy only reviewed export entries inside the existing `Config.Towers` table in `config/towers.lua`.
 
 ## Start
 

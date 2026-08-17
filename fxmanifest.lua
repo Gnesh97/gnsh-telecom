@@ -11,6 +11,7 @@ version '0.1.0-rc.1'
 shared_scripts {
     'config/default.lua',
     'config/deployment_sites.lua',
+    'config/deployment_drafts.lua',
     'config/towers.lua',
     'shared/config.lua',
     'shared/constants.lua',

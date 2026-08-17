@@ -847,6 +847,15 @@ local function validateDeploymentSites(config, errors)
     end
 end
 
+local function validateDeploymentDrafts(config, errors)
+    if TelecomDeploymentEditor and TelecomDeploymentEditor.ValidateDrafts then
+        local ok, draftErrors = TelecomDeploymentEditor.ValidateDrafts(config)
+        if not ok then
+            for _, message in ipairs(draftErrors or {}) do addError(errors, message) end
+        end
+    end
+end
+
 function Config.Validate(config)
     config = config or Config
     local errors, warnings = {}, {}
@@ -974,6 +983,7 @@ function Config.Validate(config)
     validateDeployment(config, errors)
     validateDeploymentTools(config, errors)
     validateDeploymentSites(config, errors)
+    validateDeploymentDrafts(config, errors)
     validateTowers(config, errors, warnings)
 
     return #errors == 0, errors, warnings

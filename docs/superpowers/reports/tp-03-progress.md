@@ -6,8 +6,8 @@
 
 ## Status
 
-Implementation complete; automated Lua execution is pending because this
-workspace does not contain `lua5.4` or `luac`.
+Implementation complete for TP-03 and the fixed draft-map extension TP-03b.
+The bundled Lua 5.4.8 runtime is available and the automated checks pass.
 
 ## Implemented
 
@@ -20,6 +20,11 @@ workspace does not contain `lua5.4` or `luac`.
   nearest inspection, deterministic export and preview/capture removal.
 - Added a client preview marker that follows the player and shows coverage
   radius plus the current FiveM heading direction.
+- Added 32 development-only draft anchors with map blips and blue radius
+  circles. Draft anchors are visual waypoints only; they are not `Config.Towers`
+  and are replaced by server-authoritative captures after user validation.
+- Added `/telecom_tower_drafts` and `/telecom_tower_clear_drafts`; captured
+  markers move to the verified coordinates and change state on the client.
 - Kept captures in bounded in-memory state only; no runtime mutation of
   `Config.Towers` or `TowerRegistry` occurs.
 - Added fail-closed catalog/capture validation and append-safe export entries
@@ -33,6 +38,7 @@ workspace does not contain `lua5.4` or `luac`.
 
 - `config/default.lua`
 - `config/deployment_sites.lua`
+- `config/deployment_drafts.lua`
 - `config/development.lua`
 - `shared/config.lua`
 - `shared/constants.lua`
@@ -52,11 +58,12 @@ workspace does not contain `lua5.4` or `luac`.
 ## Verification
 
 - PASS: `git diff --check` (no whitespace errors; only expected CRLF notices).
-- PASS: catalog static check — 32 IDs, 32 unique, zero coordinate fields.
+- PASS: catalog static check — 32 IDs, 32 unique, zero production coordinate fields.
+- PASS: development draft check — 32 IDs, valid finite coordinates, all linked to
+  the coordinate-free catalog.
 - PASS: manifest file existence check for all editor files.
-- PASS: codebase-memory index completed.
-- PENDING: `lua5.4 tests/run.lua` and recursive Lua syntax check; no Lua
-  interpreter is installed in this workspace.
+- PASS: `lua-5.4.8/lua.exe tests/run.lua` — 352 passed, 0 failed.
+- PASS: `lua-5.4.8/luac.exe -p` recursive syntax check — 189 files.
 
 ## Performance Review
 
@@ -73,8 +80,8 @@ workspace does not contain `lua5.4` or `luac`.
 
 ## Ready for Next Track
 
-NO — first run the updated Lua suite, then capture and visually validate the
-planned positions in FiveM before moving to TP-02 production topology.
+NO — first capture and visually validate the planned positions in FiveM before
+moving to TP-02 production topology.
 
 ## Commit
 

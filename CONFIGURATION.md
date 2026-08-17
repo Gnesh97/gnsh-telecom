@@ -32,6 +32,7 @@ Important settings:
 - `Config.TowerArchetypes` defines reusable `METRO_MACRO`, `TOWN_MACRO`, `RURAL_MACRO`, `HIGHWAY_REPEATER` and `REMOTE_REPEATER` profiles.
 - `Config.CoverageZones` defines deployment-intent labels. A tower's optional `class` and `coverageZone` are validated without replacing the existing tower schema.
 - `Config.DeploymentSites` is a coordinate-free authoring catalog. It is not loaded into `Config.Towers` and cannot supply production coordinates.
+- `Config.DeploymentDrafts` contains development-only first-pass map anchors. They are visual waypoints only; verified player captures are required before export.
 - `Config.DeploymentTools` limits in-memory captures. Enable the editor only on a development server with the `gnsh_telecom_deployment_tools` convar; see [DEPLOYMENT_EDITOR.md](DEPLOYMENT_EDITOR.md).
 - `Config.Framework` selects `auto`, `standalone`, `qbcore`, `qbox`, `esx` or `custom`; custom callbacks live under `Config.CustomFramework`.
 - Framework money methods are optional; missing framework capabilities fail closed and are never required by Telecom Core.

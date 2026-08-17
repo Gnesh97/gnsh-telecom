@@ -4,6 +4,7 @@ local registeredCommands = false
 local capturesById = {}
 local previewBySource = {}
 local enabledBySource = {}
+local draftsVisibleBySource = {}
 
 local function copy(value)
     if Utils and Utils.DeepCopy then return Utils.DeepCopy(value) end
@@ -166,10 +167,52 @@ local function sendPreview(source, site)
         or not Constants or not Constants.Events then return end
 
     local payload = copy(site)
+    local capture = capturesById[payload.id]
+    local draft = TelecomDeploymentEditor.FindDraft(payload.id, Config)
+    if capture then
+        payload.class = capture.class
+        payload.coverageZone = capture.coverageZone
+        payload.purpose = capture.purpose
+        payload.technologies = copy(capture.technologies)
+        payload.coords = copy(capture.coords)
+        payload.heading = capture.heading
+        payload.captured = true
+    elseif draft then
+        payload.coords = copy(draft.coords)
+        payload.heading = draft.heading
+        payload.draft = true
+    end
     local archetype = Config.TowerArchetypes and Config.TowerArchetypes[payload.class] or {}
     payload.coverageRadius = archetype.coverageRadius
     payload.capacity = archetype.capacity
     TriggerClientEvent(Constants.Events.DEPLOYMENT_EDITOR_PREVIEW, number, payload)
+end
+
+local function draftPayloads()
+    local payloads = {}
+    for _, site in ipairs(Config.DeploymentSites or {}) do
+        local draft = TelecomDeploymentEditor.FindDraft(site.id, Config)
+        if draft then
+            local payload = copy(site)
+            local capture = capturesById[site.id]
+            if capture then
+                payload.class = capture.class
+                payload.coverageZone = capture.coverageZone
+                payload.purpose = capture.purpose
+                payload.technologies = copy(capture.technologies)
+            end
+            payload.coords = copy(capture and capture.coords or draft.coords)
+            payload.heading = capture and capture.heading or draft.heading
+            local archetype = Config.TowerArchetypes
+                and Config.TowerArchetypes[payload.class] or {}
+            payload.coverageRadius = archetype.coverageRadius
+            payload.capacity = archetype.capacity
+            payload.draft = capture == nil
+            payload.captured = capture ~= nil
+            payloads[#payloads + 1] = payload
+        end
+    end
+    return payloads
 end
 
 local function enableEditor(number, value)
@@ -181,7 +224,7 @@ end
 
 local function clearPreview(number)
     previewBySource = setMapValue(previewBySource, number, nil)
-    enableEditor(number, false)
+    if not draftsVisibleBySource[number] then enableEditor(number, false) end
     if type(TriggerClientEvent) == 'function' and Constants and Constants.Events then
         TriggerClientEvent(Constants.Events.DEPLOYMENT_EDITOR_CLEAR, number)
     end
@@ -193,7 +236,10 @@ local function commandEditor(source)
 
     local nextValue = enabledBySource[numberOrError] ~= true
     enableEditor(numberOrError, nextValue)
-    if not nextValue then previewBySource = setMapValue(previewBySource, numberOrError, nil) end
+    if not nextValue then
+        previewBySource = setMapValue(previewBySource, numberOrError, nil)
+        draftsVisibleBySource = setMapValue(draftsVisibleBySource, numberOrError, nil)
+    end
     reply(source, ('tower editor enabled=%s'):format(tostring(nextValue)))
     record(numberOrError, 'deployment_editor_toggle', { enabled = nextValue })
 end
@@ -229,8 +275,11 @@ local function commandPreview(source, args)
     enableEditor(numberOrError, true)
     sendPreview(numberOrError, site)
     local archetype = Config.TowerArchetypes[site.class]
-    reply(source, ('preview=%s class=%s radius=%s; move to the verified location')
-        :format(site.id, site.class, tostring(archetype and archetype.coverageRadius)))
+    local draft = TelecomDeploymentEditor.FindDraft(site.id, Config)
+    local mode = draft and 'draft marker shown on map; move to the verified location'
+        or 'marker follows you; move to the verified location'
+    reply(source, ('preview=%s class=%s radius=%s; %s')
+        :format(site.id, site.class, tostring(archetype and archetype.coverageRadius), mode))
     record(numberOrError, 'deployment_preview', { siteId = site.id, class = site.class })
 end
 
@@ -261,6 +310,33 @@ local function commandArchetype(source, args)
         siteId = selected.id,
         class = selected.class,
     })
+end
+
+local function commandDrafts(source)
+    local ok, numberOrError = sourceReady(source, true)
+    if not ok then reply(source, ('tower drafts rejected: %s'):format(numberOrError)); return end
+    if type(TriggerClientEvent) ~= 'function' or not Constants or not Constants.Events then
+        reply(source, 'tower drafts rejected: client_event_unavailable')
+        return
+    end
+
+    local payloads = draftPayloads()
+    draftsVisibleBySource = setMapValue(draftsVisibleBySource, numberOrError, true)
+    TriggerClientEvent(Constants.Events.DEPLOYMENT_EDITOR_DRAFTS, numberOrError, payloads)
+    reply(source, ('drafts shown=%d; move to a marker and capture its site id')
+        :format(#payloads))
+    record(numberOrError, 'deployment_drafts_show', { count = #payloads })
+end
+
+local function commandClearDrafts(source)
+    local ok, numberOrError = sourceReady(source, true)
+    if not ok then reply(source, ('tower drafts clear rejected: %s'):format(numberOrError)); return end
+    draftsVisibleBySource = setMapValue(draftsVisibleBySource, numberOrError, nil)
+    if type(TriggerClientEvent) == 'function' and Constants and Constants.Events then
+        TriggerClientEvent(Constants.Events.DEPLOYMENT_EDITOR_DRAFTS_CLEAR, numberOrError)
+    end
+    reply(source, 'tower draft markers cleared')
+    record(numberOrError, 'deployment_drafts_clear', {})
 end
 
 local function commandCapture(source, args)
@@ -302,6 +378,9 @@ local function commandCapture(source, args)
     capturesById = setMapValue(capturesById, capture.id, capture)
     if type(TriggerClientEvent) == 'function' and Constants and Constants.Events then
         TriggerClientEvent(Constants.Events.DEPLOYMENT_CAPTURE_RESULT, numberOrError, copy(capture))
+        if draftsVisibleBySource[numberOrError] then
+            TriggerClientEvent(Constants.Events.DEPLOYMENT_EDITOR_DRAFTS, numberOrError, draftPayloads())
+        end
     end
     reply(source, ('captured=%s coords=vector3(%0.2f, %0.2f, %0.2f) class=%s')
         :format(capture.id, coords.x, coords.y, coords.z, capture.class))
@@ -377,6 +456,20 @@ local function commandRemoveCapture(source, args)
         return
     end
     capturesById = setMapValue(capturesById, siteId, nil)
+    local currentPreview = previewBySource[numberOrError]
+    if currentPreview and currentPreview.siteId == siteId then
+        local site = selectedSite(numberOrError, siteId)
+        if site then sendPreview(numberOrError, site) end
+    end
+    if draftsVisibleBySource[numberOrError]
+        and type(TriggerClientEvent) == 'function'
+        and Constants and Constants.Events then
+        TriggerClientEvent(
+            Constants.Events.DEPLOYMENT_EDITOR_DRAFTS,
+            numberOrError,
+            draftPayloads()
+        )
+    end
     reply(source, ('capture removed=%s'):format(siteId))
     record(source, 'deployment_capture_remove', { siteId = siteId })
 end
@@ -389,6 +482,8 @@ local function commandHelp(source)
         '/telecom_tower_list',
         '/telecom_tower_preview <siteId>',
         '/telecom_tower_archetype <siteId> <class>',
+        '/telecom_tower_drafts',
+        '/telecom_tower_clear_drafts',
         '/telecom_tower_capture <siteId>',
         '/telecom_tower_nearest',
         '/telecom_tower_export',
@@ -402,6 +497,7 @@ function TelecomDeploymentEditorServer.Reset()
     capturesById = {}
     previewBySource = {}
     enabledBySource = {}
+    draftsVisibleBySource = {}
 end
 
 function TelecomDeploymentEditorServer.GetCaptures()
@@ -421,6 +517,8 @@ function TelecomDeploymentEditorServer.RegisterCommands()
     RegisterCommand('telecom_tower_list', commandList, false)
     RegisterCommand('telecom_tower_preview', commandPreview, false)
     RegisterCommand('telecom_tower_archetype', commandArchetype, false)
+    RegisterCommand('telecom_tower_drafts', commandDrafts, false)
+    RegisterCommand('telecom_tower_clear_drafts', commandClearDrafts, false)
     RegisterCommand('telecom_tower_capture', commandCapture, false)
     RegisterCommand('telecom_tower_nearest', commandNearest, false)
     RegisterCommand('telecom_tower_export', commandExport, false)
@@ -439,6 +537,7 @@ if type(AddEventHandler) == 'function' then
         if number then
             previewBySource = setMapValue(previewBySource, number, nil)
             enabledBySource = setMapValue(enabledBySource, number, nil)
+            draftsVisibleBySource = setMapValue(draftsVisibleBySource, number, nil)
         end
     end)
 end
