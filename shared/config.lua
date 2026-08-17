@@ -295,6 +295,24 @@ local function validateOperations(config, errors)
         addError(errors, 'NOC must be a table')
     elseif type(noc.ace) ~= 'string' or noc.ace == '' then
         addError(errors, 'NOC.ace must be a non-empty string')
+    else
+        local positiveIntegerFields = {
+            refreshIntervalMs = true,
+            reconcileIntervalMs = true,
+            subscriptionTtlMs = true,
+            maxSubscriptions = true,
+            maxTowers = true,
+            maxEntities = true,
+            maxDeltaEntities = true,
+            maxDeltasPerSecond = true,
+        }
+        for field in pairs(positiveIntegerFields) do
+            if noc[field] ~= nil
+                and (not isNumber(noc[field]) or noc[field] ~= math.floor(noc[field])
+                    or noc[field] < 1) then
+                addError(errors, ('NOC.%s must be a positive integer'):format(field))
+            end
+        end
     end
 
     local backhaul = config.Backhaul

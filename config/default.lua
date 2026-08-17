@@ -183,7 +183,13 @@ Config = {
     NOC = {
         ace = 'gnsh-telecom.noc',
         refreshIntervalMs = 2000,
+        reconcileIntervalMs = 10000,
+        subscriptionTtlMs = 30000,
+        maxSubscriptions = 64,
         maxTowers = 200,
+        maxEntities = 500,
+        maxDeltaEntities = 100,
+        maxDeltasPerSecond = 30,
     },
 
     Backhaul = {

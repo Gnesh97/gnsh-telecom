@@ -11,12 +11,15 @@
         main { width: min(1100px, 92vw); margin: 4vh auto; }
         header { display: flex; justify-content: space-between; align-items: center; }
         button { border: 1px solid #5575a8; background: #17263e; color: #fff; padding: .6rem 1rem; border-radius: 5px; }
-        .cards { display: grid; grid-template-columns: repeat(5, 1fr); gap: .6rem; margin: 1rem 0; }
+        .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: .6rem; margin: 1rem 0; }
         .card { padding: .8rem; background: #111b2d; border: 1px solid #263956; border-radius: 6px; }
         .value { font-size: 1.5rem; font-weight: bold; margin-top: .25rem; }
         table { width: 100%; border-collapse: collapse; background: #0e1727; }
         th, td { padding: .55rem; border-bottom: 1px solid #22324d; text-align: left; }
         .muted { color: #91a2bc; }
+        .panel-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; }
+        .panel { padding: .8rem 1rem; background: #0e1727; border: 1px solid #22324d; border-radius: 6px; }
+        ul { margin: 0; padding-left: 1.2rem; }
     </style>
 </head>
 <body>
@@ -25,32 +28,131 @@
     <section class="cards" id="cards"></section>
     <h2>Towers</h2>
     <table><thead><tr><th>ID</th><th>State</th><th>Health</th><th>Load</th><th>Backhaul</th><th>Failures</th></tr></thead><tbody id="towers"></tbody></table>
+    <section class="panel-grid">
+        <div class="panel"><h2>Active incidents</h2><ul id="incidents"></ul></div>
+        <div class="panel"><h2>Live entities</h2><table><thead><tr><th>Type</th><th>ID</th><th>State</th></tr></thead><tbody id="entities"></tbody></table></div>
+    </section>
 </main>
 <script>
     const resource = typeof GetParentResourceName === 'function' ? GetParentResourceName() : 'gnsh-telecom';
-    const post = (name, body) => fetch(`https://${resource}/${name}`, { method: 'POST', body: JSON.stringify(body || {}) });
+    const post = (name, body) => fetch(`https://${resource}/${name}`, { method: 'POST', body: JSON.stringify(body || {}) }).catch(() => undefined);
     const setVisible = visible => {
         document.documentElement.style.display = visible ? 'block' : 'none';
         document.body.style.display = visible ? 'block' : 'none';
     };
+    const escapeHtml = value => String(value ?? '')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    const numberValue = value => {
+        const number = Number(value);
+        return Number.isFinite(number) ? number : 0;
+    };
+    const entityKey = entity => `${entity.entityType}:${entity.entityId}`;
+    let currentSnapshot = null;
+
+    const activeIncidents = snapshot => (snapshot.incidents?.incidents || [])
+        .filter(incident => !['RESOLVED', 'CLOSED'].includes(incident.status));
+
+    const backhaulSummary = snapshot => {
+        const values = Object.values(snapshot.backhaul || {});
+        if (!values.length) return 'N/A';
+        const online = values.filter(value => value === 'ONLINE').length;
+        return `${online}/${values.length} online`;
+    };
+
+    const renderCards = snapshot => {
+        const counts = snapshot.counts || {};
+        const incidents = activeIncidents(snapshot);
+        const jammers = snapshot.jammers || [];
+        const cards = [
+            ['Operational', counts.operational || 0],
+            ['Degraded', counts.degraded || 0],
+            ['Offline', counts.offline || 0],
+            ['Connected devices', counts.connectedClients || 0],
+            ['Avg load', `${numberValue(counts.averageLoad).toFixed(1)}%`],
+            ['Critical congestion', counts.criticalCongestion || 0],
+            ['Active incidents', incidents.length],
+            ['Backhaul', backhaulSummary(snapshot)],
+            ['Jammers', jammers.length],
+        ];
+        document.getElementById('cards').innerHTML = cards.map(item =>
+            `<div class="card"><div class="muted">${escapeHtml(item[0])}</div><div class="value">${escapeHtml(item[1])}</div></div>`
+        ).join('');
+    };
+
+    const renderTowers = snapshot => {
+        document.getElementById('towers').innerHTML = (snapshot.towers || []).map(tower => {
+            const runtime = tower.runtime || {};
+            const failures = (tower.failures || []).length;
+            return `<tr><td>${escapeHtml(tower.id || '-')}</td><td>${escapeHtml(runtime.state || '-')}</td><td>${escapeHtml(runtime.health ?? '-')}</td><td>${numberValue(runtime.loadPercent).toFixed(1)}%</td><td>${escapeHtml(runtime.backhaulStatus || tower.backhaulStatus || '-')}</td><td>${escapeHtml(failures)}</td></tr>`;
+        }).join('');
+    };
+
+    const renderIncidents = snapshot => {
+        const incidents = activeIncidents(snapshot);
+        document.getElementById('incidents').innerHTML = incidents.length ? incidents.map(incident =>
+            `<li><strong>${escapeHtml(incident.severity || 'UNKNOWN')}</strong> ${escapeHtml(incident.status || 'UNKNOWN')} — ${escapeHtml(incident.towerId || incident.id || '-')}</li>`
+        ).join('') : '<li class="muted">No active incidents</li>';
+    };
+
+    const renderEntities = snapshot => {
+        document.getElementById('entities').innerHTML = (snapshot.entities || []).map(entity => {
+            const state = entity.state || {};
+            const status = state.status || state.state || state.outageState || '-';
+            return `<tr><td>${escapeHtml(entity.entityType)}</td><td>${escapeHtml(entity.entityId)}</td><td>${escapeHtml(status)}</td></tr>`;
+        }).join('');
+    };
+
+    const render = snapshot => {
+        currentSnapshot = snapshot || {};
+        renderCards(currentSnapshot);
+        renderTowers(currentSnapshot);
+        renderIncidents(currentSnapshot);
+        renderEntities(currentSnapshot);
+    };
+
+    const applyDelta = delta => {
+        if (!currentSnapshot || !delta || !Array.isArray(delta.changes)) return;
+        currentSnapshot.entities = Array.isArray(currentSnapshot.entities) ? currentSnapshot.entities : [];
+        currentSnapshot.towers = Array.isArray(currentSnapshot.towers) ? currentSnapshot.towers : [];
+        delta.changes.forEach(change => {
+            const operation = String(change.operation || change.op || '').toLowerCase();
+            const entity = change.entity || change;
+            const key = `${entity.entityType}:${entity.entityId}`;
+            const index = currentSnapshot.entities.findIndex(item => entityKey(item) === key);
+            if (operation === 'upsert' && entity.entityType && entity.entityId) {
+                if (index >= 0) currentSnapshot.entities[index] = entity;
+                else currentSnapshot.entities.push(entity);
+                if (entity.entityType === 'tower') {
+                    const towerIndex = currentSnapshot.towers.findIndex(tower => tower.id === entity.entityId);
+                    const existing = towerIndex >= 0 ? currentSnapshot.towers[towerIndex] : { id: entity.entityId };
+                    const runtime = { ...(existing.runtime || {}), ...(entity.state || {}) };
+                    const tower = { ...existing, ...entity.metadata, id: entity.entityId, runtime };
+                    if (towerIndex >= 0) currentSnapshot.towers[towerIndex] = tower;
+                    else currentSnapshot.towers.push(tower);
+                }
+            } else if ((operation === 'remove' || operation === 'delete') && entity.entityType && entity.entityId) {
+                if (index >= 0) currentSnapshot.entities.splice(index, 1);
+                if (entity.entityType === 'tower') {
+                    currentSnapshot.towers = currentSnapshot.towers.filter(tower => tower.id !== entity.entityId);
+                }
+            }
+        });
+        currentSnapshot.entities.sort((left, right) => entityKey(left).localeCompare(entityKey(right)));
+        render(currentSnapshot);
+    };
+
     setVisible(false);
     document.getElementById('close').onclick = () => post('close');
     window.addEventListener('message', event => {
         const message = event.data || {};
         if (message.action === 'close') { setVisible(false); return; }
-        if (message.action !== 'open') return;
-        setVisible(true);
-        const snapshot = message.data || {};
-        const counts = snapshot.counts || {};
-        document.getElementById('cards').innerHTML = [
-            ['Operational', counts.operational || 0], ['Degraded', counts.degraded || 0], ['Offline', counts.offline || 0],
-            ['Players', counts.connectedClients || 0], ['Avg load', `${Number(counts.averageLoad || 0).toFixed(1)}%`]
-        ].map(item => `<div class="card"><div class="muted">${item[0]}</div><div class="value">${item[1]}</div></div>`).join('');
-        document.getElementById('towers').innerHTML = (snapshot.towers || []).map(tower => {
-            const runtime = tower.runtime || {};
-            const failures = (tower.failures || []).length;
-            return `<tr><td>${tower.id}</td><td>${runtime.state || '-'}</td><td>${runtime.health ?? '-'}</td><td>${Number(runtime.loadPercent || 0).toFixed(1)}%</td><td>${runtime.backhaulStatus || '-'}</td><td>${failures}</td></tr>`;
-        }).join('');
+        if (message.action === 'open') {
+            setVisible(true);
+            render(message.data || {});
+        } else if (message.action === 'delta') {
+            applyDelta(message.data?.delta || message.data);
+        }
     });
 </script>
 </body>

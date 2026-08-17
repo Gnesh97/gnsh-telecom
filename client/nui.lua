@@ -28,7 +28,11 @@ end
 
 if type(RegisterNUICallback) == 'function' then
     RegisterNUICallback('close', function(_, callback)
-        TelecomNui.Close('noc')
+        if NocClient and NocClient.Close then
+            NocClient.Close()
+        else
+            TelecomNui.Close('noc')
+        end
         if callback then callback({ ok = true }) end
     end)
 end

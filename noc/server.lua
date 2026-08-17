@@ -56,18 +56,22 @@ function NocServer.GetSnapshot(source)
     end
     if #towers > 0 then counts.averageLoad = loadTotal / #towers end
 
-    return true, {
+    local features = Config and Config.Features or {}
+    local snapshot = {
         generatedAt = type(os.time) == 'function' and os.time() or 0,
         counts = counts,
         towers = limited,
         incidents = IncidentManager and IncidentManager.GetSnapshot
             and IncidentManager.GetSnapshot() or { incidents = {}, counts = {} },
-        backhaul = BackhaulRouting and BackhaulRouting.GetSnapshot
+        backhaul = features.Backhaul == true and BackhaulRouting and BackhaulRouting.GetSnapshot
             and BackhaulRouting.GetSnapshot() or {},
-        jammers = Jammers and Jammers.GetAll and Jammers.GetAll() or {},
+        jammers = features.Jammers == true and Jammers and Jammers.GetAll
+            and Jammers.GetAll() or {},
         statistics = TelecomStatistics and TelecomStatistics.GetSnapshot
             and TelecomStatistics.GetSnapshot() or {},
     }
+    if NocServer.BuildEntities then snapshot.entities = NocServer.BuildEntities(snapshot) end
+    return true, snapshot
 end
 
 if type(RegisterNetEvent) == 'function' then RegisterNetEvent(Constants.Events.NOC_REQUEST) end
@@ -77,13 +81,23 @@ if type(AddEventHandler) == 'function' then
         local limited = TelecomRateLimit and TelecomRateLimit.Allow
             and TelecomRateLimit.Allow(sourceId, 'noc', 1000, 2)
         if not limited then return end
-        local ok, result = NocServer.GetSnapshot(sourceId)
-        if type(TriggerClientEvent) == 'function' then
-            TriggerClientEvent(Constants.Events.NOC_STATE, sourceId, {
-                ok = ok,
-                snapshot = ok and copy(result) or nil,
-                error = ok and nil or result,
-            })
+        if NocServer.Subscribe then
+            local ok, result = NocServer.Subscribe(sourceId)
+            if not ok and type(TriggerClientEvent) == 'function' then
+                TriggerClientEvent(Constants.Events.NOC_STATE, sourceId, {
+                    ok = false,
+                    error = result,
+                })
+            end
+        else
+            local ok, result = NocServer.GetSnapshot(sourceId)
+            if type(TriggerClientEvent) == 'function' then
+                TriggerClientEvent(Constants.Events.NOC_STATE, sourceId, {
+                    ok = ok,
+                    snapshot = ok and copy(result) or nil,
+                    error = ok and nil or result,
+                })
+            end
         end
     end)
 end

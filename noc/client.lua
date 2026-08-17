@@ -10,6 +10,7 @@ function NocClient.Open()
 end
 
 function NocClient.Close()
+    if NocClient.Unsubscribe then NocClient.Unsubscribe() end
     return TelecomNui and TelecomNui.Close and TelecomNui.Close('noc') or false
 end
 
@@ -19,6 +20,13 @@ end
 if type(AddEventHandler) == 'function' then
     AddEventHandler(Constants.Events.NOC_STATE, function(payload)
         if type(payload) ~= 'table' then return end
+        if NocClient.HandleState then
+            local handled, errorCode = NocClient.HandleState(payload)
+            if not handled and type(print) == 'function' then
+                print(('[gnsh-telecom] NOC rejected: %s'):format(tostring(errorCode)))
+            end
+            return
+        end
         if payload.ok then
             TelecomNui.Open('noc', payload.snapshot)
         elseif type(print) == 'function' then

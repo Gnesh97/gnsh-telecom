@@ -93,6 +93,7 @@ server_scripts {
     'server/jammers.lua',
     'server/statistics.lua',
     'noc/server.lua',
+    'noc/server_stream.lua',
     'server/logging.lua',
     'server/persistence/serializers.lua',
     'server/persistence/adapters/memory.lua',
@@ -134,6 +135,7 @@ client_scripts {
     'client/technician.lua',
     'client/interactions.lua',
     'noc/client.lua',
+    'noc/client_stream.lua',
 }
 
 files {
