@@ -38,6 +38,10 @@ tool is always ACE/admin protected through `Config.Debug.adminAce`, `admin`,
    blue radius circles for all planned sites. If circles overlap or are outside
    the current map viewport, run `/telecom_tower_preview <siteId>` and zoom to
    that one site; its map circle is the coverage visualization.
+   To inspect the active production topology instead, run
+   `/telecom_tower_production`. It reads the validated runtime records from
+   `Config.Towers`, so each green point and radius is an actual tower location
+   and `coverage.radius`. Use `/telecom_tower_clear_production` to hide them.
 3. Drive to the draft marker and inspect the actual ground, rooftop or road
    location. The draft marker is fixed; it does not follow the player.
 4. Optionally preview one site with `/telecom_tower_preview LS-DOWNTOWN-01`.
@@ -76,6 +80,8 @@ unreviewed development capture from silently becoming production topology.
 | `/telecom_tower_list` | List the coordinate-free site catalog |
 | `/telecom_tower_drafts` | Show all development draft blips and radius circles |
 | `/telecom_tower_clear_drafts` | Hide all development draft blips |
+| `/telecom_tower_production` | Show all active `Config.Towers` blips and radius circles |
+| `/telecom_tower_clear_production` | Hide all active production tower blips |
 | `/telecom_tower_preview <siteId>` | Preview a catalog site and its radius |
 | `/telecom_tower_archetype <siteId> <class>` | Select a reusable archetype for the preview |
 | `/telecom_tower_capture <siteId>` | Capture the server-authoritative player position |

@@ -5,6 +5,7 @@ local capturesById = {}
 local previewBySource = {}
 local enabledBySource = {}
 local draftsVisibleBySource = {}
+local productionVisibleBySource = {}
 
 local function copy(value)
     if Utils and Utils.DeepCopy then return Utils.DeepCopy(value) end
@@ -215,6 +216,34 @@ local function draftPayloads()
     return payloads
 end
 
+local function productionPayloads()
+    local payloads = {}
+    if not TowerRegistry or not TowerRegistry.GetAll then return payloads end
+
+    for _, tower in ipairs(TowerRegistry.GetAll()) do
+        local coverage = type(tower) == 'table' and tower.coverage or nil
+        local radius = type(coverage) == 'table' and tonumber(coverage.radius) or nil
+        if type(tower) == 'table' and type(tower.id) == 'string'
+            and Utils.IsPoint(tower.coords)
+            and radius and radius > 0 then
+            payloads[#payloads + 1] = {
+                id = tower.id,
+                coords = copy(tower.coords),
+                coverageRadius = radius,
+                class = tower.class,
+                coverageZone = tower.coverageZone,
+                purpose = tower.purpose,
+                production = true,
+            }
+        end
+    end
+
+    table.sort(payloads, function(left, right)
+        return left.id < right.id
+    end)
+    return payloads
+end
+
 local function enableEditor(number, value)
     enabledBySource = setMapValue(enabledBySource, number, value == true)
     if type(TriggerClientEvent) == 'function' and Constants and Constants.Events then
@@ -224,7 +253,9 @@ end
 
 local function clearPreview(number)
     previewBySource = setMapValue(previewBySource, number, nil)
-    if not draftsVisibleBySource[number] then enableEditor(number, false) end
+    if not draftsVisibleBySource[number] and not productionVisibleBySource[number] then
+        enableEditor(number, false)
+    end
     if type(TriggerClientEvent) == 'function' and Constants and Constants.Events then
         TriggerClientEvent(Constants.Events.DEPLOYMENT_EDITOR_CLEAR, number)
     end
@@ -239,6 +270,7 @@ local function commandEditor(source)
     if not nextValue then
         previewBySource = setMapValue(previewBySource, numberOrError, nil)
         draftsVisibleBySource = setMapValue(draftsVisibleBySource, numberOrError, nil)
+        productionVisibleBySource = setMapValue(productionVisibleBySource, numberOrError, nil)
     end
     reply(source, ('tower editor enabled=%s'):format(tostring(nextValue)))
     record(numberOrError, 'deployment_editor_toggle', { enabled = nextValue })
@@ -337,6 +369,44 @@ local function commandClearDrafts(source)
     end
     reply(source, 'tower draft markers cleared')
     record(numberOrError, 'deployment_drafts_clear', {})
+end
+
+local function commandProduction(source)
+    local ok, numberOrError = sourceReady(source, true)
+    if not ok then
+        reply(source, ('production tower map rejected: %s'):format(numberOrError))
+        return
+    end
+    if type(TriggerClientEvent) ~= 'function' or not Constants or not Constants.Events then
+        reply(source, 'production tower map rejected: client_event_unavailable')
+        return
+    end
+
+    local payloads = productionPayloads()
+    productionVisibleBySource = setMapValue(productionVisibleBySource, numberOrError, true)
+    enableEditor(numberOrError, true)
+    TriggerClientEvent(Constants.Events.DEPLOYMENT_EDITOR_PRODUCTION, numberOrError, payloads)
+    reply(source, ('production towers shown=%d; map coverage uses Config.Towers runtime data')
+        :format(#payloads))
+    record(numberOrError, 'deployment_production_show', { count = #payloads })
+end
+
+local function commandClearProduction(source)
+    local ok, numberOrError = sourceReady(source, true)
+    if not ok then
+        reply(source, ('production tower map clear rejected: %s'):format(numberOrError))
+        return
+    end
+
+    productionVisibleBySource = setMapValue(productionVisibleBySource, numberOrError, nil)
+    if type(TriggerClientEvent) == 'function' and Constants and Constants.Events then
+        TriggerClientEvent(
+            Constants.Events.DEPLOYMENT_EDITOR_PRODUCTION_CLEAR,
+            numberOrError
+        )
+    end
+    reply(source, 'production tower map cleared')
+    record(numberOrError, 'deployment_production_clear', {})
 end
 
 local function commandCapture(source, args)
@@ -484,6 +554,8 @@ local function commandHelp(source)
         '/telecom_tower_archetype <siteId> <class>',
         '/telecom_tower_drafts',
         '/telecom_tower_clear_drafts',
+        '/telecom_tower_production',
+        '/telecom_tower_clear_production',
         '/telecom_tower_capture <siteId>',
         '/telecom_tower_nearest',
         '/telecom_tower_export',
@@ -498,6 +570,7 @@ function TelecomDeploymentEditorServer.Reset()
     previewBySource = {}
     enabledBySource = {}
     draftsVisibleBySource = {}
+    productionVisibleBySource = {}
 end
 
 function TelecomDeploymentEditorServer.GetCaptures()
@@ -519,6 +592,8 @@ function TelecomDeploymentEditorServer.RegisterCommands()
     RegisterCommand('telecom_tower_archetype', commandArchetype, false)
     RegisterCommand('telecom_tower_drafts', commandDrafts, false)
     RegisterCommand('telecom_tower_clear_drafts', commandClearDrafts, false)
+    RegisterCommand('telecom_tower_production', commandProduction, false)
+    RegisterCommand('telecom_tower_clear_production', commandClearProduction, false)
     RegisterCommand('telecom_tower_capture', commandCapture, false)
     RegisterCommand('telecom_tower_nearest', commandNearest, false)
     RegisterCommand('telecom_tower_export', commandExport, false)
@@ -538,6 +613,7 @@ if type(AddEventHandler) == 'function' then
             previewBySource = setMapValue(previewBySource, number, nil)
             enabledBySource = setMapValue(enabledBySource, number, nil)
             draftsVisibleBySource = setMapValue(draftsVisibleBySource, number, nil)
+            productionVisibleBySource = setMapValue(productionVisibleBySource, number, nil)
         end
     end)
 end

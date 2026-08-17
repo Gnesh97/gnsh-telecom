@@ -183,7 +183,7 @@ Config.Backhaul.links = {
 
 Production defaults now contain the 32 verified captures imported from the `/telecom_tower_export` batch, while still containing no test backhaul nodes. Development fixtures live in `config/examples/towers.lua`; `config/development.lua` is an optional development overlay and is not loaded by the production manifest.
 
-The coordinate-free deployment catalog lives in `config/deployment_sites.lua`. Development-only first-pass map anchors live separately in `config/deployment_drafts.lua`; they are visual waypoints, not tower topology. The point/3D marker is only an anchor; the translucent pause-map radius blip is the actual coverage visualization. To add or revise real positions in FiveM, enable the admin-only development editor with `setr gnsh_telecom_deployment_tools 1`, run `/telecom_tower_drafts`, follow [DEPLOYMENT_EDITOR.md](DEPLOYMENT_EDITOR.md), then review and import the export entries into `config/towers.lua`.
+The coordinate-free deployment catalog lives in `config/deployment_sites.lua`. Development-only first-pass map anchors live separately in `config/deployment_drafts.lua`; they are visual waypoints, not tower topology. The point/3D marker is only an anchor; the translucent pause-map radius blip is the actual coverage visualization. Use `/telecom_tower_production` in the admin editor to view the validated active `Config.Towers` locations and `coverage.radius` values on the pause map. To add or revise real positions in FiveM, enable the admin-only development editor with `setr gnsh_telecom_deployment_tools 1`, run `/telecom_tower_drafts`, follow [DEPLOYMENT_EDITOR.md](DEPLOYMENT_EDITOR.md), then review and import the export entries into `config/towers.lua`.
 
 ## Start
 

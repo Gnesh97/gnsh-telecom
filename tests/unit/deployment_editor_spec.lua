@@ -343,6 +343,24 @@ TEST('client draft markers can be shown and cleared without native blips', funct
     ASSERT_FALSE(TelecomClientDeploymentEditor.GetStatus().enabled)
 end)
 
+TEST('client production markers can be shown and cleared without native blips', function()
+    TelecomClientDeploymentEditor.SetEnabled(false)
+    local count = TelecomClientDeploymentEditor.SetProduction({
+        {
+            id = 'LS-DOWNTOWN-01',
+            coords = { x = 10, y = 20, z = 30 },
+            coverageRadius = 850,
+            production = true,
+        },
+    })
+    ASSERT_EQ(count, 1)
+    ASSERT_EQ(#TelecomClientDeploymentEditor.GetStatus().production, 1)
+    ASSERT_EQ(TelecomClientDeploymentEditor.GetStatus().production[1].coverageRadius, 850)
+    TelecomClientDeploymentEditor.ClearProduction()
+    ASSERT_EQ(#TelecomClientDeploymentEditor.GetStatus().production, 0)
+    ASSERT_FALSE(TelecomClientDeploymentEditor.GetStatus().enabled)
+end)
+
 TEST('clearing one preview preserves visible draft markers', function()
     TelecomClientDeploymentEditor.SetDrafts({
         {
@@ -403,6 +421,8 @@ TEST('server editor registers fixed draft commands only when enabled', function(
     ASSERT_TRUE(ok, errorCode)
     ASSERT_TRUE(registered.telecom_tower_drafts)
     ASSERT_TRUE(registered.telecom_tower_clear_drafts)
+    ASSERT_TRUE(registered.telecom_tower_production)
+    ASSERT_TRUE(registered.telecom_tower_clear_production)
 
     Config.Features.DeploymentTools = previousFeature
     rawset(_G, 'RegisterCommand', previousRegister)

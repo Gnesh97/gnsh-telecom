@@ -5,6 +5,7 @@ local rendering = false
 local preview
 local lastCapture
 local draftMarkers = {}
+local productionMarkers = {}
 local previewBlip
 local previewRadiusBlip
 local startRendering
@@ -124,9 +125,28 @@ local function clearDraftBlips()
     draftMarkers = {}
 end
 
+local function clearProductionBlips()
+    for _, entry in pairs(productionMarkers) do
+        removeBlip(entry.blip)
+        removeBlip(entry.radiusBlip)
+    end
+    productionMarkers = {}
+end
+
 local function draftList()
     local result = {}
     for _, entry in pairs(draftMarkers) do
+        result[#result + 1] = copy(entry.data)
+    end
+    table.sort(result, function(left, right)
+        return tostring(left.id) < tostring(right.id)
+    end)
+    return result
+end
+
+local function productionList()
+    local result = {}
+    for _, entry in pairs(productionMarkers) do
         result[#result + 1] = copy(entry.data)
     end
     table.sort(result, function(left, right)
@@ -156,7 +176,34 @@ local function setDrafts(values)
     if next(draftMarkers) then
         enabled = true
         startRendering()
-    elseif not preview then
+    elseif not preview and not next(productionMarkers) then
+        enabled = false
+    end
+end
+
+local function setProduction(values)
+    clearProductionBlips()
+    for _, value in ipairs(values or {}) do
+        if type(value) == 'table' and type(value.id) == 'string'
+            and isPoint(value.coords) then
+            local data = copy(value)
+            local blip, radiusBlip = createBlips(
+                data.coords,
+                tonumber(data.coverageRadius),
+                ('Telecom tower: %s'):format(data.id),
+                2
+            )
+            productionMarkers[data.id] = {
+                data = data,
+                blip = blip,
+                radiusBlip = radiusBlip,
+            }
+        end
+    end
+    if next(productionMarkers) then
+        enabled = true
+        startRendering()
+    elseif not preview and not next(draftMarkers) then
         enabled = false
     end
 end
@@ -261,6 +308,29 @@ local function render()
             ))
         end
     end
+
+    for _, entry in pairs(productionMarkers) do
+        local marker = entry.data
+        local deltaX = marker.coords.x - player.x
+        local deltaY = marker.coords.y - player.y
+        local deltaZ = marker.coords.z - player.z
+        local distance = math.sqrt(deltaX * deltaX + deltaY * deltaY + deltaZ * deltaZ)
+        if distance <= 300.0 and type(DrawMarker) == 'function' then
+            DrawMarker(
+                1,
+                marker.coords.x, marker.coords.y, marker.coords.z - 1.0,
+                0.0, 0.0, 0.0,
+                0.0, 0.0, 0.0,
+                5.0, 5.0, 4.0,
+                40, 220, 80, 150,
+                false, false, 2, false, nil, nil, false
+            )
+            drawText(marker.coords, ('%s | production tower | map coverage=%s'):format(
+                tostring(marker.id),
+                formatRadius(marker.coverageRadius)
+            ))
+        end
+    end
 end
 
 startRendering = function()
@@ -281,6 +351,7 @@ function TelecomClientDeploymentEditor.SetEnabled(value)
         preview = nil
         clearPreviewBlips()
         clearDraftBlips()
+        clearProductionBlips()
     end
     if enabled then startRendering() end
     return true, enabled
@@ -307,7 +378,7 @@ end
 function TelecomClientDeploymentEditor.ClearPreview()
     preview = nil
     clearPreviewBlips()
-    if not next(draftMarkers) then enabled = false end
+    if not next(draftMarkers) and not next(productionMarkers) then enabled = false end
     return true
 end
 
@@ -318,7 +389,18 @@ end
 
 function TelecomClientDeploymentEditor.ClearDrafts()
     clearDraftBlips()
-    if not preview then enabled = false end
+    if not preview and not next(productionMarkers) then enabled = false end
+    return true
+end
+
+function TelecomClientDeploymentEditor.SetProduction(values)
+    setProduction(values)
+    return #productionList()
+end
+
+function TelecomClientDeploymentEditor.ClearProduction()
+    clearProductionBlips()
+    if not preview and not next(draftMarkers) then enabled = false end
     return true
 end
 
@@ -329,6 +411,7 @@ function TelecomClientDeploymentEditor.GetStatus()
         preview = copy(preview),
         lastCapture = copy(lastCapture),
         drafts = draftList(),
+        production = productionList(),
     }
 end
 
@@ -339,6 +422,8 @@ if type(AddEventHandler) == 'function' and Constants and Constants.Events then
         RegisterNetEvent(Constants.Events.DEPLOYMENT_EDITOR_CLEAR)
         RegisterNetEvent(Constants.Events.DEPLOYMENT_EDITOR_DRAFTS)
         RegisterNetEvent(Constants.Events.DEPLOYMENT_EDITOR_DRAFTS_CLEAR)
+        RegisterNetEvent(Constants.Events.DEPLOYMENT_EDITOR_PRODUCTION)
+        RegisterNetEvent(Constants.Events.DEPLOYMENT_EDITOR_PRODUCTION_CLEAR)
         RegisterNetEvent(Constants.Events.DEPLOYMENT_CAPTURE_RESULT)
     end
 
@@ -356,6 +441,12 @@ if type(AddEventHandler) == 'function' and Constants and Constants.Events then
     end)
     AddEventHandler(Constants.Events.DEPLOYMENT_EDITOR_DRAFTS_CLEAR, function()
         TelecomClientDeploymentEditor.ClearDrafts()
+    end)
+    AddEventHandler(Constants.Events.DEPLOYMENT_EDITOR_PRODUCTION, function(value)
+        TelecomClientDeploymentEditor.SetProduction(value)
+    end)
+    AddEventHandler(Constants.Events.DEPLOYMENT_EDITOR_PRODUCTION_CLEAR, function()
+        TelecomClientDeploymentEditor.ClearProduction()
     end)
     AddEventHandler(Constants.Events.DEPLOYMENT_CAPTURE_RESULT, function(value)
         lastCapture = type(value) == 'table' and copy(value) or nil
@@ -390,5 +481,6 @@ if type(AddEventHandler) == 'function' then
         preview = nil
         clearPreviewBlips()
         clearDraftBlips()
+        clearProductionBlips()
     end)
 end

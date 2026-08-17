@@ -33,6 +33,8 @@ Constants = {
         DEPLOYMENT_EDITOR_CLEAR = 'gnsh-telecom:client:deploymentEditorClear',
         DEPLOYMENT_EDITOR_DRAFTS = 'gnsh-telecom:client:deploymentEditorDrafts',
         DEPLOYMENT_EDITOR_DRAFTS_CLEAR = 'gnsh-telecom:client:deploymentEditorDraftsClear',
+        DEPLOYMENT_EDITOR_PRODUCTION = 'gnsh-telecom:client:deploymentEditorProduction',
+        DEPLOYMENT_EDITOR_PRODUCTION_CLEAR = 'gnsh-telecom:client:deploymentEditorProductionClear',
         DEPLOYMENT_CAPTURE_RESULT = 'gnsh-telecom:client:deploymentCaptureResult',
     },
     SupportEvents = {
