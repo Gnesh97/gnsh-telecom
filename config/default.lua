@@ -171,6 +171,12 @@ Config = {
         repairDurationMs = 10000,
         diagnosticDurationMs = 2500,
         requiredItems = {},
+        components = {},
+        verification = {
+            minimumTowerHealth = 1,
+            requireBackhaul = true,
+            requireServices = true,
+        },
         allowAdmin = true,
     },
 

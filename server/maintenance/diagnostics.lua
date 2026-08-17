@@ -35,6 +35,31 @@ local function getActorId(source)
     return safeString(actorId, 128) and actorId or nil
 end
 
+local function resolveIncidentId(identifier)
+    if not safeString(identifier, 96) then return nil end
+    local order = MaintenanceWorkOrders and MaintenanceWorkOrders.Get
+        and MaintenanceWorkOrders.Get(identifier)
+    return order and order.incidentId or identifier
+end
+
+local function publicIncident(incident)
+    local result = copy(incident)
+    if type(result) ~= 'table' then return result end
+    result.failureId = nil
+    if type(result.metadata) == 'table' then
+        result.metadata.failureId = nil
+        result.metadata.failureType = nil
+    end
+    return result
+end
+
+local function publicSession(session)
+    local result = copy(session)
+    if type(result) ~= 'table' then return result end
+    result.failureId = nil
+    return result
+end
+
 local symptomByType = {
     ANTENNA_FAILURE = { 'coverage reduced', 'signal instability' },
     RADIO_FAILURE = { 'data unavailable', 'radio chain degraded' },
@@ -49,13 +74,17 @@ local symptomByType = {
 
 local function validateIncident(source, incidentId, checkDistance)
     if not enabled() then return false, 'technician_disabled' end
+    incidentId = resolveIncidentId(incidentId)
     if not safeString(incidentId, 64) then return false, 'incident_id_required' end
     local allowed, actor = authorizedTechnician(source)
     if not allowed then return false, 'technician_job_required' end
 
     local incident = IncidentManager.Get(incidentId)
     if not incident then return false, 'incident_not_found' end
-    if incident.status == Enums.IncidentState.CLOSED then return false, 'incident_closed' end
+    if incident.status == Enums.IncidentState.CLOSED
+        or incident.status == Enums.IncidentState.RESOLVED then
+        return false, 'incident_terminal'
+    end
     if incident.assignedTo and tonumber(incident.assignedTo) ~= tonumber(source)
         and actor ~= 'admin' then
         return false, 'incident_assigned_to_other'
@@ -109,22 +138,74 @@ local function abortStaleSession(session)
     end
 end
 
-local function diagnosisResult(session, incident, failure, distance)
+local function diagnosisObservations(failure)
+    local observations = {
+        ['RF Output'] = 'NORMAL',
+        ['Sector B'] = 'NORMAL',
+        ['Backhaul RX'] = 'NORMAL',
+        ['Controller'] = 'NORMAL',
+        ['Temperature'] = 'NORMAL',
+    }
+    local indicators = {}
+    local typeName = failure.type
+    if typeName == 'ANTENNA_FAILURE' then
+        observations['RF Output'] = 'DEGRADED'
+        indicators[#indicators + 1] = 'coverage footprint unstable'
+    elseif typeName == 'SECTOR_FAILURE' then
+        observations['Sector B'] = 'DEGRADED'
+        indicators[#indicators + 1] = 'localized sector alarm'
+    elseif typeName == 'RADIO_FAILURE' or typeName == 'RADIO_UNIT_FAILURE' then
+        observations['RF Output'] = 'DEGRADED'
+        indicators[#indicators + 1] = 'radio chain alarm'
+    elseif typeName == 'FIBER_FAILURE' or typeName == 'BACKHAUL_FAILURE' then
+        observations['Backhaul RX'] = 'FAILED'
+        indicators[#indicators + 1] = 'transport path unreachable'
+    elseif typeName == 'CONTROLLER_FAILURE' then
+        observations['Controller'] = 'DEGRADED'
+        indicators[#indicators + 1] = 'control plane alarm'
+    elseif typeName == 'COOLING_FAILURE' then
+        observations['Temperature'] = 'HIGH'
+        indicators[#indicators + 1] = 'thermal alarm'
+    elseif typeName == 'SOFTWARE_FAILURE' then
+        observations['Controller'] = 'DEGRADED'
+        indicators[#indicators + 1] = 'service policy alarm'
+    else
+        indicators[#indicators + 1] = 'intermittent telecom alarm'
+    end
+    return observations, indicators
+end
+
+local function diagnosisResult(session, incident, failure, distance, workOrder)
     local symptoms = symptomByType[failure.type] or { 'unknown technical symptoms' }
+    local observations, indicators = diagnosisObservations(failure)
     return {
-        session = copy(session),
-        incident = copy(incident),
-        failure = copy(failure),
+        session = publicSession(session),
+        incident = publicIncident(incident),
         symptoms = copy(symptoms),
-        probableCause = FailureTypes.Get(failure.type),
-        component = failure.component,
+        diagnosis = {
+            observations = observations,
+            indicators = indicators,
+            confidence = 'LOW',
+            nextAction = 'inspect_component',
+        },
         distance = distance,
+        workOrder = copy(workOrder),
     }
 end
 
 function MaintenanceDiagnostics.Begin(source, incidentId)
     local ok, incident, failure, tower, _, actorId = validateIncident(source, incidentId)
     if not ok then return false, incident end
+    local workOrderOk, workOrder = MaintenanceWorkOrders.EnsureForDiagnosis(
+        source,
+        incident.id
+    )
+    if not workOrderOk then return false, workOrder end
+    local workOrderOwner, ownerError = MaintenanceWorkOrders.Validate(workOrder.id, source)
+    if not workOrderOwner then return false, ownerError end
+    if workOrder.status ~= Enums.WorkOrderState.DIAGNOSING then
+        return false, 'work_order_not_diagnosing'
+    end
     local created, session = MaintenanceSessions.Create(
         'DIAGNOSTIC',
         source,
@@ -135,9 +216,12 @@ function MaintenanceDiagnostics.Begin(source, incidentId)
         Config.Technician.diagnosticDurationMs or 0
     )
     if not created then return false, session end
+    MaintenanceWorkOrders.MarkDiagnosisSession(source, workOrder.id, session.sessionId)
+    workOrder = MaintenanceWorkOrders.Get(workOrder.id)
     return true, {
-        session = session,
-        incident = copy(incident),
+        session = publicSession(session),
+        incident = publicIncident(incident),
+        workOrder = copy(workOrder),
         earliestCompleteAt = session.earliestCompleteAt,
     }
 end
@@ -153,13 +237,21 @@ function MaintenanceDiagnostics.Complete(source, sessionId)
         if session == 'actor_identity_mismatch' then abortStaleSession(incident) end
         return false, session
     end
+    local workOrder = MaintenanceWorkOrders.GetForIncident(incident.id)
     local finished, finishedSession = MaintenanceSessions.Finish(
         session.sessionId,
         'COMPLETED'
     )
     if not finished then return false, finishedSession end
-    local result = diagnosisResult(finishedSession, incident, failure, distance)
-    result.session = finishedSession
+    local completedOrder, orderResult = MaintenanceWorkOrders.CompleteDiagnosis(
+        source,
+        incident.id,
+        { observations = diagnosisObservations(failure) }
+    )
+    if not completedOrder then return false, orderResult end
+    workOrder = orderResult.workOrder
+    local result = diagnosisResult(finishedSession, incident, failure, distance, workOrder)
+    result.session = publicSession(finishedSession)
     return true, result
 end
 
@@ -174,10 +266,32 @@ function MaintenanceDiagnostics.Cancel(source, sessionId)
         'CANCELLED'
     )
     if not finished then return false, finishedSession end
+    local cancelled, cancelResult = MaintenanceWorkOrders.Cancel(
+        source,
+        incident.id,
+        'diagnostic_cancelled'
+    )
+    if not cancelled then return false, cancelResult end
     return true, {
-        session = finishedSession,
-        incident = copy(incident),
+        session = publicSession(finishedSession),
+        incident = publicIncident(cancelResult.incident),
+        workOrder = cancelResult.workOrder,
     }
+end
+
+function MaintenanceDiagnostics.OnSessionCleanup(session, reason)
+    if type(session) ~= 'table' or session.kind ~= 'DIAGNOSTIC' then return false end
+    local workOrder = MaintenanceWorkOrders.GetForIncident(session.incidentId)
+    if not workOrder then return true end
+    local released, errorCode = MaintenanceWorkOrders.CancelForCleanup(
+        workOrder.id,
+        session.source,
+        reason or 'session_cleanup'
+    )
+    if not released and errorCode ~= 'work_order_replayed' then
+        return false, errorCode
+    end
+    return true
 end
 
 -- Compatibility entrypoint: diagnosis now creates a server-owned session.

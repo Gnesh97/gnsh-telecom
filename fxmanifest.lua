@@ -84,6 +84,8 @@ server_scripts {
     'server/security/validation.lua',
     'server/security/rate_limit.lua',
     'server/maintenance/sessions.lua',
+    'server/maintenance/components.lua',
+    'server/maintenance/work_orders.lua',
     'server/maintenance/diagnostics.lua',
     'server/maintenance/repairs.lua',
     'server/maintenance/workflow.lua',

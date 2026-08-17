@@ -141,6 +141,9 @@ end
 
 function IncidentManager.Reset()
     if IncidentTickets and IncidentTickets.Reset then IncidentTickets.Reset() end
+    if MaintenanceWorkOrders and MaintenanceWorkOrders.Reset then
+        MaintenanceWorkOrders.Reset()
+    end
 end
 
 function IncidentManager.GetSnapshot()

@@ -42,6 +42,12 @@ TEST('technician client keeps defensive maintenance responses', function()
     ASSERT_EQ(TechnicianClient.GetLastResponse().result.incident.status, 'DIAGNOSING')
 
     TriggerTestEvent(Constants.Events.MAINTENANCE_STATE, {
+        ok = true,
+        result = 'malformed-success',
+    })
+    ASSERT_EQ(TechnicianClient.GetLastResponse().result.incident.status, 'DIAGNOSING')
+
+    TriggerTestEvent(Constants.Events.MAINTENANCE_STATE, {
         ok = false,
         error = 'too_far',
     })

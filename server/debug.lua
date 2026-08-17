@@ -277,6 +277,7 @@ local function executeTechnician(source, args)
         diagnose_cancel = true,
         begin = true,
         complete = true,
+        verify = true,
         cancel = true,
     }
 
@@ -317,6 +318,11 @@ local function executeTechnician(source, args)
         local sessionId = session and session.incidentId == identifier
             and session.sessionId or identifier
         ok, result = MaintenanceRepairs.Complete(source, sessionId)
+    elseif action == 'verify' then
+        if not MaintenanceRepairs or not MaintenanceRepairs.Verify then
+            return failure('technician_unavailable')
+        end
+        ok, result = MaintenanceRepairs.Verify(source, identifier)
     else
         if not MaintenanceRepairs or not MaintenanceRepairs.Cancel then
             return failure('technician_unavailable')

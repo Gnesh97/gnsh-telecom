@@ -74,7 +74,8 @@ TEST('technician workflow validates distance and completes a repair', function()
         'technician', 'diagnose_complete', diagnosis.session.sessionId,
     })
     ASSERT_TRUE(diagnosisCompleted)
-    ASSERT_EQ(diagnosisResult.failure.id, failure.id)
+    ASSERT_TRUE(diagnosisResult.diagnosis ~= nil)
+    ASSERT_EQ(diagnosisResult.failure, nil)
 
     local begun, _, beginResult = TelecomDebug.Execute(7, {
         'technician', 'begin', incident.id,
@@ -89,7 +90,13 @@ TEST('technician workflow validates distance and completes a repair', function()
         'technician', 'complete', beginResult.session.sessionId,
     })
     ASSERT_TRUE(completed)
-    ASSERT_EQ(completeResult.incident.status, Enums.IncidentState.RESOLVED)
+    ASSERT_EQ(completeResult.incident.status, Enums.IncidentState.VERIFYING)
+    ASSERT_TRUE(FailureEngine.Get(failure.id) ~= nil)
+    local verified, _, verifiedResult = TelecomDebug.Execute(7, {
+        'technician', 'verify', completeResult.workOrder.id,
+    })
+    ASSERT_TRUE(verified)
+    ASSERT_EQ(verifiedResult.incident.status, Enums.IncidentState.RESOLVED)
     local completionHistory = completeResult.incident.history[#completeResult.incident.history]
     ASSERT_EQ(completionHistory.details.actorId, 'license:operations-7')
     ASSERT_EQ(#FailureEngine.GetTowerFailures('OPERATIONS_TOWER'), 0)

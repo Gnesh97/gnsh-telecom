@@ -54,6 +54,17 @@ local function interactionOptions(towerId)
                     and TechnicianClient.RequestTower('begin', towerId)
             end,
         },
+        {
+            name = 'gnsh_telecom_verify_repair',
+            label = 'Verify telecom repair',
+            icon = 'fa-solid fa-circle-check',
+            distance = distance,
+            key = 38,
+            onSelect = function()
+                return TechnicianClient and TechnicianClient.RequestTower
+                    and TechnicianClient.RequestTower('verify', towerId)
+            end,
+        },
     }
 end
 

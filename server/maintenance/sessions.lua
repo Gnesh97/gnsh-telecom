@@ -46,6 +46,16 @@ local function cleanup(session, reason)
                 error = errorCode,
             })
         end
+    elseif session.kind == 'DIAGNOSTIC'
+        and MaintenanceDiagnostics
+        and type(MaintenanceDiagnostics.OnSessionCleanup) == 'function' then
+        local ok, errorCode = pcall(MaintenanceDiagnostics.OnSessionCleanup, session, reason)
+        if not ok and Log and Log.error then
+            Log.error('diagnostic session cleanup failed', {
+                sessionId = session.sessionId,
+                error = errorCode,
+            })
+        end
     end
 end
 

@@ -10,7 +10,8 @@ local transitions = {
     ASSIGNED = { ON_ROUTE = true, DIAGNOSING = true, RESOLVED = true },
     ON_ROUTE = { DIAGNOSING = true, ASSIGNED = true, RESOLVED = true },
     DIAGNOSING = { REPAIRING = true, ASSIGNED = true, RESOLVED = true },
-    REPAIRING = { RESOLVED = true, DIAGNOSING = true },
+    REPAIRING = { VERIFYING = true, RESOLVED = true, DIAGNOSING = true },
+    VERIFYING = { RESOLVED = true, REPAIRING = true, DIAGNOSING = true },
     RESOLVED = { CLOSED = true },
     CLOSED = {},
 }

@@ -106,7 +106,8 @@ TEST('maintenance sessions reject early, wrong-owner and replayed completion', f
         restartedResult.session.sessionId
     )
     ASSERT_TRUE(completed)
-    ASSERT_EQ(result.failure.id, failure.id)
+    ASSERT_TRUE(result.diagnosis ~= nil)
+    ASSERT_EQ(result.failure, nil)
 
     local replayed, replayError = MaintenanceDiagnostics.Complete(7, sessionId)
     ASSERT_FALSE(replayed)
@@ -136,8 +137,11 @@ TEST('repair completion requires server session and elapsed duration', function(
     advance(Config.Technician.repairDurationMs)
     local completed, result = MaintenanceRepairs.Complete(7, beginResult.session.sessionId)
     ASSERT_TRUE(completed)
-    ASSERT_EQ(result.failure.id, failure.id)
-    ASSERT_EQ(result.incident.status, Enums.IncidentState.RESOLVED)
+    ASSERT_EQ(result.incident.status, Enums.IncidentState.VERIFYING)
+    ASSERT_TRUE(FailureEngine.Get(failure.id) ~= nil)
+    local verified, verifyResult = MaintenanceRepairs.Verify(7, result.workOrder.id)
+    ASSERT_TRUE(verified)
+    ASSERT_EQ(verifyResult.incident.status, Enums.IncidentState.RESOLVED)
 
     local replayed, replayError = MaintenanceRepairs.Complete(7, beginResult.session.sessionId)
     ASSERT_FALSE(replayed)
@@ -218,15 +222,16 @@ TEST('repair completion refunds the item when failure clearing fails', function(
     local begun, beginResult = MaintenanceRepairs.Begin(7, incident.id)
     ASSERT_TRUE(begun)
 
-    FailureEngine.Clear = function() return false, 'failure_clear_failed' end
     advance(Config.Technician.repairDurationMs)
-    local completed, errorCode = MaintenanceRepairs.Complete(7, beginResult.session.sessionId)
-    ASSERT_FALSE(completed)
+    local completed, completeResult = MaintenanceRepairs.Complete(7, beginResult.session.sessionId)
+    ASSERT_TRUE(completed)
+    FailureEngine.Clear = function() return false, 'failure_clear_failed' end
+    local verified, errorCode = MaintenanceRepairs.Verify(7, completeResult.workOrder.id)
+    ASSERT_FALSE(verified)
     ASSERT_EQ(errorCode, 'failure_clear_failed')
-    ASSERT_EQ(refundCount, 1)
-    ASSERT_EQ(IncidentManager.Get(incident.id).status, Enums.IncidentState.DIAGNOSING)
+    ASSERT_EQ(refundCount, 0)
+    ASSERT_EQ(IncidentManager.Get(incident.id).status, Enums.IncidentState.VERIFYING)
     ASSERT_TRUE(FailureEngine.Get(failure.id) ~= nil)
-    ASSERT_TRUE(MaintenanceSessions.Get(beginResult.session.sessionId) ~= nil)
 
     FailureEngine.Clear = previousClear
     Config.Technician.requiredItems = previousItems
@@ -331,6 +336,12 @@ TEST('maintenance wire handler returns session results and supports legacy incid
     })
     ASSERT_TRUE(response.ok)
     ASSERT_EQ(response.result.session.sessionId, sessionId)
+    ASSERT_EQ(response.result.incident.status, Enums.IncidentState.VERIFYING)
+    TriggerTestEvent(Constants.Events.MAINTENANCE_REQUEST, {
+        action = 'verify',
+        workOrderId = response.result.workOrder.id,
+    })
+    ASSERT_TRUE(response.ok)
     ASSERT_EQ(response.result.incident.status, Enums.IncidentState.RESOLVED)
     rawset(_G, 'source', nil)
 

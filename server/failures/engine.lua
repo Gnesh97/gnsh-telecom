@@ -61,13 +61,14 @@ local function removeOrderedId(id)
     return nil
 end
 
-local function aggregate(towerId)
+local function aggregate(towerId, excludedId)
     local effects = neutralEffects()
     if not enabled() or type(towerId) ~= 'string' then return effects end
 
     for _, id in ipairs(orderedIds) do
         local record = recordsById[id]
-        if record and record.towerId == towerId and record.active ~= false then
+        if record and record.id ~= excludedId
+            and record.towerId == towerId and record.active ~= false then
             local definition = FailureTypes.Get(record.type)
             if definition then
                 effects.signalMultiplier = effects.signalMultiplier
@@ -125,6 +126,14 @@ end
 
 function FailureEngine.GetEffects(towerId)
     return copy(aggregate(towerId))
+end
+
+-- Read-only projection used by post-repair verification. The failure remains
+-- active until verification succeeds, so this never mutates engine state.
+function FailureEngine.GetEffectsAfterClear(failureId)
+    local record = recordsById[failureId]
+    if not record then return false, 'failure_not_found' end
+    return true, copy(aggregate(record.towerId, failureId))
 end
 
 function FailureEngine.ApplySignal(signal, towerId)
