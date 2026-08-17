@@ -10,6 +10,7 @@ version '0.1.0-rc.1'
 
 shared_scripts {
     'config/default.lua',
+    'config/deployment_sites.lua',
     'config/towers.lua',
     'shared/config.lua',
     'shared/constants.lua',
@@ -19,6 +20,7 @@ shared_scripts {
     'shared/feature_flags.lua',
     'shared/utils.lua',
     'shared/deployment.lua',
+    'shared/deployment_editor.lua',
     'shared/service_policy.lua',
     'locales/en.lua',
     'locales/tr.lua',
@@ -117,6 +119,7 @@ server_scripts {
     'server/security/permissions.lua',
     'server/security/audit.lua',
     'server/debug.lua',
+    'server/deployment_editor.lua',
     'server/bootstrap.lua',
 }
 
@@ -142,6 +145,7 @@ client_scripts {
     'client/environment.lua',
     'client/state.lua',
     'client/debug.lua',
+    'client/deployment_editor.lua',
     'client/handover.lua',
     'client/nui.lua',
     'client/technician.lua',

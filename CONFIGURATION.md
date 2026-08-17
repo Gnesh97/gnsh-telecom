@@ -14,6 +14,7 @@ Config.Features = {
     Sabotage = false,
     Jammers = false,
     Statistics = false,
+    DeploymentTools = false,
 }
 ```
 
@@ -30,6 +31,8 @@ Important settings:
 - `Config.Deployment.defaultCoverageMinimum` supplies the default coverage minimum for archetype-backed towers.
 - `Config.TowerArchetypes` defines reusable `METRO_MACRO`, `TOWN_MACRO`, `RURAL_MACRO`, `HIGHWAY_REPEATER` and `REMOTE_REPEATER` profiles.
 - `Config.CoverageZones` defines deployment-intent labels. A tower's optional `class` and `coverageZone` are validated without replacing the existing tower schema.
+- `Config.DeploymentSites` is a coordinate-free authoring catalog. It is not loaded into `Config.Towers` and cannot supply production coordinates.
+- `Config.DeploymentTools` limits in-memory captures. Enable the editor only on a development server with the `gnsh_telecom_deployment_tools` convar; see [DEPLOYMENT_EDITOR.md](DEPLOYMENT_EDITOR.md).
 - `Config.Framework` selects `auto`, `standalone`, `qbcore`, `qbox`, `esx` or `custom`; custom callbacks live under `Config.CustomFramework`.
 - Framework money methods are optional; missing framework capabilities fail closed and are never required by Telecom Core.
 - `Config.InventoryBridge` selects `auto`, `standalone`, `ox`, `qb`, `qs` or `custom`; custom callbacks live under `Config.CustomInventory`.

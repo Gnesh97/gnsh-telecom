@@ -28,6 +28,10 @@ Constants = {
         JAMMER_STATE = 'gnsh-telecom:client:jammerState',
         SABOTAGE_REQUEST = 'gnsh-telecom:server:sabotageRequest',
         SABOTAGE_STATE = 'gnsh-telecom:client:sabotageState',
+        DEPLOYMENT_EDITOR_TOGGLE = 'gnsh-telecom:client:deploymentEditorToggle',
+        DEPLOYMENT_EDITOR_PREVIEW = 'gnsh-telecom:client:deploymentEditorPreview',
+        DEPLOYMENT_EDITOR_CLEAR = 'gnsh-telecom:client:deploymentEditorClear',
+        DEPLOYMENT_CAPTURE_RESULT = 'gnsh-telecom:client:deploymentCaptureResult',
     },
     SupportEvents = {
         NOTIFY = 'gnsh-telecom:client:notify',

@@ -93,7 +93,7 @@ The post-core modules are present but the gameplay-facing modules remain disable
 - `Sabotage` and `Jammers` are server-authoritative, rate-limited and disabled by default. Clients send a target request; they never choose an arbitrary failure effect or final interference state.
 - `Statistics` aggregates load, handover, failure, incident, sabotage and jammer counters in memory and flushes summaries at a configured interval.
 
-Configuration examples and security boundaries are documented in [CONFIGURATION.md](CONFIGURATION.md), [TECHNICIAN_CONFIGURATION.md](TECHNICIAN_CONFIGURATION.md), [NOC_GUIDE.md](NOC_GUIDE.md) and [SECURITY.md](SECURITY.md).
+Configuration examples, deployment authoring and security boundaries are documented in [CONFIGURATION.md](CONFIGURATION.md), [DEPLOYMENT_EDITOR.md](DEPLOYMENT_EDITOR.md), [TECHNICIAN_CONFIGURATION.md](TECHNICIAN_CONFIGURATION.md), [NOC_GUIDE.md](NOC_GUIDE.md) and [SECURITY.md](SECURITY.md).
 
 ## Phase 13 persistence
 
@@ -182,6 +182,8 @@ Config.Backhaul.links = {
 ```
 
 Production defaults contain no towers and no test backhaul nodes. Development fixtures live in `config/examples/towers.lua`; `config/development.lua` is an optional development overlay and is not loaded by the production manifest.
+
+The coordinate-free deployment catalog lives in `config/deployment_sites.lua`. It is not tower topology. To author real positions in FiveM, enable the admin-only development editor with `setr gnsh_telecom_deployment_tools 1`, follow [DEPLOYMENT_EDITOR.md](DEPLOYMENT_EDITOR.md), then copy only reviewed export entries inside the existing `Config.Towers` table in `config/towers.lua`.
 
 ## Start
 

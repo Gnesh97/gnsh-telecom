@@ -13,6 +13,8 @@ The core does not require QBCore, Qbox, ESX, a phone resource or oxmysql. `oxmys
 
 The files under `config/examples/` are development fixtures only. They are not loaded by the production manifest. To run the local example topology, load `config/examples/towers.lua` and then `config/development.lua` in a development-only manifest or test harness.
 
+For real map authoring, use the coordinate-free catalog and admin-only preview/capture tool described in [DEPLOYMENT_EDITOR.md](DEPLOYMENT_EDITOR.md). Set `gnsh_telecom_deployment_tools` only on the development server; captures are temporary until manually reviewed and copied into `config/towers.lua`.
+
 For admin debug commands, grant the resource ACE if the server's existing admin group does not already have one:
 
 ```text

@@ -24,6 +24,13 @@ Mevcut aktif aşama:
 advanced failure kodları mevcut; release candidate’ın production’a çıkması
 ise canlı uyumluluk, temiz kurulum ve çoklu oyuncu/runtime kanıtına bağlı.
 
+## Tower deployment coverage plan
+
+- **TP-01 tamamlandı:** deployment archetype’leri ve coverage-zone policy’si eklendi; `Config.Towers` hâlâ koordinatsız/boş production default olarak korunuyor.
+- **TP-03 uygulaması başladı:** 32 hedefli koordinatsız site kataloğu, ACE/admin korumalı FiveM preview/capture/export aracı ve append-safe deterministic Lua export eklendi. Araç üretim `TowerRegistry`’sini değiştirmiyor; capture’lar resource restart’ında kayboluyor.
+- **TP-03 doğrulama durumu:** 13 yeni test tanımı eklendi. Bu makinede `lua5.4`/`luac` bulunmadığı için test koşusu henüz yapılamadı; `git diff --check`, katalog statik kontrolleri ve codebase index doğrulaması geçti.
+- **Sonraki kullanıcı adımı:** development server’da `setr gnsh_telecom_deployment_tools 1` ile aracı açıp gerçek FiveM konumlarını yakalamak. Üretim topolojisine yalnızca görsel/zemin/rooftop/terrain doğrulamasından sonra export girdileri taşınacak.
+
 ## Repository durumu
 
 - Branch: `dev`
@@ -132,7 +139,7 @@ Durum işaretleri:
 
 ### Otomatik doğrulama
 
-Son kod doğrulamasında:
+Son çalıştırılabilir baseline doğrulamasında:
 
 - **331 unit/integration/compatibility/release-gate testi geçti.**
 - **0 test başarısız oldu.**
@@ -141,6 +148,10 @@ Son kod doğrulamasında:
 - Synthetic scale harness exit code `0` ile tamamlandı; sonuçlar `PERFORMANCE.md` içinde.
 
 Bu testler pure Lua harness ile çalışıyor. FiveM client/server native davranışının ve gerçek harici resource’ların tamamını temsil etmiyor.
+
+TP-03, bu baseline’a 13 test ekledi. Güncel test harness’ini çalıştırmak için
+Lua 5.4/`luac` gerekir; mevcut geliştirme makinesinde bu binary bulunmadığı
+için TP-03’ün yeni testleri beklemede tutuluyor.
 
 ### Runtime ve synthetic evidence ayrımı
 

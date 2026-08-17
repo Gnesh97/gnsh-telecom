@@ -21,6 +21,7 @@ Config = {
         Sabotage = false,
         Jammers = false,
         Statistics = false,
+        DeploymentTools = false,
         ServiceSessions = true,
         QoS = true,
     },
@@ -116,6 +117,11 @@ Config = {
 
     Deployment = {
         defaultCoverageMinimum = 50,
+    },
+
+    DeploymentTools = {
+        maxCaptures = 64,
+        convar = 'gnsh_telecom_deployment_tools',
     },
 
     TowerArchetypes = {

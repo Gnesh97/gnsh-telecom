@@ -816,6 +816,37 @@ local function validateDeployment(config, errors)
     end
 end
 
+local function validateDeploymentTools(config, errors)
+    local tools = config.DeploymentTools
+    if type(tools) ~= 'table' then
+        addError(errors, 'DeploymentTools must be a table')
+        return
+    end
+
+    if not isNumber(tools.maxCaptures)
+        or tools.maxCaptures ~= math.floor(tools.maxCaptures)
+        or tools.maxCaptures < 1 or tools.maxCaptures > 256 then
+        addError(errors, 'DeploymentTools.maxCaptures must be an integer between 1 and 256')
+    end
+    if type(tools.convar) ~= 'string' or tools.convar == '' or #tools.convar > 64 then
+        addError(errors, 'DeploymentTools.convar must be a non-empty string of at most 64 characters')
+    end
+end
+
+local function validateDeploymentSites(config, errors)
+    if config.Features and config.Features.DeploymentTools == true
+        and type(config.DeploymentSites) ~= 'table' then
+        addError(errors, 'DeploymentSites must be configured when deployment tools are enabled')
+        return
+    end
+    if TelecomDeploymentEditor and TelecomDeploymentEditor.ValidateCatalog then
+        local ok, siteErrors = TelecomDeploymentEditor.ValidateCatalog(config)
+        if not ok then
+            for _, message in ipairs(siteErrors or {}) do addError(errors, message) end
+        end
+    end
+end
+
 function Config.Validate(config)
     config = config or Config
     local errors, warnings = {}, {}
@@ -941,6 +972,8 @@ function Config.Validate(config)
     validatePersistence(config, errors)
     validateOperations(config, errors)
     validateDeployment(config, errors)
+    validateDeploymentTools(config, errors)
+    validateDeploymentSites(config, errors)
     validateTowers(config, errors, warnings)
 
     return #errors == 0, errors, warnings

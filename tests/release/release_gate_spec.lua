@@ -43,6 +43,7 @@ TEST('release metadata and package files are internally consistent', function()
         'PHONE_BRIDGE_GUIDE.md',
         'CUSTOM_INTEGRATION.md',
         'TOWER_CONFIGURATION.md',
+        'DEPLOYMENT_EDITOR.md',
         'TECHNICIAN_CONFIGURATION.md',
         'NOC_GUIDE.md',
         'BACKHAUL_GUIDE.md',
@@ -64,6 +65,7 @@ TEST('release defaults are production-safe', function()
     ASSERT_EQ(defaults.Debug.logLevel, 'info')
     ASSERT_FALSE(defaults.Features.Sabotage)
     ASSERT_FALSE(defaults.Features.Statistics)
+    ASSERT_FALSE(defaults.Features.DeploymentTools)
     ASSERT_EQ(defaults.Persistence.adapter, 'auto')
 end)
 

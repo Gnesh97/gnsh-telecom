@@ -2,6 +2,7 @@
 Config.Debug.enabled = true
 Config.Debug.logLevel = 'debug'
 Config.Features.Technician = true
+Config.Features.DeploymentTools = true
 
 Config.Bridges = Config.Bridges or {}
 Config.Bridges.Notify = Config.Bridges.Notify or {

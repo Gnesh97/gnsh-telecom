@@ -39,6 +39,12 @@ Available archetypes are `METRO_MACRO`, `TOWN_MACRO`, `RURAL_MACRO`,
 itself change signal attenuation. Unknown classes and policy labels fail
 validation.
 
+The planned site catalog in `config/deployment_sites.lua` intentionally has no
+`coords` field. Use the admin-only development editor in
+[DEPLOYMENT_EDITOR.md](DEPLOYMENT_EDITOR.md) to visit and capture real FiveM
+positions. A capture is temporary and must be reviewed before its exported
+definition is copied into `config/towers.lua`.
+
 When using backhaul, map the tower ID in `Config.Backhaul.towerNodes` in the same server-owned configuration surface. A tower with a healthy radio but no route to a configured core keeps its signal calculation but loses network services.
 
 The production manifest does not load `config/examples/towers.lua` or `config/development.lua`. Keep test coordinates and test node IDs in those files so they cannot silently become production topology.
