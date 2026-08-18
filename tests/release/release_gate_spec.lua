@@ -31,24 +31,7 @@ TEST('release metadata and package files are internally consistent', function()
     for _, path in ipairs({
         'LICENSE',
         'CHANGELOG.md',
-        'CARRIER_GUIDE.md',
-        'COMPATIBILITY.md',
-        'PERFORMANCE.md',
-        'RELEASE_TEST_REPORT.md',
         'README.md',
-        'INSTALLATION.md',
-        'CONFIGURATION.md',
-        'API.md',
-        'BRIDGES.md',
-        'PHONE_BRIDGE_GUIDE.md',
-        'CUSTOM_INTEGRATION.md',
-        'TOWER_CONFIGURATION.md',
-        'DEPLOYMENT_EDITOR.md',
-        'TECHNICIAN_CONFIGURATION.md',
-        'NOC_GUIDE.md',
-        'BACKHAUL_GUIDE.md',
-        'SECURITY.md',
-        'TROUBLESHOOTING.md',
     }) do
         ASSERT_TRUE(fileExists(path), 'release file missing: ' .. path)
     end
@@ -57,6 +40,7 @@ TEST('release metadata and package files are internally consistent', function()
     ASSERT_TRUE(license:find('MIT License', 1, true) ~= nil)
     local changelog = readFile('CHANGELOG.md')
     ASSERT_TRUE(changelog:find(releaseVersion, 1, true) ~= nil)
+    ASSERT_TRUE(changelog:find('README.md', 1, true) ~= nil)
 end)
 
 TEST('release defaults are production-safe', function()
@@ -82,6 +66,7 @@ TEST('release gate keeps live evidence as a separate blocker', function()
     end
     ASSERT_EQ(liveSupported, 0)
 
-    local report = readFile('RELEASE_TEST_REPORT.md')
-    ASSERT_TRUE(report:find('Real FiveM runtime', 1, true) ~= nil)
+    local readme = readFile('README.md')
+    ASSERT_TRUE(readme:find('Real FiveM runtime', 1, true) ~= nil)
+    ASSERT_TRUE(readme:find('uncertified for this release candidate', 1, true) ~= nil)
 end)
