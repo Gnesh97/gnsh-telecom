@@ -4,8 +4,8 @@
 
 Release candidate packaging for the completed telecom foundation and
 operations milestone. This is not a production release until the real FiveM
-runtime, provider compatibility and clean-install gates in
-`RELEASE_TEST_REPORT.md` are closed.
+runtime, provider compatibility and clean-install gates described in the
+README validation section are closed.
 
 - Added custom bridge registration SDK and lifecycle-safe provider contracts.
 - Added adversarial security validation for trust boundaries, rate limits,
@@ -16,6 +16,14 @@ runtime, provider compatibility and clean-install gates in
 - Added the universal compatibility evidence matrix and conservative
   `EXPERIMENTAL` labels for combinations without live runtime evidence.
 - Added MIT licensing and a release-gate test/report packet.
+
+## Unreleased
+
+- Consolidated installation, configuration, API, integration, security,
+  compatibility and operations documentation into `README.md`.
+- Removed duplicated standalone guide files and internal documentation
+  reports from the repository.
+- No runtime or public API behavior changed.
 
 ## 0.1.0 - Unreleased history
 
