@@ -30,6 +30,9 @@ local expectedSiteIds = {
     'HW-R68-01',
     'HW-PALOMINO-01',
     'HW-NORTH-01',
+    'HW-SANDY-EAST-01',
+    'HW-SENORA-CORRIDOR-01',
+    'HW-DAVIS-FREEWAY-01',
     'RM-CHILIAD-CABLE-01',
 }
 

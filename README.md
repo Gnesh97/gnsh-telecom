@@ -222,6 +222,20 @@ collected `signal_watch` lines for analysis. The interval is configurable with
 The line keeps the currently connected signal separate from the best candidate
 (`selectedSignal`) during handover hysteresis.
 
+TP-07 gap candidates are intentionally draft-only until they are visually
+validated in-game:
+
+```
+HW-SANDY-EAST-01       (2434.26, 2856.03, 48.54)
+HW-SENORA-CORRIDOR-01  (2725.54, 4392.98, 47.80)
+HW-DAVIS-FREEWAY-01    (-273.15, -1248.67, 36.88)
+```
+
+Use `/telecom_tower_drafts` to show these anchors, move to a safe roadside
+structure, then capture the matching site id with `/telecom_tower_capture
+<siteId>`. A capture is evidence for a later `Config.Towers` change; it does
+not activate a production tower by itself.
+
 ### Persistence and backhaul
 
 Persistence is optional and supports auto, memory and oxmysql adapters. Only

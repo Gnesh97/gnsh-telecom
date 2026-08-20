@@ -48,6 +48,11 @@ Config.DeploymentDrafts = {
     { id = 'HW-R68-01', coords = vector3(1050.00, 2700.00, 38.00), heading = 90.0 },
     { id = 'HW-PALOMINO-01', coords = vector3(2600.00, 500.00, 90.00), heading = 90.0 },
     { id = 'HW-NORTH-01', coords = vector3(1016.95, 6585.86, 3.41), heading = 90.0 },
+    -- TP-07 runtime captures; move to a safe road-side structure and capture
+    -- before promoting any candidate into Config.Towers.
+    { id = 'HW-SANDY-EAST-01', coords = vector3(2434.26, 2856.03, 48.54), heading = 0.0 },
+    { id = 'HW-SENORA-CORRIDOR-01', coords = vector3(2725.54, 4392.98, 47.80), heading = 0.0 },
+    { id = 'HW-DAVIS-FREEWAY-01', coords = vector3(-273.15, -1248.67, 36.88), heading = 0.0 },
     { id = 'RM-CHILIAD-CABLE-01', coords = vector3(450.00, 5566.00, 800.00), heading = 0.0 },
 }
 else

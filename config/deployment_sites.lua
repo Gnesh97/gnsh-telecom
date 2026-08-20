@@ -219,6 +219,27 @@ Config.DeploymentSites = {
         technologies = { '4G' },
     },
     {
+        id = 'HW-SANDY-EAST-01',
+        class = 'HIGHWAY_REPEATER',
+        coverageZone = 'HIGHWAY',
+        purpose = 'TP-07 verified Sandy eastern corridor gap candidate',
+        technologies = { '4G' },
+    },
+    {
+        id = 'HW-SENORA-CORRIDOR-01',
+        class = 'HIGHWAY_REPEATER',
+        coverageZone = 'HIGHWAY',
+        purpose = 'TP-07 verified Sandy-to-Senora corridor gap candidate',
+        technologies = { '4G' },
+    },
+    {
+        id = 'HW-DAVIS-FREEWAY-01',
+        class = 'HIGHWAY_REPEATER',
+        coverageZone = 'HIGHWAY',
+        purpose = 'TP-07 verified La Puerta-to-Davis freeway gap candidate',
+        technologies = { '4G' },
+    },
+    {
         id = 'RM-CHILIAD-CABLE-01',
         class = 'REMOTE_REPEATER',
         coverageZone = 'WILDERNESS',
