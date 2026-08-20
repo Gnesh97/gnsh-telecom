@@ -169,6 +169,8 @@ TEST('signal watch formatter keeps movement snapshots compact and analyzable', f
             radius = 850,
             distanceSignal = 73.4,
             distancePenalty = 26.6,
+            rawSignal = 80.0,
+            finalSignal = 73.4,
             environmentMultiplier = 0.8,
             environmentPenalty = 14.68,
             failureMultiplier = 1,
@@ -187,6 +189,7 @@ TEST('signal watch formatter keeps movement snapshots compact and analyzable', f
     ASSERT_TRUE(line:find('signal_watch source=7', 1, true) ~= nil)
     ASSERT_TRUE(line:find('coords=(12.34,-56.78,90.12)', 1, true) ~= nil)
     ASSERT_TRUE(line:find('signal=73.40', 1, true) ~= nil)
+    ASSERT_TRUE(line:find('selectedSignal=73.40 selectedRaw=80.00', 1, true) ~= nil)
     ASSERT_TRUE(line:find('tower=WATCH_TOWER/WATCH_TOWER-S1', 1, true) ~= nil)
     ASSERT_TRUE(line:find('distance=120.00/850.00', 1, true) ~= nil)
     ASSERT_TRUE(line:find('candidate#1=WATCH_TOWER/WATCH_TOWER-S1', 1, true) ~= nil)

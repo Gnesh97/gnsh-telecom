@@ -219,6 +219,8 @@ environment, interference, capacity and candidate details. Drive the test
 route while it is enabled, then use `/telecom_signal_watch off` and send the
 collected `signal_watch` lines for analysis. The interval is configurable with
 `Config.CoverageDebug.signalWatchIntervalMs` and is clamped to 2–10 seconds.
+The line keeps the currently connected signal separate from the best candidate
+(`selectedSignal`) during handover hysteresis.
 
 ### Persistence and backhaul
 

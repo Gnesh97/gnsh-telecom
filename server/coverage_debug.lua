@@ -601,10 +601,10 @@ function TelecomCoverageDebug.FormatSignalWatch(report)
         and state.environment or {}
     local breakdown = type(report.breakdown) == 'table'
         and report.breakdown or {}
-    local signal = state.signal
-        or breakdown.finalSignal
-    local rawSignal = state.rawSignal
-        or breakdown.rawSignal
+    local selectedSignal = breakdown.finalSignal
+    local selectedRawSignal = breakdown.rawSignal
+    local signal = state.signal or selectedSignal
+    local rawSignal = state.rawSignal or selectedRawSignal
     local candidateParts = {}
     for _, candidate in ipairs(report.candidates or {}) do
         candidateParts[#candidateParts + 1] = ('candidate#%s=%s/%s d=%s s=%s score=%s tech=%s')
@@ -623,6 +623,9 @@ function TelecomCoverageDebug.FormatSignalWatch(report)
     local selectedTower = report.selectedTower or state.towerId
     local selectedSector = report.selectedSector or state.sectorId
     local band = TelecomCoverageDebug.GetHeatmapBand(signal)
+    local selectedBand = TelecomCoverageDebug.GetHeatmapBand(selectedSignal)
+    local selectedLevel = Signal and Signal.GetLevel
+        and Signal.GetLevel(selectedSignal) or 'n/a'
     local parts = {
         ('signal_watch source=%s coords=(%s,%s,%s)')
             :format(
@@ -638,13 +641,17 @@ function TelecomCoverageDebug.FormatSignalWatch(report)
                 tostring(selectedTower),
                 tostring(selectedSector)
             ),
-        ('signal=%s raw=%s band=%s level=%s tech=%s')
+        ('signal=%s raw=%s band=%s level=%s tech=%s selectedSignal=%s selectedRaw=%s selectedBand=%s selectedLevel=%s')
             :format(
                 formatNumber(signal),
                 formatNumber(rawSignal),
                 band,
                 tostring(state.signalLevel),
-                tostring(state.technology)
+                tostring(state.technology),
+                formatNumber(selectedSignal),
+                formatNumber(selectedRawSignal),
+                selectedBand,
+                tostring(selectedLevel)
             ),
         ('env=%s/%s x%s candidates=%s')
             :format(
