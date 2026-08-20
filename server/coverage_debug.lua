@@ -3,6 +3,7 @@ TelecomCoverageDebug = TelecomCoverageDebug or {}
 local registeredCommands = false
 local jobsBySource = {}
 local lastHeatmapAtBySource = {}
+local signalWatchBySource = {}
 local requestSequence = 0
 
 local function copy(value)
@@ -438,7 +439,15 @@ local function signalBreakdown(candidate, coords, environmentContext, state)
     local radius = towerRadius(candidate)
     local distanceSignal = 0
     if finite(distance) and finite(radius) and radius > 0 and distance < radius then
-        distanceSignal = clamp(base * (1 - distance / radius), 0, 100)
+        local exponent = Signal and Signal.GetDistanceFalloffExponent
+            and Signal.GetDistanceFalloffExponent() or 1.0
+        exponent = finite(exponent) and exponent or 1.0
+        local normalizedDistance = clamp(distance / radius, 0, 1)
+        distanceSignal = clamp(
+            base * (1 - normalizedDistance ^ exponent),
+            0,
+            100
+        )
     end
 
     local environment = Signal.ResolveEnvironment(coords, environmentContext)
@@ -583,6 +592,100 @@ local function formatNumber(value)
     return finite(value) and ('%.2f'):format(value) or 'n/a'
 end
 
+function TelecomCoverageDebug.FormatSignalWatch(report)
+    if type(report) ~= 'table' then return 'signal_watch unavailable' end
+
+    local state = type(report.state) == 'table' and report.state or {}
+    local coords = type(report.coords) == 'table' and report.coords or {}
+    local environment = type(state.environment) == 'table'
+        and state.environment or {}
+    local breakdown = type(report.breakdown) == 'table'
+        and report.breakdown or {}
+    local signal = state.signal
+        or breakdown.finalSignal
+    local rawSignal = state.rawSignal
+        or breakdown.rawSignal
+    local candidateParts = {}
+    for _, candidate in ipairs(report.candidates or {}) do
+        candidateParts[#candidateParts + 1] = ('candidate#%s=%s/%s d=%s s=%s score=%s tech=%s')
+            :format(
+                tostring(candidate.rank),
+                tostring(candidate.towerId),
+                tostring(candidate.sectorId),
+                formatNumber(candidate.distance),
+                formatNumber(candidate.signal),
+                formatNumber(candidate.score),
+                tostring(candidate.technology)
+            )
+    end
+    if #candidateParts == 0 then candidateParts[1] = 'candidate#none' end
+
+    local selectedTower = report.selectedTower or state.towerId
+    local selectedSector = report.selectedSector or state.sectorId
+    local band = TelecomCoverageDebug.GetHeatmapBand(signal)
+    local parts = {
+        ('signal_watch source=%s coords=(%s,%s,%s)')
+            :format(
+                tostring(report.source),
+                formatNumber(coords.x),
+                formatNumber(coords.y),
+                formatNumber(coords.z)
+            ),
+        ('connected=%s/%s selected=%s/%s')
+            :format(
+                tostring(report.connectedTower),
+                tostring(report.connectedSector),
+                tostring(selectedTower),
+                tostring(selectedSector)
+            ),
+        ('signal=%s raw=%s band=%s level=%s tech=%s')
+            :format(
+                formatNumber(signal),
+                formatNumber(rawSignal),
+                band,
+                tostring(state.signalLevel),
+                tostring(state.technology)
+            ),
+        ('env=%s/%s x%s candidates=%s')
+            :format(
+                tostring(environment.category),
+                tostring(environment.zoneId),
+                formatNumber(environment.multiplier),
+                tostring(report.candidateCount or 0)
+            ),
+        ('tower=%s/%s distance=%s/%s falloffExp=%s distanceSignal=%s distancePenalty=%s')
+            :format(
+                tostring(selectedTower),
+                tostring(selectedSector),
+                formatNumber(breakdown.distance),
+                formatNumber(breakdown.radius),
+                formatNumber(Signal and Signal.GetDistanceFalloffExponent
+                    and Signal.GetDistanceFalloffExponent()),
+                formatNumber(breakdown.distanceSignal),
+                formatNumber(breakdown.distancePenalty)
+            ),
+        ('envPenalty=%s failure=%sx failurePenalty=%s interference=%sx interferencePenalty=%s')
+            :format(
+                formatNumber(breakdown.environmentPenalty),
+                formatNumber(breakdown.failureMultiplier),
+                formatNumber(breakdown.failurePenalty),
+                formatNumber(breakdown.interferenceMultiplier),
+                formatNumber(breakdown.interferencePenalty)
+            ),
+        ('capacity=%sx capacityPenalty=%s load=%s congestion=%s sectorPenalty=%s backhaul=%s')
+            :format(
+                formatNumber(breakdown.capacityMultiplier),
+                formatNumber(breakdown.capacityPenalty),
+                formatNumber(breakdown.loadPercent or state.loadPercent),
+                tostring(breakdown.congestion or state.congestion),
+                formatNumber(breakdown.sectorPenalty),
+                tostring(breakdown.backhaulStatus or state.backhaulStatus)
+            ),
+    }
+    for _, candidatePart in ipairs(candidateParts) do parts[#parts + 1] = candidatePart end
+    return table.concat(parts, ' ')
+end
+
 local function commandSignalInspect(source, args)
     local ok, errorCode = authorized(source)
     if not ok then reply(source, ('signal inspector rejected: %s'):format(errorCode)); return end
@@ -677,6 +780,113 @@ local function commandSignalInspect(source, args)
     end
 end
 
+local function signalWatchInterval()
+    return configuredInteger('signalWatchIntervalMs', 3000, 2000, 10000)
+end
+
+local function stopSignalWatch(source, reason)
+    local number = normalizeSource(source)
+    local watch = number and signalWatchBySource[number]
+    if not watch then return false end
+
+    signalWatchBySource[number] = nil
+    if reason then reply(number, ('signal watch stopped: %s'):format(reason)) end
+    if TelecomAudit and TelecomAudit.Record then
+        TelecomAudit.Record(number, 'coverage_signal_watch_stop', { reason = reason })
+    end
+    return true
+end
+
+local function startSignalWatch(source)
+    local number = normalizeSource(source)
+    if not number or number == 0 then return false, 'player_source_required' end
+    if signalWatchBySource[number] then return false, 'already_running' end
+    if type(CreateThread) ~= 'function' or type(Wait) ~= 'function' then
+        return false, 'watch_unavailable'
+    end
+
+    local watch = {
+        source = number,
+        intervalMs = signalWatchInterval(),
+    }
+    signalWatchBySource[number] = watch
+    if TelecomAudit and TelecomAudit.Record then
+        TelecomAudit.Record(number, 'coverage_signal_watch_start', {
+            intervalMs = watch.intervalMs,
+        })
+    end
+
+    CreateThread(function()
+        while signalWatchBySource[number] == watch do
+            local report, errorCode = TelecomCoverageDebug.InspectSignal(number)
+            if not report then
+                stopSignalWatch(number, errorCode or 'inspection_failed')
+                break
+            end
+
+            reply(number, TelecomCoverageDebug.FormatSignalWatch(report))
+            Wait(watch.intervalMs)
+        end
+    end)
+    return true, watch.intervalMs
+end
+
+local function commandSignalWatch(source, args)
+    local number = normalizeSource(source)
+    if not number or number == 0 then
+        reply(source, 'signal watch rejected: player_source_required')
+        return
+    end
+
+    local ok, errorCode = authorized(source)
+    if not ok then reply(source, ('signal watch rejected: %s'):format(errorCode)); return end
+    if not featureEnabled() then
+        reply(source, 'signal watch rejected: coverage_tools_disabled')
+        return
+    end
+
+    local action = lower(token(args, 1)) or 'toggle'
+    local running = signalWatchBySource[number] ~= nil
+    if action == 'status' then
+        if running then
+            reply(number, ('signal watch status=RUNNING interval=%dms'):format(
+                signalWatchBySource[number].intervalMs
+            ))
+        else
+            reply(number, 'signal watch status=STOPPED')
+        end
+        return
+    end
+
+    if action == 'off' or action == 'stop'
+        or action == 'toggle' and running then
+        if stopSignalWatch(number) then
+            reply(number, 'signal watch status=STOPPED')
+        else
+            reply(number, 'signal watch status=ALREADY_STOPPED')
+        end
+        return
+    end
+
+    if action ~= 'on' and action ~= 'start' and action ~= 'toggle' then
+        reply(number, 'signal watch usage: /telecom_signal_watch [on|off|status]')
+        return
+    end
+
+    local started, intervalOrError = startSignalWatch(number)
+    if not started then
+        if intervalOrError == 'already_running' then
+            reply(number, ('signal watch status=ALREADY_RUNNING interval=%dms')
+                :format(signalWatchBySource[number].intervalMs))
+        else
+            reply(number, ('signal watch rejected: %s'):format(intervalOrError))
+        end
+        return
+    end
+    reply(number, ('signal watch status=RUNNING interval=%dms; drive and collect F8 lines; stop with /telecom_signal_watch off')
+        :format(intervalOrError))
+end
+
 function TelecomCoverageDebug.RegisterCommands()
     if registeredCommands then return false, 'commands_already_registered' end
     if type(RegisterCommand) ~= 'function' then return false, 'command_api_unavailable' end
@@ -686,6 +896,9 @@ function TelecomCoverageDebug.RegisterCommands()
     end, false)
     RegisterCommand('telecom_signal_inspect', function(source, args)
         commandSignalInspect(source, args)
+    end, false)
+    RegisterCommand('telecom_signal_watch', function(source, args)
+        commandSignalWatch(source, args)
     end, false)
     registeredCommands = true
     return true
@@ -699,6 +912,7 @@ if type(AddEventHandler) == 'function' then
         if number then
             jobsBySource[number] = nil
             lastHeatmapAtBySource[number] = nil
+            signalWatchBySource[number] = nil
         end
     end)
 end

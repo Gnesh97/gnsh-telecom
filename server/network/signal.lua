@@ -40,6 +40,10 @@ local function getDistanceFalloffExponent()
     return exponent
 end
 
+function Signal.GetDistanceFalloffExponent()
+    return getDistanceFalloffExponent()
+end
+
 function Signal.CalculateDistance(left, right)
     if not Utils.IsPoint(left) or not Utils.IsPoint(right) then return nil end
 

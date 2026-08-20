@@ -200,6 +200,7 @@ Available commands:
 /telecom_heatmap all
 /telecom_heatmap clear
 /telecom_signal_inspect [playerId]
+/telecom_signal_watch [on|off|status]
 /telecom_coverage_expectations
 /telecom_coverage_capture <anchorId> WEAK_OR_NONE
 ```
@@ -210,6 +211,14 @@ regions so the request remains safe for the server and pause-map blip budget.
 
 The heatmap samples the existing server-authoritative pipeline. It does not
 create towers, change connections or add a second gameplay coverage radius.
+
+`/telecom_signal_watch on` starts a server-authoritative snapshot every three
+seconds for the executing admin player. Each snapshot is printed to that
+player's F8 console with coordinates, signal/band, selected tower, distance,
+environment, interference, capacity and candidate details. Drive the test
+route while it is enabled, then use `/telecom_signal_watch off` and send the
+collected `signal_watch` lines for analysis. The interval is configurable with
+`Config.CoverageDebug.signalWatchIntervalMs` and is clamped to 2–10 seconds.
 
 ### Persistence and backhaul
 

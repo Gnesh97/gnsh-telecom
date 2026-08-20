@@ -130,6 +130,92 @@ TEST('signal inspector projects capacity effects for an unconnected candidate', 
     if not ok then error(errorMessage, 0) end
 end)
 
+TEST('signal watch formatter keeps movement snapshots compact and analyzable', function()
+    local line = TelecomCoverageDebug.FormatSignalWatch({
+        source = 7,
+        coords = { x = 12.34, y = -56.78, z = 90.12 },
+        connectedTower = 'WATCH_TOWER',
+        connectedSector = 'WATCH_TOWER-S1',
+        selectedTower = 'WATCH_TOWER',
+        selectedSector = 'WATCH_TOWER-S1',
+        candidateCount = 2,
+        state = {
+            signal = 73.4,
+            rawSignal = 80.0,
+            signalLevel = 'GOOD',
+            technology = '4G',
+            congestion = 'NORMAL',
+            loadPercent = 12,
+            backhaulStatus = 'ONLINE',
+            environment = {
+                category = 'URBAN',
+                zoneId = 'DOWNTOWN',
+                multiplier = 0.8,
+            },
+        },
+        candidates = {
+            {
+                rank = 1,
+                towerId = 'WATCH_TOWER',
+                sectorId = 'WATCH_TOWER-S1',
+                distance = 120,
+                signal = 73.4,
+                score = 70.1,
+                technology = '4G',
+            },
+        },
+        breakdown = {
+            distance = 120,
+            radius = 850,
+            distanceSignal = 73.4,
+            distancePenalty = 26.6,
+            environmentMultiplier = 0.8,
+            environmentPenalty = 14.68,
+            failureMultiplier = 1,
+            failurePenalty = 0,
+            interferenceMultiplier = 1,
+            interferencePenalty = 0,
+            capacityMultiplier = 1,
+            capacityPenalty = 0,
+            loadPercent = 12,
+            congestion = 'NORMAL',
+            backhaulStatus = 'ONLINE',
+        },
+    })
+
+    ASSERT_TRUE(type(line) == 'string')
+    ASSERT_TRUE(line:find('signal_watch source=7', 1, true) ~= nil)
+    ASSERT_TRUE(line:find('coords=(12.34,-56.78,90.12)', 1, true) ~= nil)
+    ASSERT_TRUE(line:find('signal=73.40', 1, true) ~= nil)
+    ASSERT_TRUE(line:find('tower=WATCH_TOWER/WATCH_TOWER-S1', 1, true) ~= nil)
+    ASSERT_TRUE(line:find('distance=120.00/850.00', 1, true) ~= nil)
+    ASSERT_TRUE(line:find('candidate#1=WATCH_TOWER/WATCH_TOWER-S1', 1, true) ~= nil)
+end)
+
+TEST('signal inspector breakdown follows configured distance falloff', function()
+    resetCoverageDebugState()
+    TowerRegistry.Init({ makeCoverageDebugTower('FALLOFF_INSPECTOR') })
+    ASSERT_TRUE(SpatialIndex.Rebuild(TowerRegistry.GetAll()))
+
+    local previousPed = rawget(_G, 'GetPlayerPed')
+    local previousCoords = rawget(_G, 'GetEntityCoords')
+    GetPlayerPed = function() return 1 end
+    GetEntityCoords = function() return vector3(50, 0, 0) end
+
+    local ok, errorMessage = pcall(function()
+        local report = TelecomCoverageDebug.InspectSignal(7)
+        local exponent = Config.Signal.DistanceFalloffExponent
+        local expected = 100 * (1 - (0.5 ^ exponent))
+        ASSERT_TRUE(report and report.breakdown)
+        ASSERT_TRUE(math.abs(report.breakdown.distanceSignal - expected) < 0.01)
+    end)
+
+    rawset(_G, 'GetPlayerPed', previousPed)
+    rawset(_G, 'GetEntityCoords', previousCoords)
+    resetCoverageDebugState()
+    if not ok then error(errorMessage, 0) end
+end)
+
 TEST('coverage debug commands register as bounded development tools', function()
     local previousRegister = rawget(_G, 'RegisterCommand')
     local registered = {}
@@ -139,6 +225,7 @@ TEST('coverage debug commands register as bounded development tools', function()
     ASSERT_TRUE(ok, errorCode)
     ASSERT_TRUE(type(registered.telecom_heatmap) == 'function')
     ASSERT_TRUE(type(registered.telecom_signal_inspect) == 'function')
+    ASSERT_TRUE(type(registered.telecom_signal_watch) == 'function')
 
     rawset(_G, 'RegisterCommand', previousRegister)
 end)

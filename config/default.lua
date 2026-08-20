@@ -16,6 +16,7 @@ Config = {
         maxSamples = 1024,
         batchSize = 24,
         cooldownMs = 1500,
+        signalWatchIntervalMs = 3000,
         globalSpacing = 350.0,
         globalBounds = {
             minX = -4200.0,
