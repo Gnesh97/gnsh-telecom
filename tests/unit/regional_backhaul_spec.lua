@@ -100,6 +100,16 @@ TEST('regional backhaul prefers a deterministic primary and exposes a backup rou
     end)
 end)
 
+TEST('configured backhaul keeps unmapped runtime towers implicitly online', function()
+    withRegionalTopology(function()
+        local ok, route = BackhaulRouting.FindRoute('RUNTIME_TOWER')
+        ASSERT_TRUE(ok)
+        ASSERT_EQ(route.status, Enums.BackhaulState.ONLINE)
+        ASSERT_TRUE(route.implicit)
+        ASSERT_TRUE(route.unmapped)
+    end)
+end)
+
 TEST('regional backhaul fails over to the backup path when the primary link is offline', function()
     withRegionalTopology(function()
         ASSERT_TRUE(BackhaulLinks.SetState('LINK-A-PRIMARY', Enums.LinkState.OFFLINE))

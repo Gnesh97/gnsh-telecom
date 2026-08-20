@@ -115,3 +115,27 @@ TEST('config validation uses custom deployment tables passed to the validator', 
     local ok, errors = Config.Validate(custom)
     ASSERT_TRUE(ok, table.concat(errors or {}, '; '))
 end)
+
+TEST('production towers align region and backhaul metadata', function()
+    local seen = {}
+    for _, tower in ipairs(Config.Towers) do
+        seen[tower.id] = true
+        ASSERT_TRUE(type(tower.regionId) == 'string')
+        ASSERT_TRUE(type(tower.backhaulNodeId) == 'string')
+        ASSERT_EQ(Config.Backhaul.towerNodes[tower.id], tower.backhaulNodeId)
+    end
+    ASSERT_EQ(#Config.Towers, 40)
+    ASSERT_TRUE(seen['BC-CHUMASH-01'])
+
+    local ok, errors = Config.Validate()
+    ASSERT_TRUE(ok, table.concat(errors or {}, '; '))
+end)
+
+TEST('config validation rejects mismatched deployment metadata', function()
+    local invalid = Utils.DeepCopy(Config)
+    invalid.Towers[1].backhaulNodeId = 'AGG-LS-01'
+
+    local ok, errors = Config.Validate(invalid)
+    ASSERT_FALSE(ok)
+    ASSERT_TRUE(table.concat(errors, '; '):find('backhaulNodeId', 1, true) ~= nil)
+end)

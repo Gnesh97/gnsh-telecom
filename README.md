@@ -101,7 +101,8 @@ recomputed or validated on the server.
    ensure gnsh-telecom
    ```
 
-3. Add production tower definitions to config/towers.lua.
+3. Add production tower definitions to config/towers.lua and keep their
+   logical region/backhaul metadata aligned with config/backhaul.lua.
 4. Restart the resource and confirm CONFIG_OK, RESOURCE_STARTED and the
    spatial-index startup log.
 
@@ -250,6 +251,11 @@ tower → aggregation → regional POP → core
 Healthy radio signal does not guarantee service availability when no route
 reaches a configured core. Routing is bounded, deterministic and supports
 degraded links, offline nodes and link-disjoint backup paths when available.
+
+The production topology ships with two core nodes, six operational regions and
+two POP paths per region. Each production tower declares `regionId` and
+`backhaulNodeId`; these fields describe the logical network only and do not
+spawn or require a GTA prop/entity.
 
 ## Public API
 
@@ -508,7 +514,8 @@ fxmanifest.lua and config/default.lua.
 - [MIT License](LICENSE)
 
 The main configuration entry points are
-[config/default.lua](config/default.lua), [config/towers.lua](config/towers.lua)
+[config/default.lua](config/default.lua), [config/towers.lua](config/towers.lua),
+[config/backhaul.lua](config/backhaul.lua)
 and [fxmanifest.lua](fxmanifest.lua). The test runner is
 [tests/run.lua](tests/run.lua), and a complete external bridge example is
 [examples/custom_bridge.lua](examples/custom_bridge.lua).

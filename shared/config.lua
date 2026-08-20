@@ -390,6 +390,140 @@ local function validateOperations(config, errors)
     end
 end
 
+local function backhaulDefinitions(definitions)
+    if type(definitions) ~= 'table' then return {} end
+    if #definitions > 0 then return definitions end
+
+    local result = {}
+    for id, definition in pairs(definitions) do
+        if type(definition) == 'table' then
+            local copy = {}
+            for key, value in pairs(definition) do copy[key] = value end
+            copy.id = copy.id or id
+            result[#result + 1] = copy
+        end
+    end
+    return result
+end
+
+local function validateBackhaulDeployment(config, errors)
+    local backhaul = config.Backhaul
+    if type(backhaul) ~= 'table' then return end
+
+    local configuredNodes = {}
+    local nodeDefinitions = type(backhaul.nodes) == 'table' and backhaul.nodes or {}
+    local regionDefinitions = type(backhaul.regions) == 'table' and backhaul.regions or {}
+    local coreNodeIds = type(backhaul.coreNodes) == 'table' and backhaul.coreNodes or {}
+    local towerNodeMappings = type(backhaul.towerNodes) == 'table'
+        and backhaul.towerNodes or {}
+    local towerRegionMappings = type(backhaul.towerRegions) == 'table'
+        and backhaul.towerRegions or {}
+    local linkDefinitions = type(backhaul.links) == 'table' and backhaul.links or {}
+    local towerDefinitions = type(config.Towers) == 'table' and config.Towers or {}
+
+    for _, node in ipairs(nodeDefinitions) do
+        if type(node) == 'table' and type(node.id) == 'string' and node.id ~= '' then
+            configuredNodes[node.id] = true
+        end
+    end
+
+    local regionById, regionByTower = {}, {}
+    for _, region in ipairs(backhaulDefinitions(regionDefinitions)) do
+        if type(region) == 'table' and type(region.id) == 'string' and region.id ~= '' then
+            regionById[region.id] = true
+            if type(region.popNode) == 'string' and region.popNode ~= '' then
+                configuredNodes[region.popNode] = true
+            end
+            local regionNodeIds = type(region.nodeIds) == 'table' and region.nodeIds or {}
+            local regionCoreNodes = type(region.coreNodes) == 'table'
+                and region.coreNodes or {}
+            local regionTowerIds = type(region.towerIds) == 'table'
+                and region.towerIds
+                or (type(region.towers) == 'table' and region.towers or {})
+            for _, nodeId in ipairs(regionNodeIds) do
+                if type(nodeId) == 'string' and nodeId ~= '' then configuredNodes[nodeId] = true end
+            end
+            for _, nodeId in ipairs(regionCoreNodes) do
+                if type(nodeId) == 'string' and nodeId ~= '' then configuredNodes[nodeId] = true end
+            end
+            for _, towerId in ipairs(regionTowerIds) do
+                if type(towerId) == 'string' and towerId ~= '' then
+                    regionByTower[towerId] = region.id
+                end
+            end
+        end
+    end
+
+    for towerId, regionId in pairs(towerRegionMappings) do
+        if type(towerId) == 'string' and type(regionId) == 'string' then
+            regionByTower[towerId] = regionId
+        end
+    end
+
+    for _, coreNodeId in ipairs(coreNodeIds) do
+        if type(coreNodeId) == 'string' and coreNodeId ~= '' then
+            if not configuredNodes[coreNodeId] then
+                addError(errors, ('Backhaul.coreNodes references unknown node: %s')
+                    :format(coreNodeId))
+            end
+        end
+    end
+
+    for towerId, nodeId in pairs(towerNodeMappings) do
+        if type(towerId) == 'string' and type(nodeId) == 'string' then
+            if not configuredNodes[nodeId] then
+                addError(errors, ('Backhaul.towerNodes.%s references unknown node: %s')
+                    :format(towerId, nodeId))
+            end
+        end
+    end
+
+    for index, link in ipairs(linkDefinitions) do
+        if type(link) == 'table' then
+            for _, endpoint in ipairs({ 'from', 'to' }) do
+                local nodeId = link[endpoint]
+                local isTowerEndpoint = towerNodeMappings[nodeId] ~= nil
+                if type(nodeId) ~= 'string' or nodeId == ''
+                    or (not configuredNodes[nodeId] and not isTowerEndpoint) then
+                    addError(errors, ('Backhaul.links[%d].%s references unknown node: %s')
+                        :format(index, endpoint, tostring(nodeId)))
+                end
+            end
+        end
+    end
+
+    for _, tower in ipairs(towerDefinitions) do
+        if type(tower) == 'table' and type(tower.id) == 'string' then
+            local mappedNode = towerNodeMappings[tower.id]
+            if tower.backhaulNodeId ~= nil then
+                if type(tower.backhaulNodeId) ~= 'string' or tower.backhaulNodeId == '' then
+                    addError(errors, ('Towers.%s.backhaulNodeId must be a non-empty string')
+                        :format(tower.id))
+                elseif mappedNode ~= tower.backhaulNodeId then
+                    addError(errors, ('Towers.%s.backhaulNodeId does not match Backhaul.towerNodes')
+                        :format(tower.id))
+                elseif not configuredNodes[tower.backhaulNodeId] then
+                    addError(errors, ('Towers.%s.backhaulNodeId references unknown node: %s')
+                        :format(tower.id, tower.backhaulNodeId))
+                end
+            end
+
+            if tower.regionId ~= nil then
+                if type(tower.regionId) ~= 'string' or tower.regionId == '' then
+                    addError(errors, ('Towers.%s.regionId must be a non-empty string')
+                        :format(tower.id))
+                elseif not regionById[tower.regionId] then
+                    addError(errors, ('Towers.%s.regionId references unknown region: %s')
+                        :format(tower.id, tower.regionId))
+                elseif regionByTower[tower.id] ~= tower.regionId then
+                    addError(errors, ('Towers.%s.regionId does not match configured region membership')
+                        :format(tower.id))
+                end
+            end
+        end
+    end
+end
+
 local function validateFeatures(config, errors)
     if type(config.Features) ~= 'table' then return end
     for name, enabled in pairs(config.Features) do
@@ -996,6 +1130,7 @@ function Config.Validate(config)
     validateDeploymentSites(config, errors)
     validateDeploymentDrafts(config, errors)
     validateTowers(config, errors, warnings)
+    validateBackhaulDeployment(config, errors)
 
     return #errors == 0, errors, warnings
 end

@@ -13,6 +13,7 @@ shared_scripts {
     'config/deployment_sites.lua',
     'config/deployment_drafts.lua',
     'config/towers.lua',
+    'config/backhaul.lua',
     'config/coverage_expectations.lua',
     'shared/config.lua',
     'shared/constants.lua',

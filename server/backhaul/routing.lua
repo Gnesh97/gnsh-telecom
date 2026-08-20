@@ -271,6 +271,15 @@ local function computeRoute(towerId, options)
     if not configuredTopology() then
         return true, { towerId = towerId, status = Enums.BackhaulState.ONLINE, implicit = true }
     end
+    local towerMappings = Config and Config.Backhaul and Config.Backhaul.towerNodes
+    if type(towerMappings) ~= 'table' or towerMappings[towerId] == nil then
+        return true, {
+            towerId = towerId,
+            status = Enums.BackhaulState.ONLINE,
+            implicit = true,
+            unmapped = true,
+        }
+    end
     local runtime = TowerRegistry and TowerRegistry.GetRuntimeState
         and TowerRegistry.GetRuntimeState(towerId)
     if runtime and runtime.failureEffects
