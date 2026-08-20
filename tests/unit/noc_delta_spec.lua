@@ -8,6 +8,34 @@ local function makeNocTower(id, maximum)
     }
 end
 
+TEST('logical tower topology does not require visual prop metadata', function()
+    local tower = makeNocTower('NOC_LOGICAL_ONLY')
+    ASSERT_EQ(tower.visual, nil)
+    ASSERT_EQ(tower.entity, nil)
+
+    local ok, errors, normalized = TowerValidation.Validate(tower)
+    ASSERT_TRUE(ok, table.concat(errors or {}, '; '))
+    ASSERT_TRUE(TowerRegistry.Init({ normalized }))
+
+    local registered = TowerRegistry.Get('NOC_LOGICAL_ONLY')
+    ASSERT_TRUE(registered ~= nil)
+    ASSERT_EQ(registered.visual, nil)
+    ASSERT_EQ(registered.entity, nil)
+
+    local entities = NocServer.BuildEntities({ towers = { registered } })
+    local logicalEntity
+    for _, entity in ipairs(entities) do
+        if entity.entityType == 'tower' and entity.entityId == 'NOC_LOGICAL_ONLY' then
+            logicalEntity = entity
+            break
+        end
+    end
+
+    ASSERT_TRUE(logicalEntity ~= nil)
+    ASSERT_EQ(logicalEntity.metadata.coords.x, 0)
+    ASSERT_EQ(logicalEntity.metadata.coverage.radius, 100)
+end)
+
 local function withNocState(fn, maximum)
     local previous = {
         noc = Config.Features.NOC,
