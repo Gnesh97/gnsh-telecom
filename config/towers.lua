@@ -244,6 +244,54 @@ maximum = 30.00,
 -- capturedHeading = 144.57; validate before using as sector azimuth
 },
 {
+id = 'HW-SANDY-EAST-01',
+class = 'HIGHWAY_REPEATER',
+coverageZone = 'HIGHWAY',
+purpose = 'TP-07 verified Sandy eastern corridor highway gap coverage',
+coords = vector3(2436.88, 2826.04, 49.53),
+coverage = {
+radius = 750.00,
+minimum = 50.00,
+},
+technologies = { '4G' },
+capacity = {
+maximum = 30.00,
+},
+-- capturedHeading = 0.00; validate before using as sector azimuth
+},
+{
+id = 'HW-SENORA-CORRIDOR-01',
+class = 'HIGHWAY_REPEATER',
+coverageZone = 'HIGHWAY',
+purpose = 'TP-07 verified Sandy-to-Senora corridor highway gap coverage',
+coords = vector3(2742.58, 4410.03, 48.29),
+coverage = {
+radius = 750.00,
+minimum = 50.00,
+},
+technologies = { '4G' },
+capacity = {
+maximum = 30.00,
+},
+-- capturedHeading = 167.24; validate before using as sector azimuth
+},
+{
+id = 'HW-DAVIS-FREEWAY-01',
+class = 'HIGHWAY_REPEATER',
+coverageZone = 'HIGHWAY',
+purpose = 'TP-07 verified La Puerta-to-Davis freeway gap coverage',
+coords = vector3(-305.85, -1272.62, 45.12),
+coverage = {
+radius = 750.00,
+minimum = 50.00,
+},
+technologies = { '4G' },
+capacity = {
+maximum = 30.00,
+},
+-- capturedHeading = 0.00; validate before using as sector azimuth
+},
+{
 id = 'LS-CYPRESS-01',
 class = 'METRO_MACRO',
 coverageZone = 'METRO_EDGE',

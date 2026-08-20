@@ -222,19 +222,19 @@ collected `signal_watch` lines for analysis. The interval is configurable with
 The line keeps the currently connected signal separate from the best candidate
 (`selectedSignal`) during handover hysteresis.
 
-TP-07 gap candidates are intentionally draft-only until they are visually
-validated in-game:
+TP-07 gap entries were visually validated in-game and are now included in the
+production topology. Their draft anchors are kept synchronized so the editor
+and the production map point to the same captured locations:
 
 ```
-HW-SANDY-EAST-01       (2434.26, 2856.03, 48.54)
-HW-SENORA-CORRIDOR-01  (2725.54, 4392.98, 47.80)
-HW-DAVIS-FREEWAY-01    (-273.15, -1248.67, 36.88)
+HW-SANDY-EAST-01       (2436.88, 2826.04, 49.53)
+HW-SENORA-CORRIDOR-01  (2742.58, 4410.03, 48.29)
+HW-DAVIS-FREEWAY-01    (-305.85, -1272.62, 45.12)
 ```
 
-Use `/telecom_tower_drafts` to show these anchors, move to a safe roadside
-structure, then capture the matching site id with `/telecom_tower_capture
-<siteId>`. A capture is evidence for a later `Config.Towers` change; it does
-not activate a production tower by itself.
+Use `/telecom_tower_drafts` or `/telecom_tower_production` to inspect these
+locations. The capture batch has already been promoted into `Config.Towers`;
+future placement changes should repeat the capture/export/verification flow.
 
 ### Persistence and backhaul
 
