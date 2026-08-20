@@ -490,7 +490,7 @@ Recorded release-candidate evidence covers:
 
 The following gates remain uncertified for this release candidate:
 
-- Real FiveM server startup and resource lifecycle.
+- Real FiveM runtime/server startup and resource lifecycle.
 - Connected-client and multiplayer behavior.
 - Clean install, upgrade, restart and server restart scenarios.
 - Exact live framework, phone, inventory, target and provider versions.
