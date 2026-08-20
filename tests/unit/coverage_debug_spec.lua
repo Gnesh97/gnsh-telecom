@@ -62,6 +62,28 @@ TEST('coverage heatmap grid is deterministic and bounded', function()
     ASSERT_EQ(limitError, 'sample_limit_exceeded')
 end)
 
+TEST('global coverage grid spans the map within a bounded sample limit', function()
+    local points, errorCode = TelecomCoverageDebug.BuildGlobalGrid()
+
+    ASSERT_TRUE(points, errorCode)
+    ASSERT_TRUE(#points > 500)
+    ASSERT_TRUE(#points <= 1024)
+
+    local minX, maxX = math.huge, -math.huge
+    local minY, maxY = math.huge, -math.huge
+    for _, point in ipairs(points) do
+        minX = math.min(minX, point.x)
+        maxX = math.max(maxX, point.x)
+        minY = math.min(minY, point.y)
+        maxY = math.max(maxY, point.y)
+    end
+
+    ASSERT_TRUE(minX <= -4000)
+    ASSERT_TRUE(maxX >= 4000)
+    ASSERT_TRUE(minY <= -4000)
+    ASSERT_TRUE(maxY >= 8000)
+end)
+
 TEST('coverage sample uses real candidates without mutating connection state', function()
     resetCoverageDebugState()
     TowerRegistry.Init({ makeCoverageDebugTower('COVERAGE_DEBUG_TOWER') })

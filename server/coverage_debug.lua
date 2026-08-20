@@ -207,6 +207,20 @@ local function regionBounds(name)
     return type(bounds) == 'table' and copy(bounds) or nil
 end
 
+local function globalBounds()
+    local bounds = settings().globalBounds
+    return type(bounds) == 'table' and copy(bounds) or nil
+end
+
+function TelecomCoverageDebug.BuildGlobalGrid()
+    local bounds = globalBounds()
+    if not bounds then return nil, 'global_bounds_unconfigured' end
+
+    local spacing = configuredNumber('globalSpacing', 350.0, 100.0, 500.0)
+    local maximum = configuredInteger('maxSamples', 1024, 1, 2048)
+    return TelecomCoverageDebug.BuildGrid(bounds, spacing, maximum)
+end
+
 local function currentBounds(source)
     local coords, errorCode = playerCoords(source)
     if not coords then return nil, errorCode end
@@ -232,11 +246,11 @@ local function sendHeatmapClear(source)
     end
 end
 
-local function runHeatmap(source, job, points, mode, regionName)
+local function runHeatmap(source, job, points, mode, regionName, spacing)
     local batchSize = configuredInteger('batchSize', 24, 1, 64)
     local totalChunks = math.ceil(#points / batchSize)
     local environmentContext = mode == 'current' and environmentFor(source) or nil
-    local spacing = configuredNumber('gridSpacing', 125.0, 25.0, 500.0)
+    spacing = spacing or configuredNumber('gridSpacing', 125.0, 25.0, 500.0)
 
     for offset = 1, #points, batchSize do
         if jobsBySource[source] ~= job then return end
@@ -271,7 +285,7 @@ local function runHeatmap(source, job, points, mode, regionName)
     end
 end
 
-local function startHeatmap(source, mode, regionName, points)
+local function startHeatmap(source, mode, regionName, points, spacing)
     sendHeatmapClear(source)
 
     if type(CreateThread) ~= 'function' then return false, 'sampling_unavailable' end
@@ -279,7 +293,7 @@ local function startHeatmap(source, mode, regionName, points)
     local job = { id = nextRequestId() }
     jobsBySource[source] = job
     CreateThread(function()
-        runHeatmap(source, job, points, mode, regionName)
+        runHeatmap(source, job, points, mode, regionName, spacing)
     end)
     return true, job.id
 end
@@ -318,6 +332,7 @@ local function commandHeatmap(source, args)
     if action == 'help' then
         reply(source, '/telecom_heatmap current')
         reply(source, '/telecom_heatmap region downtown|sandy|paleto')
+        reply(source, '/telecom_heatmap all')
         reply(source, '/telecom_heatmap clear')
         reply(source, '/telecom_signal_inspect [playerId]')
         return
@@ -331,6 +346,7 @@ local function commandHeatmap(source, args)
 
     local bounds
     local regionName
+    local spacing = configuredNumber('gridSpacing', 125.0, 25.0, 500.0)
     if action == 'current' then
         bounds, errorCode = currentBounds(playerSource)
         if not bounds then
@@ -344,6 +360,13 @@ local function commandHeatmap(source, args)
             reply(source, 'coverage heatmap rejected: unknown_region')
             return
         end
+    elseif action == 'all' then
+        bounds = globalBounds()
+        spacing = configuredNumber('globalSpacing', 350.0, 100.0, 500.0)
+        if not bounds then
+            reply(source, 'coverage heatmap rejected: global_bounds_unconfigured')
+            return
+        end
     else
         reply(source, 'coverage heatmap rejected: unknown_action')
         return
@@ -352,8 +375,8 @@ local function commandHeatmap(source, args)
     local points
     points, errorCode = TelecomCoverageDebug.BuildGrid(
         bounds,
-        configuredNumber('gridSpacing', 125.0, 25.0, 500.0),
-        configuredInteger('maxSamples', 512, 1, 2048)
+        spacing,
+        configuredInteger('maxSamples', 1024, 1, 2048)
     )
     if not points then
         reply(source, ('coverage heatmap rejected: %s'):format(errorCode))
@@ -366,7 +389,7 @@ local function commandHeatmap(source, args)
         return
     end
 
-    local started, result = startHeatmap(playerSource, action, regionName, points)
+    local started, result = startHeatmap(playerSource, action, regionName, points, spacing)
     if not started then
         reply(source, ('coverage heatmap rejected: %s'):format(result))
         return

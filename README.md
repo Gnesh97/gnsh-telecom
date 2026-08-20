@@ -197,11 +197,16 @@ Available commands:
 /telecom_heatmap region downtown
 /telecom_heatmap region sandy
 /telecom_heatmap region paleto
+/telecom_heatmap all
 /telecom_heatmap clear
 /telecom_signal_inspect [playerId]
 /telecom_coverage_expectations
 /telecom_coverage_capture <anchorId> WEAK_OR_NONE
 ```
+
+`/telecom_heatmap all` renders a bounded coarse grid over the full San Andreas
+map in one overlay. It uses a wider sampling spacing than the named local
+regions so the request remains safe for the server and pause-map blip budget.
 
 The heatmap samples the existing server-authoritative pipeline. It does not
 create towers, change connections or add a second gameplay coverage radius.
