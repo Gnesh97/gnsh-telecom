@@ -26,6 +26,8 @@ These changes are currently on dev after the release-candidate preparation.
   deterministic coverage expectations.
   ([fec9c22](https://github.com/Gnesh97/gnsh-telecom/commit/fec9c22),
   [e9baa26](https://github.com/Gnesh97/gnsh-telecom/commit/e9baa26))
+- Added the QBCore `qb-phone` provider bridge with live signal UI updates and
+  server-authoritative voice/SMS service gates.
 
 ### Changed
 

@@ -88,6 +88,42 @@ TEST('generic phone gates reject no service and offline backhaul', function()
     Connections.Clear()
 end)
 
+TEST('qb phone adapter enforces telecom service gates', function()
+    local previousConfig = Config.PhoneBridge
+    local previousGetResourceState = GetResourceState
+
+    Config.PhoneBridge = 'qbphone'
+    GetResourceState = function(name)
+        return name == 'qb-phone' and 'started' or 'stopped'
+    end
+
+    setPhoneState(76)
+    PhoneBridges.Shutdown()
+    local ok, active = PhoneBridges.Initialize()
+    ASSERT_TRUE(ok)
+    ASSERT_EQ(active.name, 'qbphone')
+    ASSERT_EQ(PhoneBridges.GetStatus().supportLevel, PhoneBridgeContract.Levels.FUNCTIONAL)
+    ASSERT_TRUE(PhoneBridges.CanStartCall(76))
+    ASSERT_TRUE(PhoneBridges.CanSendSMS(76))
+    ASSERT_TRUE(PhoneBridges.CanUseData(76))
+
+    setPhoneState(76, { towerId = nil, signal = 0, rawSignal = 0 })
+    local canCall, callState = PhoneBridges.CanStartCall(76)
+    local canSms, smsState = PhoneBridges.CanSendSMS(76)
+    local canData, dataState = PhoneBridges.CanUseData(76)
+    ASSERT_FALSE(canCall)
+    ASSERT_FALSE(canSms)
+    ASSERT_FALSE(canData)
+    ASSERT_EQ(callState.blockedBy, 'signal')
+    ASSERT_EQ(smsState.blockedBy, 'signal')
+    ASSERT_EQ(dataState.blockedBy, 'signal')
+
+    PhoneBridges.Shutdown()
+    Connections.Clear()
+    GetResourceState = previousGetResourceState
+    Config.PhoneBridge = previousConfig
+end)
+
 TEST('lb phone adapter enforces service, phone item, and call state gates', function()
     local previousConfig = Config.PhoneBridge
     local previousGetResourceState = GetResourceState

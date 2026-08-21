@@ -1,6 +1,7 @@
 PhoneBridges = PhoneBridges or {}
 PhoneBridges.Registry = PhoneBridges.Registry or {}
 PhoneBridges.DetectionOrder = PhoneBridges.DetectionOrder or {
+    'qbphone',
     'lbphone',
     'npwd',
     'qs',
@@ -303,7 +304,7 @@ function PhoneBridges.CreateResourceAdapter(name, resourceNames, options)
     local adapter = createPublicAdapter(name)
     adapter.resourceNames = copy(resourceNames or {})
     adapter.resources = copy(resourceNames or {})
-    adapter.priority = ({ lbphone = 300, npwd = 200, qs = 100 })[name] or 0
+    adapter.priority = ({ lbphone = 300, qbphone = 250, npwd = 200, qs = 100 })[name] or 0
     for key, value in pairs(options or {}) do adapter[key] = copy(value) end
     function adapter:Detect()
         for _, resourceName in ipairs(self.resourceNames) do
@@ -621,13 +622,21 @@ if type(AddEventHandler) == 'function' then
     end
 end
 
-if isServerRuntime() and type(exports) == 'function' then
-    exports('CanStartCall', PhoneBridges.CanStartCall)
-    exports('CanSendPhoneSMS', PhoneBridges.CanSendSMS)
-    exports('CanUsePhoneData', PhoneBridges.CanUseData)
-    exports('GetPhoneNetworkState', PhoneBridges.GetNetworkState)
-    exports('GetPhoneBridgeStatus', PhoneBridges.GetStatus)
-    exports('BeginPhoneServiceSession', PhoneBridges.BeginServiceSession)
-    exports('UpdatePhoneServiceSession', PhoneBridges.UpdateServiceSession)
-    exports('EndPhoneServiceSession', PhoneBridges.EndServiceSession)
+if type(exports) == 'function' then
+    if isServerRuntime() then
+        exports('CanStartCall', PhoneBridges.CanStartCall)
+        exports('CanSendPhoneSMS', PhoneBridges.CanSendSMS)
+        exports('CanUsePhoneData', PhoneBridges.CanUseData)
+        exports('GetPhoneNetworkState', PhoneBridges.GetNetworkState)
+        exports('GetPhoneBridgeStatus', PhoneBridges.GetStatus)
+        exports('BeginPhoneServiceSession', PhoneBridges.BeginServiceSession)
+        exports('UpdatePhoneServiceSession', PhoneBridges.UpdateServiceSession)
+        exports('EndPhoneServiceSession', PhoneBridges.EndServiceSession)
+    else
+        exports('CanStartCall', PhoneBridges.CanStartCall)
+        exports('CanSendPhoneSMS', PhoneBridges.CanSendSMS)
+        exports('CanUsePhoneData', PhoneBridges.CanUseData)
+        exports('GetPhoneNetworkState', PhoneBridges.GetNetworkState)
+        exports('GetPhoneBridgeStatus', PhoneBridges.GetStatus)
+    end
 end

@@ -1,5 +1,11 @@
 local phoneEvidence = {
     {
+        id = 'phone-qbphone',
+        provider = 'qbphone',
+        resourceName = 'qb-phone',
+        capabilitiesVerified = { 'signal UI contract', 'call/SMS gate contract', 'data gate export' },
+    },
+    {
         id = 'phone-lbphone',
         provider = 'lbphone',
         resourceName = 'lb-phone',
@@ -77,6 +83,7 @@ TEST('compat phone provider can start after telecom and stop safely', function()
 end)
 
 TEST('compat phone capability levels remain provider-specific and conservative', function()
+    ASSERT_EQ(PhoneBridges.Get('qbphone').supportLevel, PhoneBridgeContract.Levels.FUNCTIONAL)
     ASSERT_EQ(PhoneBridges.Get('lbphone').supportLevel, PhoneBridgeContract.Levels.FUNCTIONAL)
     ASSERT_EQ(PhoneBridges.Get('npwd').supportLevel, PhoneBridgeContract.Levels.FUNCTIONAL)
     ASSERT_EQ(PhoneBridges.Get('qs').supportLevel, PhoneBridgeContract.Levels.DISPLAY)

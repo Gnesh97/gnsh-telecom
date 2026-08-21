@@ -687,6 +687,7 @@ local bridgeProviders = {
     Phone = {
         auto = true,
         generic = true,
+        qbphone = true,
         lbphone = true,
         npwd = true,
         qs = true,
@@ -1083,10 +1084,18 @@ function Config.Validate(config)
         }) then
         addError(errors, 'CustomTarget must define at least one adapter method')
     end
-    local validPhoneBridges = { auto = true, generic = true, lbphone = true, npwd = true, qs = true, custom = true }
+    local validPhoneBridges = {
+        auto = true,
+        generic = true,
+        qbphone = true,
+        lbphone = true,
+        npwd = true,
+        qs = true,
+        custom = true,
+    }
     local configuredPhone = BridgeConfig.GetProvider('phone', config)
     if not validPhoneBridges[configuredPhone] then
-        addError(errors, 'PhoneBridge must be auto, generic, lbphone, npwd, qs or custom')
+        addError(errors, 'PhoneBridge must be auto, generic, qbphone, lbphone, npwd, qs or custom')
     end
     if type(config.Spatial) ~= 'table' or not isNumber(config.Spatial.cellSize)
         or config.Spatial.cellSize <= 0 then

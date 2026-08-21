@@ -13,6 +13,7 @@ end
 
 TEST('phone bridge registry exposes generic and optional adapters', function()
     ASSERT_TRUE(PhoneBridges.Get('generic') ~= nil)
+    ASSERT_TRUE(PhoneBridges.Get('qbphone') ~= nil)
     ASSERT_TRUE(PhoneBridges.Get('lbphone') ~= nil)
     ASSERT_TRUE(PhoneBridges.Get('npwd') ~= nil)
     ASSERT_TRUE(PhoneBridges.Get('qs') ~= nil)
@@ -113,6 +114,14 @@ TEST('phone bridge follows dependency resource lifecycle changes', function()
 
     PhoneBridges.Shutdown()
     ASSERT_TRUE(PhoneBridges.Initialize())
+    ASSERT_EQ(PhoneBridges.GetActive().name, 'generic')
+
+    started['qb-phone'] = true
+    TriggerTestEvent('onResourceStart', 'qb-phone')
+    ASSERT_EQ(PhoneBridges.GetActive().name, 'qbphone')
+
+    started['qb-phone'] = nil
+    TriggerTestEvent('onResourceStop', 'qb-phone')
     ASSERT_EQ(PhoneBridges.GetActive().name, 'generic')
 
     started['lb-phone'] = true

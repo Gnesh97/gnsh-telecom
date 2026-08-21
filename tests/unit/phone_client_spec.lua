@@ -52,3 +52,46 @@ TEST('lb phone client maps connection signal changes to documented service bars'
     ASSERT_EQ(calls[3].exportName, 'SetNetworkType')
     ASSERT_EQ(calls[3].bars, '5G')
 end)
+
+TEST('qb phone client forwards connection signal changes to the phone UI event', function()
+    local registered
+    local event
+    local environment = {
+        PhoneBridgeContract = {
+            Levels = { FUNCTIONAL = 'FUNCTIONAL' },
+        },
+        PhoneBridgeManager = {
+            FirstStarted = function() return 'qb-phone' end,
+            ServiceGate = function() return true, { available = true } end,
+        },
+        PhoneBridges = {
+            CreateResourceAdapter = function(name, resources, options)
+                local adapter = {
+                    name = name,
+                    resources = resources,
+                    resourceNames = resources,
+                }
+                for key, value in pairs(options or {}) do adapter[key] = value end
+                return adapter
+            end,
+            Register = function(adapter) registered = adapter end,
+        },
+        TriggerEvent = function(name, state)
+            event = { name = name, state = state }
+        end,
+    }
+    setmetatable(environment, { __index = _G })
+
+    local chunk = assert(loadfile(
+        'bridges/phones/qbphone/client.lua',
+        't',
+        environment
+    ))
+    chunk()
+
+    ASSERT_TRUE(registered ~= nil)
+    ASSERT_TRUE(registered:OnNetworkState({ signal = 37, signalLevel = 'RED' }))
+    ASSERT_EQ(event.name, 'qb-phone:client:UpdateTelecomNetwork')
+    ASSERT_EQ(event.state.signal, 37)
+    ASSERT_EQ(event.state.signalLevel, 'RED')
+end)

@@ -334,9 +334,19 @@ Supported framework adapters are standalone, QBCore, Qbox, ESX and custom.
 Inventory adapters include standalone, ox, QB, QS and custom. Target adapters
 include native, ox, QB and custom.
 
-Phone adapters include generic, LB Phone, NPWD, QS Smartphone and custom. A
-phone provider reports FULL, FUNCTIONAL or DISPLAY support honestly; resource
-detection or a pure-Lua contract test is not live compatibility certification.
+Phone adapters include generic, QBCore `qb-phone`, LB Phone, NPWD, QS
+Smartphone and custom. The QBCore adapter gates `qb-phone` voice calls and SMS
+delivery, exposes the data gate, and updates the phone header signal indicator
+from the live telecom service state as coverage changes. A phone provider reports
+FULL, FUNCTIONAL or DISPLAY support honestly; resource detection or a pure-Lua
+contract test is not live compatibility certification.
+
+For the bundled QBCore phone, the phone-side hooks live in the sibling
+`[qb]/qb-phone` resource (`client.lua`, `server.lua` and
+`html/js/app.js`), while the provider contract lives here. Keep those local
+phone-side edits when updating `qb-phone`; the resource does not expose one
+global data-app hook, so the shipped integration enforces voice and SMS and
+only exposes the data gate for consumers that opt into it.
 
 ### Custom bridge SDK
 
@@ -383,6 +393,7 @@ The current matrix is intentionally conservative:
 | Qbox with phone, inventory and target | EXPERIMENTAL |
 | ESX with phone, inventory and target | EXPERIMENTAL |
 | Phone, inventory, target, framework or notify restart lifecycle | EXPERIMENTAL |
+| QBCore `qb-phone` signal, call and SMS integration | EXPERIMENTAL |
 | LB Phone, NPWD and QS provider contracts | EXPERIMENTAL |
 
 Promotion requires a live FiveM run recording exact resource versions, startup
