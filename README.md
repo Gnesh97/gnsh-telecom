@@ -1,6 +1,6 @@
 # gnsh-telecom
 
-[![Validate FiveM resource](https://github.com/Gnesh97/gnsh-telecom/actions/workflows/validate.yml/badge.svg?branch=dev)](https://github.com/Gnesh97/gnsh-telecom/actions/workflows/validate.yml)
+[![Validate FiveM resource](https://github.com/Gnesh97/gnsh-telecom/actions/workflows/validate.yml/badge.svg)](https://github.com/Gnesh97/gnsh-telecom/actions/workflows/validate.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Release candidate](https://img.shields.io/badge/status-0.1.0--rc.1%20%7C%20experimental-orange.svg)](#status)
 
